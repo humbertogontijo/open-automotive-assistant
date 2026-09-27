@@ -1,6 +1,6 @@
-# Open Automotive Assistant — Home Assistant app repository
+# Open Automotive Assistant — Home Assistant apps
 
-Add this folder (or a git remote that contains it) as an HAOS add-on repository.
+Add `https://github.com/humbertogontijo/open-automotive-assistant` as an HAOS add-on repository. The Supervisor requires `repository.yaml` at the git root (see [`/repository.yaml`](../../repository.yaml)) and discovers the app folders below from there.
 
 Apps:
 

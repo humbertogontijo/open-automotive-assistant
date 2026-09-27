@@ -2,7 +2,7 @@ name: "Open Automotive Assistant"
 description: "Always-on OAA hub — control paired cars with the same UI as the head unit"
 version: "0.1.0"
 slug: open_automotive_assistant
-url: "https://github.com/humbertogontijo/open-car-assistant"
+url: "https://github.com/humbertogontijo/open-automotive-assistant"
 arch:
   - aarch64
   - amd64

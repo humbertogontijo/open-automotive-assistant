@@ -5,7 +5,7 @@ Self-hosted **OAA hub** as a Home Assistant OS app (add-on). Same Music Assistan
 ## Install
 
 1. Supervisor → Add-on store → ⋮ → Repositories
-2. Add this repository URL (monorepo root or a published addon repo that tracks `deploy/homeassistant`)
+2. Add `https://github.com/humbertogontijo/open-automotive-assistant`
 3. Install **Open Automotive Assistant**
 4. Start the app; open via **Ingress** or `http://HOME_ASSISTANT_IP:8787`
 

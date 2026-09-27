@@ -4,7 +4,7 @@
   "codeowners": ["@betogontijo"],
   "config_flow": true,
   "dependencies": ["http"],
-  "documentation": "https://github.com/humbertogontijo/open-car-assistant/blob/main/docs/hub.md",
+  "documentation": "https://github.com/humbertogontijo/open-automotive-assistant/blob/main/docs/hub.md",
   "iot_class": "local_polling",
   "requirements": ["aiohttp>=3.9.0"],
   "version": "0.1.0",
