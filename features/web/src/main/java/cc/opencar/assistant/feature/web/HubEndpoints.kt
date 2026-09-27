@@ -42,14 +42,14 @@ internal data class HubEndpoints(val local: NodeUrl?, val public: NodeUrl?) {
 
     /**
      * Endpoint to dial next. [localReachable]: the hub just answered a health probe on [local].
-     * [lastFailed]: the endpoint whose socket last failed to open, tried last this round.
+     * [lastFailed]: the endpoint whose socket last failed to open; when the hub answers locally
+     * it is tried last this round. A local URL whose probe failed is not dialed while there is
+     * a public one: it would only burn a connect timeout.
      */
     fun choose(localReachable: Boolean, lastFailed: Via? = null): Via? {
-        val order = when {
-            local != null && localReachable -> listOf(Via.LOCAL, Via.PUBLIC)
-            else -> listOf(Via.PUBLIC, Via.LOCAL)
-        }
-        val available = order.filter { this[it] != null }
-        return available.firstOrNull { it != lastFailed } ?: available.firstOrNull()
+        if (local == null) return Via.PUBLIC.takeIf { public != null }
+        if (!localReachable) return if (public != null) Via.PUBLIC else Via.LOCAL
+        if (public == null || lastFailed != Via.LOCAL) return Via.LOCAL
+        return Via.PUBLIC
     }
 }

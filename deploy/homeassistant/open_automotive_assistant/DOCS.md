@@ -20,14 +20,12 @@ The app runs with host networking so it can see the cars' mDNS announcements.
 Cars keep their link to the hub over Home Assistant's public URL. Nabu Casa only forwards Home Assistant itself, so the **Open Automotive Assistant integration** relays the cars to this app.
 
 1. Enable Nabu Casa **Remote access** (Settings → Home Assistant Cloud), then restart this app. At start it reads Home Assistant's Nabu Casa URL (else its external URL) and publishes it to cars. To use another URL (e.g. your own domain in front of Home Assistant), set the `public_node_url` option; it wins over the detected one.
-2. Install the integration:
-   1. Copy the `open_automotive_assistant` folder from [`homeassistant/custom_components`](https://github.com/humbertogontijo/open-automotive-assistant/tree/main/homeassistant/custom_components) in the repository into `/config/custom_components/` (with the Samba share, File editor or SSH app).
-   2. Restart Home Assistant.
+2. Restart Home Assistant (Settings → System → ⋮ → Restart Home Assistant). This app copies the integration into `/config/custom_components/open_automotive_assistant` when it starts (and updates it with the app), and posts a notification; Home Assistant only lists the integration after a restart.
 3. Add the hub: Settings → Devices & services shows **Open Automotive Assistant** as discovered → **Add**. When it asks for the token, open this app's UI → Settings → **Integration token** → **Show and copy**, and paste it. (If it is not discovered: Add integration → Open Automotive Assistant, host `127.0.0.1`.)
 
 Cars get the public URL at pairing and each time they connect, so cars paired before still pick it up. Pair at home as usual.
 
-To check it: Fleet → **Away from home** shows the URL away cars dial (or a warning when there is none), and each online car says whether it is connected over the local network or the public URL.
+To check it: Fleet → **Away from home** shows the URL away cars dial and whether it reaches the hub. "HTTP 404" there means Home Assistant was not restarted yet or the integration is not added (steps 2 and 3). Each online car says whether it is connected over the local network or the public URL.
 
 ## Remote Cameras (WebRTC)
 

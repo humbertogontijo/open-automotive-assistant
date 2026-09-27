@@ -32,7 +32,7 @@ info:
     Signaling frames and data-channel JSON carry `v: 1`; see `WebRtcSignal`,
     `DataChannelHello` and `MediaChunk` below. LAN `role=local` keeps HLS and
     direct `/api/dvr/*` HTTP.
-  version: 0.1.4
+  version: 0.1.5
 servers:
   - url: http://127.0.0.1:8787
     description: HU GeckoView / localhost (role=local)
@@ -783,6 +783,21 @@ components:
               type: string
               nullable: true
               description: What to type on a car for manual pairing (url plus any bridge prefix)
+            check:
+              type: object
+              nullable: true
+              description: Whether the URL leads back to this hub (null until the first check finishes)
+              required: [ok, checkedAtMs]
+              properties:
+                ok:
+                  type: boolean
+                detail:
+                  type: string
+                  nullable: true
+                  description: Why it failed (HTTP status and error, or the connection error)
+                checkedAtMs:
+                  type: integer
+                  format: int64
     NodeSummary:
       type: object
       required: [id, name, online]

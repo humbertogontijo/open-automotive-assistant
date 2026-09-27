@@ -52,7 +52,7 @@ Nabu Casa exposes Home Assistant only, so there away cars go through the integra
 
 Cars get the endpoint when they pair and in a `public_node` frame on every connect, so cars paired earlier pick it up the next time they are online. A new URL replaces the previously published one; the car never drops it on "none", since that could strand a car that is away. The node face serves the bridge's artifacts path too, so cars on the LAN download the same OTA offer.
 
-To check it: Fleet → **Away from home** shows the URL away cars dial (or a warning when there is none), and each online car says whether it is connected over the local network or the public URL. The hub logs `public node URL: …` on start.
+To check it: Fleet → **Away from home** shows the URL away cars dial (or a warning when there is none) and whether it works: the hub sends an empty pair request through it and expects its own node face to answer with its `hubId` (a 404 behind Home Assistant means the integration is not installed or not added). Each online car says whether it is connected over the local network or the public URL. The hub logs `public node URL: …` on start, and pings cars every 20 s, so a car that drops off the network shows offline within about 30 s.
 
 ### Local and public URL on the car
 
@@ -123,7 +123,7 @@ Fleet shows each car's app version and latest OTA state. From a dev checkout, `.
 
 ## Home Assistant entities
 
-Integration: [`homeassistant/custom_components/open_automotive_assistant`](../homeassistant/custom_components/open_automotive_assistant/), installed by copying it into `config/custom_components/` ([steps](../homeassistant/custom_components/open_automotive_assistant/README.md)). Point it at the hub with the token from Settings → **Integration token**. Zeroconf discovery uses `_oaa-hub._tcp`. Devices are created per node; entities refresh from the catalog.
+Integration: [`homeassistant/custom_components/open_automotive_assistant`](../homeassistant/custom_components/open_automotive_assistant/), copied into `config/custom_components/` by the HAOS app at start (by hand for compose hubs; [steps](../homeassistant/custom_components/open_automotive_assistant/README.md)). Point it at the hub with the token from Settings → **Integration token**. Zeroconf discovery uses `_oaa-hub._tcp`. Devices are created per node; entities refresh from the catalog.
 
 The on-car Home Assistant plugin remains for inbound shortcuts (car → HA).
 

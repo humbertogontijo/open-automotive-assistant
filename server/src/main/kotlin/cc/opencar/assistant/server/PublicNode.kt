@@ -21,6 +21,8 @@ class PublicNode(configured: String? = HubConfig.publicNodeUrl) {
 
     val sessionPath: String = if (prefix.isEmpty()) OaaPaths.NODES_SESSION else "$prefix/session"
 
+    val pairPath: String = if (prefix.isEmpty()) OaaPaths.NODES_PAIR else "$prefix/pair"
+
     /** OTA path cars get in offers; the node face serves it too, so LAN cars download the same offer. */
     val artifactsPath: String = if (prefix.isEmpty()) OaaPaths.NODES_ARTIFACTS else "$prefix/artifacts"
 

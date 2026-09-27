@@ -20,10 +20,15 @@ class HubEndpointsTest {
     }
 
     @Test
-    fun aFailedOpenTriesTheOtherEndpointNext() {
+    fun aFailedLocalOpenTriesPublicNext() {
         val both = HubEndpoints(lan, cloud)
         assertEquals(Via.PUBLIC, both.choose(localReachable = true, lastFailed = Via.LOCAL))
-        assertEquals(Via.LOCAL, both.choose(localReachable = false, lastFailed = Via.PUBLIC))
+        assertEquals(Via.LOCAL, both.choose(localReachable = true, lastFailed = Via.PUBLIC))
+    }
+
+    @Test
+    fun anUnreachableLocalUrlIsNotDialedWhilePublicExists() {
+        assertEquals(Via.PUBLIC, HubEndpoints(lan, cloud).choose(localReachable = false, lastFailed = Via.PUBLIC))
     }
 
     @Test

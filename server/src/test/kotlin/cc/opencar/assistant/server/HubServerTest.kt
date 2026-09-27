@@ -196,6 +196,25 @@ class HubServerTest {
     }
 
     @Test
+    fun publicUrlCheckTellsWhetherItLeadsBackToThisHub() {
+        val hub = startHub(18867, 18868)
+        fun check(url: String): PublicNodeCheck.Result {
+            val c = PublicNodeCheck(PublicNode(url), { hub.hub.identity.id })
+            c.refresh()
+            repeat(50) {
+                c.latest()?.let { return it }
+                Thread.sleep(100)
+            }
+            error("no result for $url")
+        }
+        assertTrue(check("http://127.0.0.1:18868").ok, "the node face itself")
+        val bridge = check("http://127.0.0.1:18868/api/oaa_node")
+        assertFalse(bridge.ok)
+        assertEquals("HTTP 404: node face: pair, session and artifacts only", bridge.detail)
+        assertFalse(check("http://127.0.0.1:1").ok, "nothing listening")
+    }
+
+    @Test
     fun staticBundleIsPrecompressedAndHashedAssetsAreImmutable() {
         startHub(18827, 18828)
         val index = http("http://127.0.0.1:18827/")

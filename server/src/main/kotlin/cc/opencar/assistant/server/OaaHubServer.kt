@@ -14,7 +14,10 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import io.ktor.server.websocket.WebSockets
+import io.ktor.server.websocket.pingPeriod
+import io.ktor.server.websocket.timeout
 import java.io.File
+import java.time.Duration
 import java.util.logging.Logger
 
 /**
@@ -43,7 +46,11 @@ class OaaHubServer(
             log.info("demo node registered")
         }
         nodeEngine = embeddedServer(CIO, port = nodePort, host = "0.0.0.0") {
-            install(WebSockets)
+            install(WebSockets) {
+                // A car that drops off the network without closing (Wi-Fi gone) is detached within ~30 s.
+                pingPeriod = Duration.ofSeconds(20)
+                timeout = Duration.ofSeconds(30)
+            }
             install(ContentNegotiation) { gson() }
             install(PartialContent)
             routing { nodeFaceRoutes(hub) }
@@ -67,6 +74,7 @@ class OaaHubServer(
         }
         log.info("human face listening on :$humanPort (data=${hub.dataDir.absolutePath})")
         log.info("public node URL: ${hub.publicNode.dialUrl ?: "none"}")
+        hub.publicCheck.refresh()
         humanEngine?.start(wait = wait)
     }
 

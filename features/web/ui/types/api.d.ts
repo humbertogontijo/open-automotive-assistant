@@ -597,6 +597,14 @@ export interface components {
                 url?: string | null;
                 /** @description What to type on a car for manual pairing (url plus any bridge prefix) */
                 dialUrl?: string | null;
+                /** @description Whether the URL leads back to this hub (null until the first check finishes) */
+                check?: {
+                    ok: boolean;
+                    /** @description Why it failed (HTTP status and error, or the connection error) */
+                    detail?: string | null;
+                    /** Format: int64 */
+                    checkedAtMs: number;
+                } | null;
             };
         };
         NodeSummary: {

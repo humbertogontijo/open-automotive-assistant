@@ -1,6 +1,6 @@
 name: "Open Automotive Assistant"
 description: "Always-on OAA hub — control paired cars with the same UI as the head unit"
-version: "0.1.4"
+version: "0.1.5"
 slug: open_automotive_assistant
 url: "https://github.com/humbertogontijo/open-automotive-assistant"
 arch:
@@ -27,6 +27,9 @@ ports_description:
   8788/tcp: OAA hub node face (car dial-in)
 map:
   - type: data
+    read_only: false
+  # run.sh keeps the Open Automotive Assistant integration in custom_components (at /homeassistant).
+  - type: homeassistant_config
     read_only: false
 environment:
   OAA_HOMEASSISTANT_ADDON: "true"

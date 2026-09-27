@@ -20,6 +20,8 @@ wa-card.form-card .ctrl-body {
   align-items: stretch;
   text-align: left;
 }
+/* URLs and tokens: wrap instead of widening the card */
+wa-card.form-card .ctrl-body .mono { overflow-wrap: anywhere; }
 
 /* Form fields and button rows inside a pref card body */
 .pref-card .ctrl-body > wa-input,

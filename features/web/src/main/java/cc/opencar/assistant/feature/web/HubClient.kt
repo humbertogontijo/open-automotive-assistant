@@ -435,7 +435,7 @@ class HubClient(
 
         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
             if (wsRef.get() !== webSocket) return
-            setError(t.message ?: "ws failure")
+            setError("${via?.wire ?: "hub"} URL: ${t.message ?: "ws failure"}")
             Log.w(TAG, "hub ws failure", t)
             dropped(webSocket)
         }

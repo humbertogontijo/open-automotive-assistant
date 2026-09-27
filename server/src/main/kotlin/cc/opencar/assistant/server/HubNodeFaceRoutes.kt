@@ -101,7 +101,8 @@ private suspend fun HubContext.handlePair(call: ApplicationCall) {
     val name = obj.optString("name").ifBlank { nodeId }
     val integration = obj.optString("integration").takeIf { it.isNotBlank() }
     if (code.isEmpty() || nodeId.isEmpty()) {
-        call.respondError(HttpStatusCode.BadRequest, "code and nodeId required")
+        // hubId lets PublicNodeCheck tell that the public URL reached this hub.
+        call.respond(HttpStatusCode.BadRequest, mapOf("ok" to false, "error" to "code and nodeId required", "hubId" to identity.id))
         return
     }
     val paired = registry.pair(code, nodeId, name, integration)

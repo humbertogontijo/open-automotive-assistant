@@ -30,6 +30,7 @@ class HubContext(
     val registry = NodeRegistry(dataDir)
     val discovered = DiscoveredCars()
     val invites = CarInvites(identity, registry, nodePort, publicNode)
+    val publicCheck = PublicNodeCheck(publicNode, { identity.id })
     val auth = AuthStore(dataDir)
     val signalRelay = WebRtcSignalRelay(registry, ice)
     val logs = LogRelay(registry)
@@ -83,6 +84,7 @@ class HubContext(
         "publicNode" to mapOf(
             "url" to publicNode.url,
             "dialUrl" to publicNode.dialUrl,
+            "check" to publicCheck.toMap(),
         ),
     )
 

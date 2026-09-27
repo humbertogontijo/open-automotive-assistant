@@ -47,7 +47,19 @@ function publicNode() {
   const fromFleet = session.fleet && session.fleet.publicNode;
   if (fromFleet) return fromFleet;
   const hub = session.hubJoin || {};
-  return { url: hub.publicNodeUrl || null, dialUrl: hub.publicDialUrl || null };
+  return { url: hub.publicNodeUrl || null, dialUrl: hub.publicDialUrl || null, check: null };
+}
+
+/** The hub's own test of its public URL (an empty pair request that must come back to this hub). */
+function publicCheckLine(check) {
+  if (!check) return html`<p class="hint">${t("fleet.public_checking", "Checking that this URL reaches the hub…")}</p>`;
+  if (check.ok) return html`<p class="hint">${t("fleet.public_ok", "Checked: this URL reaches the hub.")}</p>`;
+  return html`<wa-callout variant="warning" size="small">
+    ${t(
+      "fleet.public_failed",
+      "Cars cannot reach the hub through this URL ({detail}). For a Home Assistant URL, the Open Automotive Assistant integration must be installed and added.",
+    ).replace("{detail}", check.detail || "?")}
+  </wa-callout>`;
 }
 
 /** A browser host a car on the same network can dial too (not a Nabu Casa / tunnel name). */
@@ -312,11 +324,13 @@ class OaaPageFleet extends OaaPage {
     const pub = publicNode();
     const url = pub.dialUrl || pub.url;
     return prefCard({
+      cls: "form-card",
       icon: "about",
       title: t("fleet.public_title", "Away from home"),
       body: url
         ? html`<p class="hint">${t("fleet.public_url", "Cars off this network dial this public URL:")}</p>
-            <p class="hint mono">${url}</p>`
+            <p class="hint mono">${url}</p>
+            ${publicCheckLine(pub.check)}`
         : html`<wa-callout variant="warning" size="small">
             ${t(
               "fleet.public_none",
