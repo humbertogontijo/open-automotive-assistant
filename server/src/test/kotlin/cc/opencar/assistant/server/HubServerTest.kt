@@ -178,6 +178,24 @@ class HubServerTest {
     }
 
     @Test
+    fun spaServesFleetAtRootAndCarsUnderTheirId() {
+        val hub = startHub(18857, 18858)
+        val registry = hub.hub.registry
+        registry.pair(registry.createPairingCode().code, "car1", "Car", null)
+        val base = "http://127.0.0.1:18857"
+        for (path in listOf("/", "/settings", "/car1", "/car1/", "/car1/cameras", "/gone/cameras")) {
+            val reply = http(base + path)
+            assertEquals(200, reply.code, path)
+            assertTrue(String(reply.body).contains("<html", ignoreCase = true), path)
+        }
+        assertTrue(String(http("$base/car1/cameras").body).contains("<base href=\"../\">"), "relative assets resolve from the root")
+        assertFalse(String(http("$base/car1").body).contains("<base "))
+        assertEquals(404, http("$base/nope").code, "not a page or a paired car")
+        assertEquals(404, http("$base/car1/nope").code)
+        assertEquals(401, http("$base/api/nodes").code, "API routes win over car paths")
+    }
+
+    @Test
     fun staticBundleIsPrecompressedAndHashedAssetsAreImmutable() {
         startHub(18827, 18828)
         val index = http("http://127.0.0.1:18827/")

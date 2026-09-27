@@ -528,7 +528,7 @@ class HubClient(
      * would strand it where it can never hear the next update.
      */
     private fun applyPublicNode(payload: JSONObject) {
-        val next = NodeUrl.parse(payload) ?: return
+        val next = NodeUrl.fromPublicNode(payload) ?: return
         val endpoints = endpoints()
         if (next == endpoints.public) return
         prefs.edit().putEndpoints(endpoints.copy(public = next)).apply()

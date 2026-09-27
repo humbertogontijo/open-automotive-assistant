@@ -100,7 +100,9 @@ The car's own `:8787` API answers only paired callers. Open `http://CAR_IP:8787`
 
 ## Remote control and debug
 
-The hub forwards `/api/*` (any signed-in user) and `/debug/*` (admins only) to the selected car as `rpc` frames over the node session. The car is chosen by the `X-Oaa-Node` header, then `?node=`, then the `oaa_node` cookie the SPA sets when you pick a car in Fleet — so plain links such as **Export zip** work. Bodies are binary-safe and capped at 2.5 MiB each way (413 beyond that; use the car's LAN URL for larger downloads).
+The hub forwards `/api/*` (any signed-in user) and `/debug/*` (admins only) to the selected car as `rpc` frames over the node session. The car is chosen by the `X-Oaa-Node` header, then `?node=`, then the `oaa_node` cookie the SPA sets for the open car — so plain links such as **Export zip** work.
+
+In the hub UI the fleet is `/` and hub settings `/settings`; a car's pages live under its node id (`/<node>/`, `/<node>/cameras`), so a reload or bookmark reopens the same car. When that car is offline, unknown or not answering, the UI returns to the fleet with a notice. Bodies are binary-safe and capped at 2.5 MiB each way (413 beyond that; use the car's LAN URL for larger downloads).
 
 The Lab page works through the hub: re-probe, OBD2, export, the ADB hint and **Live logs** (`WS /debug/logs/stream?token=…&node=…`, relayed as `log_subscribe` / `log` frames). The contributor token is still checked by the car.
 

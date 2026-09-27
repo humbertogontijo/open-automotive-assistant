@@ -57,7 +57,7 @@ class OaaHubServer(
             install(WebSockets)
             routing {
                 get(OaaPaths.HEALTH) { call.respond(mapOf("ok" to true, "face" to "human")) }
-                staticRoutes()
+                staticRoutes(isNode = { hub.registry.get(it) != null })
                 authRoutes(hub)
                 webRtcRoutes(hub)
                 otaRoutes(hub)

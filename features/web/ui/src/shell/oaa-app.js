@@ -31,7 +31,7 @@ function revealFocusedField() {
 export class OaaApp extends OaaElement {
   constructor() {
     super();
-    this.router = createRouter(this, { view: pageView, enter: enterPage });
+    this.router = createRouter(this, { view: () => pageView(session.page), enter: enterPage });
     this._onGoto = (/** @type {CustomEvent} */ ev) => {
       if (typeof ev.detail !== "string" || !ev.detail) return;
       ev.preventDefault();

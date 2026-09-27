@@ -5,6 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.json.JSONObject
 import org.junit.Test
 
 class HubEndpointsTest {
@@ -44,5 +45,12 @@ class HubEndpointsTest {
         assertEquals(cloud, NodeUrl.parse(cloud.toJson().toString()))
         assertNull(NodeUrl.parse("""{"url":"ftp://x"}"""))
         assertNull(NodeUrl.parse(null as String?))
+    }
+
+    @Test
+    fun publicNodeFrameGivesThePublicEndpoint() {
+        val frame = JSONObject("""{"v":1,"sessionPath":"/api/oaa_node/session","publicNodeUrl":"https://x.ui.nabu.casa/"}""")
+        assertEquals(cloud, NodeUrl.fromPublicNode(frame))
+        assertNull(NodeUrl.fromPublicNode(JSONObject("""{"v":1,"sessionPath":"/api/nodes/session"}""")))
     }
 }

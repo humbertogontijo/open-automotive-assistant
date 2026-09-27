@@ -18,6 +18,13 @@ internal data class NodeUrl(val url: String, val sessionPath: String = OaaPaths.
         }
 
         fun parse(raw: String?): NodeUrl? = raw?.let { runCatching { parse(JSONObject(it)) }.getOrNull() }
+
+        /** The hub's `public_node` frame payload (`{v, publicNodeUrl?, sessionPath}`). */
+        fun fromPublicNode(payload: JSONObject): NodeUrl? {
+            val url = payload.optString("publicNodeUrl").trim().trimEnd('/')
+            if (!url.startsWith("http")) return null
+            return NodeUrl(url, payload.optString("sessionPath").ifBlank { OaaPaths.NODES_SESSION })
+        }
     }
 }
 

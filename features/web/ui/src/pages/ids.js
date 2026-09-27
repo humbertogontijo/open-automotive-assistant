@@ -4,6 +4,7 @@
  */
 
 import { appUrl, stripBase } from "../base.js";
+import { session } from "../store.js";
 
 /** @typedef {{ tag: string, group?: string, load?: () => Promise<unknown> }} PageDef */
 
@@ -42,18 +43,46 @@ export function isKnownPage(id) {
   return !!id && Object.prototype.hasOwnProperty.call(PAGES, id);
 }
 
-/** Browser pathname for a page id (`home` → BASE_PATH, `cameras` → BASE_PATH + `cameras`). */
-export function pagePath(id) {
-  return appUrl(!id || id === "home" ? "/" : "/" + id);
+/**
+ * Browser pathname for a page. On the car: `/`, `/cameras`. On a hub the fleet is `/`, hub
+ * settings `/settings`, and a car's pages live under its id: `/<node>/`, `/<node>/cameras`.
+ * [node] defaults to the open car; "" addresses the hub itself.
+ * @param {string} id @param {string} [node]
+ */
+export function pagePath(id, node) {
+  if (session.role !== "hub") return appUrl(!id || id === "home" ? "/" : "/" + id);
+  const car = node === undefined ? session.selectedNodeId : node;
+  if (!car || id === "fleet") return appUrl(id === "settings" && !car ? "/settings" : "/");
+  return appUrl("/" + encodeURIComponent(car) + "/" + (!id || id === "home" ? "" : id));
 }
 
-/** Page id from a browser pathname (`/cameras` → `cameras`). Unknown → `home`. */
-export function pathToPage(pathname) {
-  var path = stripBase(pathname);
-  if (path.length > 1 && path.charAt(path.length - 1) === "/") {
-    path = path.slice(0, -1);
+function decodeSegment(s) {
+  try {
+    return decodeURIComponent(s);
+  } catch (e) {
+    return s;
   }
-  if (path === "/" || path === "") return "home";
-  var id = path.slice(1).split("/")[0];
-  return isKnownPage(id) ? id : "home";
+}
+
+/**
+ * Node and page from a browser pathname: `/cameras` → `{node: "", page: "cameras"}`,
+ * `/node-1/cameras` → `{node: "node-1", page: "cameras"}`. Unknown pages → `home`.
+ * @returns {{ node: string, page: string }}
+ */
+export function parseLocation(pathname) {
+  const segs = stripBase(pathname).split("/").filter(Boolean).map(decodeSegment);
+  if (!segs.length) return { node: "", page: "home" };
+  if (isKnownPage(segs[0])) return { node: "", page: segs[0] };
+  return { node: segs[0], page: isKnownPage(segs[1]) ? segs[1] : "home" };
+}
+
+/**
+ * What a parsed location shows for [role]. The car ignores node segments; a hub with no car
+ * open shows the fleet (or its own settings).
+ * @param {{ node: string, page: string }} loc @param {string} role
+ */
+export function resolveRoute(loc, role) {
+  if (role !== "hub") return { node: "", page: loc.page };
+  if (!loc.node || loc.page === "fleet") return { node: "", page: !loc.node && loc.page === "settings" ? "settings" : "fleet" };
+  return loc;
 }

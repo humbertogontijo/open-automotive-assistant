@@ -3,6 +3,7 @@ import { session } from "../store.js";
 import { t } from "../i18n.js";
 import { api, errText, postJson } from "../api.js";
 import { selectNode } from "../node-select.js";
+import { pagePath } from "./ids.js";
 import { prefCard } from "../ui/cards/prefs.js";
 import { confirmDialog } from "../ui/confirm.js";
 import { toast, toastError } from "../ui/toast.js";
@@ -118,7 +119,7 @@ function nodeCard(n) {
           : html`<p class="hint">${otaLine(n.ota)}</p>`
         : nothing}
       <div class="pref-actions">
-        <wa-button variant="brand" ?disabled=${!online} @click=${() => selectNode(n.id)}>${t("fleet.open", "Open")}</wa-button>
+        <wa-button variant="brand" ?disabled=${!online} href=${pagePath("home", n.id)}>${t("fleet.open", "Open")}</wa-button>
         <wa-button appearance="outlined" variant="danger" @click=${() => forget(n)}>${t("fleet.forget", "Forget")}</wa-button>
       </div>
     `,
@@ -329,7 +330,12 @@ class OaaPageFleet extends OaaPage {
     const nodes = (session.fleet && session.fleet.nodes) || [];
     const offer = this.offer;
     return html`
-      <h1>${t("nav.fleet", "Fleet")}</h1>
+      <div class="page-head">
+        <h1>${t("nav.fleet", "Fleet")}</h1>
+        ${isAdmin()
+          ? html`<wa-button appearance="plain" href=${pagePath("settings", "")}>${t("nav.settings", "Settings")}</wa-button>`
+          : nothing}
+      </div>
       <p class="hint">
         ${t("fleet.hint_invite", "Open a car to control it with the same UI. Add a nearby car, then type the code its screen shows.")}
       </p>

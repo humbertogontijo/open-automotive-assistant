@@ -11,6 +11,7 @@ import { OaaPage } from "../lit/oaa-page.js";
 import { toast, toastError } from "../ui/toast.js";
 import { confirmDialog } from "../ui/confirm.js";
 import { loadShortcuts } from "../shortcuts-data.js";
+import { pagePath } from "./ids.js";
 
 async function updatePrefs(body) {
   const res = await postForm("/api/prefs", body);
@@ -131,6 +132,11 @@ function isHeadUnit() {
   return !!(session.hubAuth && session.hubAuth.headUnit);
 }
 
+/** Hub with no car open: this page shows the hub's own settings. */
+function isHubItself() {
+  return session.role === "hub" && !session.selectedNodeId;
+}
+
 class OaaPageSettings extends OaaPage {
   static properties = {
     hubUrl: { state: true },
@@ -153,6 +159,7 @@ class OaaPageSettings extends OaaPage {
   }
 
   load() {
+    if (isHubItself()) return Promise.resolve();
     return Promise.all([loadShortcuts(), this.loadClients()]);
   }
 
@@ -231,8 +238,9 @@ class OaaPageSettings extends OaaPage {
   /** Hub admins: the machine token integrations (Home Assistant) sign in with. */
   integrationTokenCard() {
     const user = (session.status && session.status.user) || (session.hubAuth && session.hubAuth.user);
-    if (session.role !== "hub" || session.selectedNodeId || !user || user.role !== "admin") return nothing;
+    if (!isHubItself() || !user || user.role !== "admin") return nothing;
     return prefCard({
+      cls: "form-card",
       icon: "lock",
       title: t("hub.integration_token", "Integration token"),
       body: html`
@@ -331,6 +339,15 @@ class OaaPageSettings extends OaaPage {
   }
 
   render() {
+    if (isHubItself()) {
+      return html`
+        <div class="page-head">
+          <h1>${t("nav.settings", "Settings")}</h1>
+          <wa-button appearance="plain" href=${pagePath("fleet", "")}>${t("nav.fleet", "Fleet")}</wa-button>
+        </div>
+        <div class="grid">${this.integrationTokenCard()}</div>
+      `;
+    }
     const localeOpts = i18n.locales.map((loc) => ({
       value: loc,
       label: loc === "pt-BR" ? t("locale.pt-BR", "Português") : t("locale." + loc, loc),

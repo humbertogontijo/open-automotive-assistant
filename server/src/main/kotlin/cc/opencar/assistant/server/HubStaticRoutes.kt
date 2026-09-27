@@ -20,7 +20,10 @@ import java.io.File
  * SPA shell + `web/` assets (the same bundle the car serves). `OAA_WEB_DIR` serves
  * them from disk instead, e.g. `features/web/ui/build/dist/web` with `npm run dev`.
  */
-internal fun Routing.staticRoutes(webDir: File? = System.getenv("OAA_WEB_DIR")?.takeIf { it.isNotBlank() }?.let(::File)) {
+internal fun Routing.staticRoutes(
+    isNode: (String) -> Boolean,
+    webDir: File? = System.getenv("OAA_WEB_DIR")?.takeIf { it.isNotBlank() }?.let(::File),
+) {
     val read = OaaStatic.cachingImmutable(
         if (webDir != null) {
             { rel -> File(webDir, rel).takeIf { it.isFile }?.readBytes() }
@@ -39,13 +42,34 @@ internal fun Routing.staticRoutes(webDir: File? = System.getenv("OAA_WEB_DIR")?.
             ?: return@get call.respond(HttpStatusCode.NotFound)
         call.respondAsset(asset)
     }
+    // Hub pages (`/settings`) and a car's home without the slash (`/<node>`).
     get("/{section}") {
-        if (call.parameters["section"] !in OaaSpa.PAGES) {
+        val section = call.parameters["section"].orEmpty()
+        if (section !in OaaSpa.PAGES && !isNode(section)) {
             call.respond(HttpStatusCode.NotFound)
             return@get
         }
         serveIndex(call, read)
     }
+    // A car's pages: `/<node>/`, `/<node>/cameras`. Unknown cars still get the SPA, which returns to the fleet.
+    get("/{node}/") { serveNestedIndex(call, read) }
+    get("/{node}/{section}") {
+        if (call.parameters["section"] !in OaaSpa.PAGES) {
+            call.respond(HttpStatusCode.NotFound)
+            return@get
+        }
+        serveNestedIndex(call, read)
+    }
+}
+
+/**
+ * The shell one directory below the web root. Its asset URLs are relative (so Ingress prefixes
+ * work), hence a `<base>` pointing back up to the root.
+ */
+private suspend fun serveNestedIndex(call: ApplicationCall, read: (String) -> ByteArray?) {
+    val html = read(OaaStatic.INDEX)?.toString(Charsets.UTF_8) ?: return serveIndex(call, read)
+    call.response.header(HttpHeaders.CacheControl, OaaStatic.CACHE_NO_STORE)
+    call.respondText(html.replaceFirst("<head>", "<head><base href=\"../\">"), ContentType.Text.Html)
 }
 
 private suspend fun serveIndex(call: ApplicationCall, read: (String) -> ByteArray?) {
