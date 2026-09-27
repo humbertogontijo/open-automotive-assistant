@@ -1,10 +1,10 @@
 import { quickEntryCard } from "./shortcuts.js";
 import { prefCard, prefSegment } from "../ui/cards.js";
 import { theme } from "../theme.js";
-import { html, live } from "../lit.js";
+import { html } from "../lit.js";
 import { state, patch } from "../store.js";
 import { t } from "../i18n.js";
-import { api } from "../api.js";
+import { api, errText } from "../api.js";
 import { unitPrefs, UNIT_CHOICES } from "../units.js";
 
 async function updatePrefs(body) {
@@ -128,7 +128,7 @@ export function pageSettings() {
             max="5000"
             step="10"
             style="width:100%;margin:4px 0 8px"
-            .value=${live(String(homeRadius))}
+            .value=${String(homeRadius)}
             @change=${async function (ev) {
               const r = parseFloat(ev.target.value);
               if (isNaN(r)) return;
@@ -163,7 +163,7 @@ export function pageSettings() {
                   });
                 } catch (e) {
                   patch({
-                    shortcutMessage: String(e && e.message ? e.message : e),
+                    shortcutMessage: errText(e),
                   });
                 }
               }}
@@ -214,6 +214,109 @@ export function pageSettings() {
           </button>
         </div>`,
       })}
+      ${state.role === "local"
+        ? prefCard({
+            icon: "plugins",
+            title: t("hub.title", "Hub"),
+            body: hubJoinBody(),
+          })
+        : ""}
     </div>
+  `;
+}
+
+function hubJoinBody() {
+  const hub = (state.status && state.status.hub) || state.hubJoin || {};
+  const url = hub.hubUrl || "";
+  const paired = !!hub.paired;
+  const online = !!hub.online;
+  return html`
+    <p class="hint">
+      ${paired
+        ? online
+          ? t("hub.online", "Connected to hub")
+          : t("hub.offline", "Paired — reconnecting…")
+        : t(
+            "hub.hint",
+            "Pair this car with a self-hosted OAA hub. Use the hub's node address (port 8788), shown on the hub's Fleet page.",
+          )}
+      ${hub.lastError ? " · " + hub.lastError : ""}
+    </p>
+    <label class="hint" style="display:block;margin-top:8px"
+      >${t("hub.url", "Hub node URL")}</label
+    >
+    <input
+      class="field"
+      type="url"
+      id="hubUrlInput"
+      placeholder="http://192.168.1.10:8788 or https://….ui.nabu.casa/api/oaa_node"
+      style="width:100%;margin:4px 0 8px"
+      .value=${url}
+    />
+    ${hub.nodeUrl
+      ? html`<p class="hint mono">
+          ${t("hub.node_url", "Dial-out:")} ${hub.nodeUrl}
+        </p>`
+      : ""}
+    <label class="hint" style="display:block"
+      >${t("hub.code", "Pairing code")}</label
+    >
+    <input
+      class="field"
+      type="text"
+      id="hubCodeInput"
+      inputmode="numeric"
+      placeholder="123456"
+      style="width:100%;margin:4px 0 8px"
+    />
+    <div class="row" style="width:100%;margin:0;gap:8px">
+      <button
+        class="btn primary"
+        style="flex:1"
+        @click=${async function () {
+          const hubUrl = (document.getElementById("hubUrlInput") || {}).value || "";
+          const code = (document.getElementById("hubCodeInput") || {}).value || "";
+          try {
+            const res = await api("/api/hub", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ hubUrl: hubUrl, code: code }),
+            });
+            patch({
+              hubJoin: res,
+              status: Object.assign({}, state.status || {}, { hub: res }),
+              hubMessage: res.ok
+                ? { ok: true, text: t("hub.paired", "Paired") }
+                : { ok: false, text: t("hub.failed", "Pairing failed") + (res.error ? ": " + res.error : "") },
+            });
+          } catch (e) {
+            patch({ hubMessage: { ok: false, text: t("hub.failed", "Pairing failed") + ": " + errText(e) } });
+          }
+        }}
+      >
+        ${t("hub.join", "Join hub")}
+      </button>
+      <button
+        class="btn ghost"
+        style="flex:1"
+        ?disabled=${!paired}
+        @click=${async function () {
+          try {
+            const res = await api("/api/hub", { method: "DELETE" });
+            patch({
+              hubJoin: res,
+              status: Object.assign({}, state.status || {}, { hub: res }),
+            });
+          } catch (e) {}
+        }}
+      >
+        ${t("hub.leave", "Leave")}
+      </button>
+    </div>
+    ${state.hubMessage
+      ? html`<p class="hint" style=${state.hubMessage.ok ? "" : "color:var(--warn, #c90)"}>
+          ${state.hubMessage.text}
+        </p>`
+      : ""}
   `;
 }

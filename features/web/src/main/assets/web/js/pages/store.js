@@ -1,7 +1,7 @@
 import { html, nothing, unsafeHTML } from "../lit.js";
 import { state, patch } from "../store.js";
 import { t } from "../i18n.js";
-import { api } from "../api.js";
+import { api, errText } from "../api.js";
 import { iconSvg } from "../icons.js";
 
 function icon(name) {
@@ -23,7 +23,7 @@ async function runSearch() {
     patch({
       storeResults: [],
       storeBusy: false,
-      storeMessage: String(e && e.message ? e.message : e),
+      storeMessage: errText(e),
     });
   }
 }
@@ -36,7 +36,7 @@ async function openPackage(pkg) {
   } catch (e) {
     patch({
       storeBusy: false,
-      storeMessage: String(e && e.message ? e.message : e),
+      storeMessage: errText(e),
     });
   }
 }
@@ -66,7 +66,7 @@ async function installDetail() {
   } catch (e) {
     patch({
       storeBusy: false,
-      storeMessage: String(e && e.message ? e.message : e),
+      storeMessage: errText(e),
     });
   }
 }
@@ -88,7 +88,7 @@ async function installApkFile(file) {
           : t("store.installed", "Installed"),
     });
   } catch (e) {
-    patch({ apkMessage: String(e && e.message ? e.message : e) });
+    patch({ apkMessage: errText(e) });
   }
 }
 
@@ -303,7 +303,7 @@ export function ensureStoreLoaded() {
         storeMessage:
           (state.storeResults && state.storeResults.length)
             ? null
-            : String(e && e.message ? e.message : e),
+            : errText(e),
       });
     });
 }

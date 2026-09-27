@@ -1,0 +1,17 @@
+{
+  "domain": "open_automotive_assistant",
+  "name": "Open Automotive Assistant",
+  "codeowners": ["@betogontijo"],
+  "config_flow": true,
+  "dependencies": ["http"],
+  "documentation": "https://github.com/humbertogontijo/open-car-assistant/blob/main/docs/hub.md",
+  "iot_class": "local_polling",
+  "requirements": ["aiohttp>=3.9.0"],
+  "version": "0.1.0",
+  "zeroconf": [
+    {
+      "type": "_oaa-hub._tcp.local.",
+      "name": "Open Automotive Assistant Hub*"
+    }
+  ]
+}

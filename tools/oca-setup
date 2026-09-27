@@ -1,3 +1,0 @@
-#!/usr/bin/env bash
-# Deprecated alias — use ./tools/oaa-setup
-exec "$(cd "$(dirname "$0")" && pwd)/oaa-setup" "$@"

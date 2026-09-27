@@ -1,0 +1,32 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Open Automotive Assistant",
+        "description": "Connect to an OAA hub (or a single car on the LAN). Use a hub API token after hub login/setup.",
+        "data": {
+          "host": "Host",
+          "port": "Human face port",
+          "node_port": "Node face port",
+          "node_id": "Node id (optional, for hub fleets)",
+          "token": "Hub API token (Bearer)"
+        }
+      },
+      "zeroconf_confirm": {
+        "title": "OAA hub discovered",
+        "description": "Found Open Automotive Assistant at {host}",
+        "data": {
+          "node_id": "Node id (optional)",
+          "token": "Hub API token (Bearer)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not connect to the OAA server (check host, port and token)",
+      "invalid_role": "That address answered, but it is not an OAA hub or car"
+    },
+    "abort": {
+      "already_configured": "This OAA host is already configured"
+    }
+  }
+}

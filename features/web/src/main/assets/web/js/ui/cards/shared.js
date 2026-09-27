@@ -85,7 +85,7 @@ export function hideBtn(id, restore) {
  */
 export function cardSpan(c) {
   if (!c) return { cols: 1, rows: 1 };
-  const domain = c.domain || c.entity || c.input;
+  const domain = c.domain || c.input;
   if (DOMAIN_SPAN[domain]) return DOMAIN_SPAN[domain];
   if (c.input === "climate" || c.input === "media_player" || c.input === "light") {
     return { cols: 1, rows: 2 };

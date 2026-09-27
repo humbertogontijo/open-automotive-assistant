@@ -63,8 +63,14 @@ jobs:
           test -f CODE_OF_CONDUCT.md
           test -f docs/disclaimer.md
 
+      - name: Version in sync
+        run: python3 tools/sync-version --check
+
       - name: Assemble debug
         run: ./gradlew :app:assembleDebug :signing:compileKotlin --no-daemon --stacktrace
+
+      - name: Hub server jar + tests
+        run: ./gradlew :server:jar :server:test --no-daemon --stacktrace
 
       - name: Unit tests
         run: ./gradlew :integrations:platform:aaos:testDebugUnitTest :integrations:demo:testDebugUnitTest :integration-api:testDebugUnitTest --no-daemon --stacktrace

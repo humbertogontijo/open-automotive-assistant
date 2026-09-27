@@ -4,6 +4,7 @@
  */
 export const PAGE_IDS = [
   "home",
+  "fleet",
   "history",
   "controls",
   "drive",

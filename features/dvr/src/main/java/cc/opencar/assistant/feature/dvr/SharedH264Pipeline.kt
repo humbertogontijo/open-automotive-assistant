@@ -7,6 +7,7 @@ import android.media.MediaMuxer
 import android.util.Log
 import java.io.File
 import java.nio.ByteBuffer
+import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
@@ -24,6 +25,12 @@ class SharedH264Pipeline(
     private val height: Int,
     private val fps: Int,
 ) {
+    fun interface SampleTap {
+        fun onSample(unit: MosaicH264Encoder.AccessUnit)
+    }
+
+    /** Extra consumers of encoded AccessUnits (e.g. WebRTC pass-through). Config units are not delivered. */
+    private val taps = CopyOnWriteArraySet<SampleTap>()
     private val encoder = MosaicH264Encoder(width, height, fps = fps)
     private val fmp4 = Fmp4LiveMuxer(width, height).also { it.setFps(fps) }
     private val gl = MosaicGlComposer(width, height)
@@ -39,7 +46,7 @@ class SharedH264Pipeline(
 
     private var glJob: Future<*>? = null
     private val glExec = Executors.newSingleThreadExecutor { r ->
-        Thread(r, "oca-h264-gl").apply { isDaemon = true }
+        Thread(r, "oaa-h264-gl").apply { isDaemon = true }
     }
     @Volatile private var cameraTextures: List<SurfaceTexture> = emptyList()
     @Volatile private var measuredFps: Int = fps
@@ -57,6 +64,21 @@ class SharedH264Pipeline(
         fmp4.hlsPlaylistBlocking(msn, timeoutMs)
     fun activeFile(): File? = activeMp4
     fun bytesWritten(): Long = bytesWritten.get()
+    fun videoWidth(): Int = width
+    fun videoHeight(): Int = height
+    fun fps(): Int = fps
+    fun requestKeyFrame() = encoder.requestKeyFrame()
+    fun addTap(tap: SampleTap) = taps.add(tap)
+    fun removeTap(tap: SampleTap) = taps.remove(tap)
+
+    /** SPS + PPS as Annex-B (start-code prefixed), or null before the codec reports them. */
+    fun parameterSetsAnnexB(): ByteArray? {
+        val s0 = encoder.csd0()
+        val s1 = encoder.csd1()
+        if (s0 != null && s1 != null) return AnnexB.withStartCode(s0) + AnnexB.withStartCode(s1)
+        val merged = encoder.spsPps() ?: return null
+        return if (AnnexB.hasStartCode(merged)) merged else null
+    }
 
     fun start(
         tileCount: Int,
@@ -191,6 +213,9 @@ class SharedH264Pipeline(
         synchronized(muxerLock) {
             writeDvrLocked(unit)
             fmp4.onSample(unit.data, unit.isKeyFrame)
+        }
+        for (tap in taps) {
+            runCatching { tap.onSample(unit) }.onFailure { Log.w(TAG, "tap: ${it.message}") }
         }
     }
 

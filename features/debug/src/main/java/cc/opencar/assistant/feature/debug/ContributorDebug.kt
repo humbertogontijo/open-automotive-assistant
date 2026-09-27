@@ -4,6 +4,10 @@ import android.content.Context
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.provider.Settings
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.UUID
@@ -15,10 +19,16 @@ import kotlin.random.Random
 object LogRingBuffer {
     private const val MAX = 2000
     private val lines = ConcurrentLinkedDeque<String>()
+    private val _live = MutableSharedFlow<String>(extraBufferCapacity = 256, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+
+    /** Lines appended after subscription (pair with [snapshot] for backlog). */
+    val live: SharedFlow<String> = _live.asSharedFlow()
 
     fun append(line: String) {
-        lines.addLast("${System.currentTimeMillis()} $line")
+        val stamped = "${System.currentTimeMillis()} $line"
+        lines.addLast(stamped)
         while (lines.size > MAX) lines.pollFirst()
+        _live.tryEmit(stamped)
     }
 
     fun snapshot(): List<String> = lines.toList()
@@ -27,7 +37,7 @@ object LogRingBuffer {
 }
 
 class ContributorDebugState(context: Context) {
-    private val prefs = context.getSharedPreferences("oca_debug", Context.MODE_PRIVATE)
+    private val prefs = context.getSharedPreferences("oaa_debug", Context.MODE_PRIVATE)
     private val appContext = context.applicationContext
 
     var contributorMode: Boolean

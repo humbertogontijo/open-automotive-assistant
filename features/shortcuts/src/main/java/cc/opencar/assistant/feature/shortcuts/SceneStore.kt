@@ -17,7 +17,7 @@ import org.json.JSONObject
  */
 class SceneStore private constructor(context: Context) {
     private val store = PreferenceDataStoreFactory.create {
-        context.applicationContext.preferencesDataStoreFile("oca_scenes")
+        context.applicationContext.preferencesDataStoreFile("oaa_scenes")
     }
 
     val scenes: Flow<List<Scene>> = store.data.map { prefs ->
@@ -48,15 +48,6 @@ class SceneStore private constructor(context: Context) {
             val idx = current.indexOfFirst { it.id == Scene.SENTINEL_ID }
             if (idx < 0) {
                 current.add(0, factory)
-                prefs[KEY_LIST] = serialize(current)
-                prefs[KEY_SEEDED] = true
-            } else if (isLegacySentinelTargets(current[idx])) {
-                val old = current[idx]
-                current[idx] = factory.copy(
-                    name = old.name,
-                    icon = old.icon,
-                    enabled = old.enabled,
-                )
                 prefs[KEY_LIST] = serialize(current)
                 prefs[KEY_SEEDED] = true
             }
@@ -151,11 +142,6 @@ class SceneStore private constructor(context: Context) {
         private val KEY_ACTIVE = stringPreferencesKey("active_json")
         private val KEY_SNAPSHOTS = stringPreferencesKey("snapshots_json")
         private val KEY_SEEDED = booleanPreferencesKey("seeded")
-
-        /** Previous Sentinel cut accessory charging draws; now cabin HVAC / lights. */
-        fun isLegacySentinelTargets(scene: Scene): Boolean =
-            scene.id == Scene.SENTINEL_ID &&
-                scene.targets.any { it.entityId.startsWith("charge_") }
 
         @Volatile
         private var instance: SceneStore? = null

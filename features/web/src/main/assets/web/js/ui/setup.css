@@ -13,6 +13,15 @@
 }
 .setup-panel h1 { margin: 0 0 0.5rem; font-size: 1.75rem; }
 .setup-panel .sub { margin-bottom: 1.25rem; color: var(--text-muted); font-size: 1.05rem; }
+form.setup-panel { width: min(28rem, 94vw); }
+form.setup-panel label {
+  display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1rem;
+  font-size: 0.95rem; color: var(--text-muted);
+}
+form.setup-panel input { width: 100%; box-sizing: border-box; color: var(--text); }
+form.setup-panel .auth-msg { color: var(--warn); font-size: 0.95rem; margin: 0 0 1rem; }
+form.setup-panel .auth-msg:empty { display: none; }
+form.setup-panel button[type=submit] { width: 100%; }
 .setup-step {
   display: flex; gap: 1rem; padding: 1rem 0; border-bottom: 1px solid var(--border);
 }

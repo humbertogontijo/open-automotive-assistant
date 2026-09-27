@@ -22,17 +22,17 @@ export function pageHome() {
   const viewing = isShowingHidden("home");
   const items = viewing
     ? hiddenEntitiesByGroup("home").filter(function (e) {
-        return e.entity === "sensor" || e.domain === "sensor";
+        return e.domain === "sensor";
       })
     : state.entities.filter(function (e) {
-        return e.group === "home" && (e.entity === "sensor" || e.domain === "sensor") && e.status === "ok";
+        return e.group === "home" && e.domain === "sensor" && e.status === "ok";
       });
   const heroPool = viewing
     ? items
     : (state.entities || []).filter(function (e) {
         if (!(e.status === "ok" || e.status === "cached")) return false;
         if (e.id === "drivetrain.vehicle" || e.id === "drivetrain") return true;
-        return e.group === "home" && (e.entity === "sensor" || e.domain === "sensor");
+        return e.group === "home" && e.domain === "sensor";
       });
   const hero = pickEntities(heroPool, HOME_HERO_IDS);
   const heroIds = {};

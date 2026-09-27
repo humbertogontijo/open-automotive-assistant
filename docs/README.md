@@ -8,6 +8,7 @@ Start here. Prefer the how-to for your task; use architecture only for the modul
 |--------------|------|
 | Build / install / contribute | [../README.md](../README.md), [../CONTRIBUTING.md](../CONTRIBUTING.md) |
 | Understand modules & SPI | [architecture.md](architecture.md), [adr/0001-architecture-north-star.md](adr/0001-architecture-north-star.md) |
+| Hub / multi-car / self-host | [adr/0003-hub.md](adr/0003-hub.md), [hub.md](hub.md), [webrtc.md](webrtc.md) |
 | Add a vehicle platform | [adding-an-integration.md](adding-an-integration.md) — start from **`demo`** or **`ihu629g`** |
 | Add an external bridge | [plugins.md](plugins.md) |
 | Add a shell feature | [adding-a-feature.md](adding-a-feature.md) |
@@ -16,7 +17,7 @@ Start here. Prefer the how-to for your task; use architecture only for the modul
 | Antora binding notes (HVAC zones, Wave) | [composites.md](composites.md) |
 | Automations (flows / scenes / routines) | [shortcuts.md](shortcuts.md) |
 | HTTP / WebSocket contract | [openapi/open-automotive-assistant-v1.yaml](openapi/open-automotive-assistant-v1.yaml) |
-| Threat model / install safety | [safety.md](safety.md), [disclaimer.md](disclaimer.md) |
+| Threat model / install safety | [safety.md](safety.md), [disclaimer.md](disclaimer.md), [webrtc.md](webrtc.md) (media plane) |
 | In-app store extras policy | [store.md](store.md) |
 
 ## What belongs where

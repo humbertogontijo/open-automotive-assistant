@@ -247,7 +247,7 @@ internal fun Routing.registerDebugRoutes(deps: OaaWebDeps) {
             put("probe_summary.json", report.summary().toString())
             put("probe_full.json", report.toJsonArray().toString())
         }
-        call.response.header(HttpHeaders.ContentDisposition, "attachment; filename=\"oca-debug.zip\"")
+        call.response.header(HttpHeaders.ContentDisposition, "attachment; filename=\"oaa-debug.zip\"")
         call.respondBytes(baos.toByteArray(), ContentType.Application.Zip)
     }
     get("/debug/adb-hint") {
@@ -303,15 +303,8 @@ internal fun Routing.registerDebugRoutes(deps: OaaWebDeps) {
             close(CloseReason(CloseReason.Codes.CANNOT_ACCEPT, "token required"))
             return@webSocket
         }
-        var last = 0
-        while (true) {
-            val all = LogRingBuffer.snapshot()
-            if (all.size > last) {
-                all.drop(last).forEach { send(Frame.Text(it)) }
-                last = all.size
-            }
-            delay(500)
-        }
+        LogRingBuffer.snapshot().forEach { send(Frame.Text(it)) }
+        LogRingBuffer.live.collect { send(Frame.Text(it)) }
     }
 }
 

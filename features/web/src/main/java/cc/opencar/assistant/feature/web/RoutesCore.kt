@@ -2,9 +2,14 @@ package cc.opencar.assistant.feature.web
 
 import cc.opencar.assistant.api.EntityContract
 import cc.opencar.assistant.api.EntityRegistry
+import cc.opencar.assistant.protocol.OaaBuild
+import cc.opencar.assistant.protocol.OaaHeaders
+import cc.opencar.assistant.protocol.OaaPaths
+import cc.opencar.assistant.protocol.OaaRoles
 import cc.opencar.assistant.support.I18nBundle
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
+import io.ktor.server.request.header
 import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Routing
@@ -22,18 +27,22 @@ internal fun Routing.registerCoreRoutes(deps: OaaWebDeps) {
     val port = deps.port
     val prefs = deps.prefs
 
-    get("/api/status") {
+    get(OaaPaths.STATUS) {
         val snap = session.telemetry().first()
         val host = call.request.local.remoteHost
+        val viaHub = call.request.header(OaaHeaders.VIA_HUB) != null
         val i18n = I18nBundle.load(context, session.integrationId)
         call.respond(
             mapOf(
+                "role" to OaaRoles.LOCAL,
+                "version" to OaaBuild.VERSION,
+                "nodeId" to deps.hub?.nodeId,
                 "integration" to session.integrationId,
                 "variant" to variantId,
                 "capabilities" to capabilities,
                 "locale" to i18n.locale,
                 "locales" to I18nBundle.SUPPORTED,
-                "remote" to (host != "127.0.0.1" && host != "localhost" && host != "::1"),
+                "remote" to (viaHub || (host != "127.0.0.1" && host != "localhost" && host != "::1")),
                 "telemetry" to telemetryPayload(snap),
                 "setup" to SetupStatus.snapshot(context, session, prefs),
                 "plugins" to deps.pluginDetailMaps(),
@@ -45,10 +54,11 @@ internal fun Routing.registerCoreRoutes(deps: OaaWebDeps) {
                 "theme" to (prefs.getString("theme", "dark") ?: "dark"),
                 "adb" to WirelessAdbController(context, debug).status(),
                 "android" to (deps.androidSettings?.status() ?: emptyMap<String, Any?>()),
+                "hub" to deps.hub?.status(),
             ),
         )
     }
-    get("/api/i18n") {
+    get(OaaPaths.I18N) {
         val i18n = I18nBundle.load(context, session.integrationId)
         call.respond(
             mapOf(

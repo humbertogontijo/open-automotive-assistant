@@ -22,7 +22,7 @@ tasks.register<JavaExec>("signApk") {
     classpath = sourceSets["main"].runtimeClasspath
     mainClass.set("cc.opencar.assistant.signing.SignApkCliKt")
     workingDir = rootProject.projectDir
-    systemProperty("oca.signing.dir", rootProject.file("libs/signing").absolutePath)
+    systemProperty("oaa.signing.dir", rootProject.file("libs/signing").absolutePath)
     val input = findProperty("in") as String?
     val output = findProperty("out") as String?
     val key = findProperty("key") as String?

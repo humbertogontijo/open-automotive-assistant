@@ -94,6 +94,13 @@ class MosaicH264Encoder(
         requestKeyFrameIfNeeded()
     }
 
+    /** Ask the codec for an IDR on the next frame (remote viewer join / PLI). */
+    fun requestKeyFrame() {
+        val b = Bundle()
+        b.putInt(MediaCodec.PARAMETER_KEY_REQUEST_SYNC_FRAME, 0)
+        runCatching { codec?.setParameters(b) }
+    }
+
     fun drain(timeoutUs: Long = 0L) {
         val c = codec ?: return
         val info = MediaCodec.BufferInfo()
@@ -175,33 +182,13 @@ class MosaicH264Encoder(
         val sps = copyCsd(fmt, "csd-0") ?: return null
         val pps = copyCsd(fmt, "csd-1")
         if (pps == null) return sps
-        fun hasStartCode(b: ByteArray): Boolean =
-            b.size >= 4 && b[0] == 0.toByte() && b[1] == 0.toByte() &&
-                ((b[2] == 1.toByte()) || (b[2] == 0.toByte() && b[3] == 1.toByte()))
-        return if (hasStartCode(sps) || hasStartCode(pps)) {
-            sps + pps
-        } else {
-            fun prefixed(nal: ByteArray): ByteArray {
-                val out = ByteArray(4 + nal.size)
-                out[0] = ((nal.size ushr 24) and 0xff).toByte()
-                out[1] = ((nal.size ushr 16) and 0xff).toByte()
-                out[2] = ((nal.size ushr 8) and 0xff).toByte()
-                out[3] = (nal.size and 0xff).toByte()
-                System.arraycopy(nal, 0, out, 4, nal.size)
-                return out
-            }
-            prefixed(sps) + prefixed(pps)
-        }
+        return if (AnnexB.hasStartCode(sps) || AnnexB.hasStartCode(pps)) sps + pps else AnnexB.toAvcc(listOf(sps, pps))
     }
 
     private fun requestKeyFrameIfNeeded() {
         val n = frameIndex.incrementAndGet()
         val interval = (fps * keyFrameIntervalSec).coerceAtLeast(1).toLong()
-        if (n == 1L || n % interval == 0L) {
-            val b = Bundle()
-            b.putInt(MediaCodec.PARAMETER_KEY_REQUEST_SYNC_FRAME, 0)
-            runCatching { codec?.setParameters(b) }
-        }
+        if (n == 1L || n % interval == 0L) requestKeyFrame()
     }
 
     fun stop() {

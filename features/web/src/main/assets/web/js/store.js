@@ -17,6 +17,14 @@ export const state = {
   page: "home",
   token: "",
   showSetup: false,
+  /** Host role from /api/status: local | hub */
+  role: "local",
+  /** Hub fleet snapshot { nodes: [...] } */
+  fleet: null,
+  /** Selected car node id when role=hub */
+  selectedNodeId: "",
+  hubJoin: null,
+  pairingOffer: null,
   i18n: { locale: "pt-BR", locales: ["pt-BR", "en"], strings: {}, valueMaps: {} },
   /** UI prefs from /api/prefs (theme mirrored in DOM; units map here). */
   prefs: {
@@ -148,26 +156,15 @@ export function isShowingHidden(group) {
   );
 }
 
-export function entitiesByType(type) {
-  return state.entities.filter(function (e) {
-    return e.entity === type;
-  });
-}
-
 /** Bucket by product subsection (`section`), falling back to domain. */
 export function groupBySection(list) {
   const map = {};
   list.forEach(function (e) {
-    const k = e.section || e.entity || "other";
+    const k = e.section || e.domain || "other";
     if (!map[k]) map[k] = [];
     map[k].push(e);
   });
   return map;
-}
-
-/** @deprecated Prefer groupBySection — domain is the card widget family, not page layout. */
-export function groupByEntity(list) {
-  return groupBySection(list);
 }
 
 export function findControl(id) {

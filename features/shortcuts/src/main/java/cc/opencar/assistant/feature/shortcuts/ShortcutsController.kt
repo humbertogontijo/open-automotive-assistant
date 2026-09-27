@@ -103,7 +103,7 @@ class ShortcutsController(
 
     fun start() {
         scope.launch(Dispatchers.IO) {
-            store.ensureMigrated()
+            store.ensureSeeded()
             sceneStore.list() // seeds sentinel
         }
         engine.start()
@@ -136,12 +136,7 @@ class ShortcutsController(
      */
     fun onControlWritten(entityId: String) {
         if (entityId.isBlank()) return
-        if (entityId.startsWith("shortcut_") ||
-            entityId.startsWith("scene_") ||
-            entityId.startsWith("routine_")
-        ) {
-            return
-        }
+        if (entityId.startsWith("shortcut_")) return
         scope.launch(Dispatchers.IO) {
             runCatching { sceneEngine.onExternalWrite(entityId) }
                 .onFailure { Log.w(TAG, "scene conflict check failed: ${it.message}") }
@@ -214,12 +209,12 @@ class ShortcutsController(
         entry.notificationContentIntent(context)
 
     suspend fun listMaps(): List<Map<String, Any?>> {
-        store.ensureMigrated()
+        store.ensureSeeded()
         return store.list().map { it.toMap() }
     }
 
     suspend fun listRoutineMaps(): List<Map<String, Any?>> {
-        store.ensureMigrated()
+        store.ensureSeeded()
         return store.listRoutines().map { it.toMap() }
     }
 
@@ -239,7 +234,7 @@ class ShortcutsController(
     }
 
     suspend fun upsertFromMap(body: Map<String, Any?>): Map<String, Any?> {
-        store.ensureMigrated()
+        store.ensureSeeded()
         val existingId = body["id"] as? String
         val base = if (existingId != null) store.get(existingId) else null
         val name = body["name"] as? String ?: base?.name ?: "Shortcut"
@@ -276,7 +271,7 @@ class ShortcutsController(
     }
 
     suspend fun upsertRoutineFromMap(body: Map<String, Any?>): Map<String, Any?> {
-        store.ensureMigrated()
+        store.ensureSeeded()
         val existingId = body["id"] as? String
         val base = if (existingId != null) store.getRoutine(existingId) else null
         val name = body["name"] as? String ?: base?.name ?: "Routine"
@@ -387,7 +382,7 @@ class ShortcutsController(
      * - Otherwise → command card that runs the flow
      */
     suspend fun virtualEntityMaps(): List<Map<String, Any?>> {
-        store.ensureMigrated()
+        store.ensureSeeded()
         val out = mutableListOf<Map<String, Any?>>()
         val active = sceneStore.activeIds()
         for (flow in store.list()) {
@@ -403,7 +398,7 @@ class ShortcutsController(
                         mapOf(
                             "id" to "shortcut_${flow.id}",
                             "group" to ui.group,
-                            "entity" to "extra",
+                            "domain" to "extra",
                             "label" to flow.name,
                             "input" to "bool",
                             "value" to if (isOn) "1" else "0",
@@ -426,7 +421,7 @@ class ShortcutsController(
                         mapOf(
                             "id" to "shortcut_${flow.id}",
                             "group" to ui.group,
-                            "entity" to "extra",
+                            "domain" to "extra",
                             "label" to flow.name,
                             "input" to "command",
                             "value" to null,
@@ -447,31 +442,17 @@ class ShortcutsController(
         return out
     }
 
-    /** Handle writes to virtual `shortcut_*` control ids (and legacy scene_/routine_). */
+    /** Handle writes to virtual `shortcut_*` control ids. */
     suspend fun handleVirtualWrite(id: String, raw: String): Map<String, Any?>? {
-        when {
-            id.startsWith("shortcut_") -> {
-                val flowId = id.removePrefix("shortcut_")
-                val flow = store.get(flowId) ?: return mapOf("ok" to false, "error" to "not found")
-                val setScene = flow.actions.filterIsInstance<ShortcutAction.SetScene>().firstOrNull()
-                if (setScene != null) {
-                    val on = raw == "1" || raw.equals("true", true) || raw == "on"
-                    return sceneEngine.setActive(setScene.sceneId, on)
-                }
-                return run(flowId)
-            }
-            // Legacy ids from earlier builds
-            id.startsWith("scene_") -> {
-                val sceneId = id.removePrefix("scene_")
-                val on = raw == "1" || raw.equals("true", true) || raw == "on"
-                return sceneEngine.setActive(sceneId, on)
-            }
-            id.startsWith("routine_") -> {
-                val routineId = id.removePrefix("routine_")
-                return runRoutine(routineId)
-            }
-            else -> return null
+        if (!id.startsWith("shortcut_")) return null
+        val flowId = id.removePrefix("shortcut_")
+        val flow = store.get(flowId) ?: return mapOf("ok" to false, "error" to "not found")
+        val setScene = flow.actions.filterIsInstance<ShortcutAction.SetScene>().firstOrNull()
+        if (setScene != null) {
+            val on = raw == "1" || raw.equals("true", true) || raw == "on"
+            return sceneEngine.setActive(setScene.sceneId, on)
         }
+        return run(flowId)
     }
 
     private fun sendActivity(host: Context, action: String, section: String?) {

@@ -31,7 +31,3 @@ export function entityGrid(items, opts) {
 export function entityLabel(type) {
   return t("entity." + (type || "extra"), type || "Extra");
 }
-
-export function renderEntityGrid(items) {
-  return entityGrid(items);
-}

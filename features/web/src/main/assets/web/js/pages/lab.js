@@ -1,7 +1,7 @@
 import { html, nothing, repeat } from "../lit.js";
 import { state, patch, notify } from "../store.js";
 import { t, entityLabel, entityValueLabel } from "../i18n.js";
-import { api, fmt } from "../api.js";
+import { api, fmt, errText } from "../api.js";
 import { prefSegment } from "../ui/cards.js";
 
 function probeRows() {
@@ -13,7 +13,7 @@ function probeRows() {
     rows = (state.entities || []).map(function (e) {
       return {
         name: e.id || entityLabel(e) || "",
-        family: e.entity || e.group || "",
+        family: e.domain || e.group || "",
         status: e.status || "",
         value: entityValueLabel(e) || e.value || "",
         permission: e.group || "",
@@ -46,6 +46,91 @@ function probeRows() {
 }
 
 const LAB_ROW_CAP = 400;
+const LOG_LINE_CAP = 500;
+
+let logSocket = null;
+let logLines = [];
+let logFlushTimer = 0;
+
+function logStreamUrl(token) {
+  const loc = window.location;
+  let url =
+    (loc.protocol === "https:" ? "wss:" : "ws:") +
+    "//" +
+    loc.host +
+    "/debug/logs/stream?token=" +
+    encodeURIComponent(token);
+  if (state.role === "hub" && state.selectedNodeId) {
+    url += "&node=" + encodeURIComponent(state.selectedNodeId);
+  }
+  return url;
+}
+
+function flushLogs() {
+  logFlushTimer = 0;
+  patch({ labLogs: logLines.join("\n") });
+}
+
+export function stopLabLogs() {
+  const ws = logSocket;
+  logSocket = null;
+  if (logFlushTimer) clearTimeout(logFlushTimer);
+  logFlushTimer = 0;
+  if (ws) ws.close();
+  if (state.labLogsOn) patch({ labLogsOn: false });
+}
+
+function startLabLogs(token) {
+  stopLabLogs();
+  logLines = [];
+  const ws = new WebSocket(logStreamUrl(token));
+  logSocket = ws;
+  ws.onmessage = function (ev) {
+    if (logSocket !== ws) return;
+    logLines.push(String(ev.data));
+    if (logLines.length > LOG_LINE_CAP) logLines.splice(0, logLines.length - LOG_LINE_CAP);
+    if (!logFlushTimer) logFlushTimer = setTimeout(flushLogs, 250);
+  };
+  ws.onclose = function (ev) {
+    if (logSocket !== ws) return;
+    logSocket = null;
+    patch({ labLogsOn: false, labLogsError: ev.reason || "" });
+  };
+  patch({ labLogsOn: true, labLogs: "", labLogsError: "" });
+}
+
+function logsCard(token) {
+  const on = !!state.labLogsOn;
+  return html`
+    <div class="card" style="margin-bottom:12px">
+      <div class="row" style="align-items:center;gap:12px;flex-wrap:wrap">
+        <button
+          class="btn"
+          ?disabled=${!token}
+          @click=${function () {
+            if (on) stopLabLogs();
+            else startLabLogs(token);
+          }}
+        >
+          ${on ? t("lab.logs.stop", "Stop live logs") : t("lab.logs.start", "Live logs")}
+        </button>
+        ${adbHint()}
+      </div>
+      ${state.labLogsError
+        ? html`<p class="sub" style="margin:8px 0 0;color:var(--warn, #c90)">${state.labLogsError}</p>`
+        : nothing}
+      ${on || state.labLogs
+        ? html`<pre class="mono" style="max-height:360px;overflow:auto;margin-top:10px">${state.labLogs || "…"}</pre>`
+        : nothing}
+    </div>
+  `;
+}
+
+function adbHint() {
+  const hint = (state.lab && state.lab.adbHint) || "";
+  if (!hint) return nothing;
+  return html`<span class="sub">${t("lab.adb", "ADB")}: <code class="mono">${hint}</code></span>`;
+}
 
 function cappedProbeRows() {
   const all = probeRows();
@@ -127,7 +212,7 @@ export function pageLab() {
                 });
               } catch (e) {
                 state.lab = state.lab || {};
-                state.lab.restartHint = String(e && e.message ? e.message : e);
+                state.lab.restartHint = errText(e);
                 notify();
               }
             }}
@@ -176,7 +261,7 @@ export function pageLab() {
               patch({ lab: res });
             } catch (e) {
               state.lab = state.lab || {};
-              state.lab.restartHint = String(e && e.message ? e.message : e);
+              state.lab.restartHint = errText(e);
               notify();
             }
           }}
@@ -195,6 +280,7 @@ export function pageLab() {
             )}<code class="mono">${lab.integration || "—"}</code>
           </p>`}
     </div>
+    ${logsCard(token)}
     <div class="card" style="margin-bottom:12px">
       ${prefSegment("lab-tab", tabOpts, tab)}
       <p class="sub" style="margin:10px 0 0">${sourceHint}</p>
@@ -217,13 +303,17 @@ export function pageLab() {
         <button
           class="btn primary"
           @click=${async function () {
-            const tok = encodeURIComponent(state.token);
-            if (tab === "obd2") {
-              patch({ obd2: await api("/debug/obd2?force=1&token=" + tok) });
-            } else if (tab === "entities") {
-              patch({ entities: await api("/api/entities") });
-            } else {
-              patch({ probe: await api("/debug/probe?force=1&token=" + tok) });
+            const tok = encodeURIComponent(token);
+            try {
+              if (tab === "obd2") {
+                patch({ obd2: await api("/debug/obd2?force=1&token=" + tok) });
+              } else if (tab === "entities") {
+                patch({ entities: await api("/api/entities") });
+              } else {
+                patch({ probe: await api("/debug/probe?force=1&token=" + tok) });
+              }
+            } catch (e) {
+              patch({ lab: Object.assign({}, lab, { restartHint: errText(e) }) });
             }
           }}
         >

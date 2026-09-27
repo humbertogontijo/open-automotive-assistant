@@ -13,14 +13,16 @@ android {
     kotlinOptions { jvmTarget = "17" }
 }
 
-// Single source of truth: libs/signing/community.* → packaged assets at build time
+// Single source of truth: libs/signing/community.* → generated assets at build time
+val communityAssets = layout.buildDirectory.dir("generated/communityAssets")
 val copyCommunityKeys by tasks.registering(Copy::class) {
     from(
         rootProject.file("libs/signing/community.pk8"),
         rootProject.file("libs/signing/community.pem"),
     )
-    into(layout.projectDirectory.dir("src/main/assets/signing"))
+    into(communityAssets.map { it.dir("signing") })
 }
+android.sourceSets["main"].assets.srcDir(communityAssets)
 
 tasks.named("preBuild").configure { dependsOn(copyCommunityKeys) }
 

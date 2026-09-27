@@ -55,12 +55,7 @@ function closeChoices() {
   }
 }
 
-if (!window.__ocaChoiceCloseBound) {
-  window.__ocaChoiceCloseBound = true;
-  document.addEventListener("click", function () {
-    closeChoices();
-  });
-}
+document.addEventListener("click", closeChoices);
 
 /**
  * @param {object} opts

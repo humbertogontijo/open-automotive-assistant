@@ -68,7 +68,7 @@ class Camera2ConcurrentProbe(private val context: Context) {
             )
         }
 
-        val thread = HandlerThread("oca-cam2-probe").also { it.start() }
+        val thread = HandlerThread("oaa-cam2-probe").also { it.start() }
         val handler = Handler(thread.looper)
         val results = mutableListOf<CamResult>()
         val devices = mutableListOf<CameraDevice>()

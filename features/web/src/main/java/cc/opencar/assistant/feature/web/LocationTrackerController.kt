@@ -112,7 +112,7 @@ class LocationTrackerController(
                 mapOf(
                     "id" to ID,
                     "group" to "vehicle",
-                    "entity" to EntityType.DEVICE_TRACKER.id,
+                    "domain" to EntityType.DEVICE_TRACKER.id,
                     "labelKey" to "device_tracker.vehicle",
                     "hintKey" to "device_tracker.vehicle.hint",
                     "input" to "sensor",

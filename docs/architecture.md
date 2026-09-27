@@ -20,7 +20,9 @@ North-star decisions: [adr/0001-architecture-north-star.md](adr/0001-architectur
 | `:integrations:ihu629g` | `integrations/ihu629g/` | IHU629G — CarProperty only (thin reference) |
 | `:feature-web` | `features/web/` | Product UI (lit-html) + Ktor + `/debug` |
 | `:feature-*` | `features/<id>/` | memory, telemetry, install, DVR, debug, history, shortcuts |
-| `:plugin-homeassistant` | `plugins/homeassistant/` | Inbound HA bridge |
+| `:plugin-homeassistant` | `plugins/homeassistant/` | Inbound HA bridge (car → HA) |
+| `:server` | `server/` | Self-hosted **hub** (JVM/Ktor, dual faces 8787/8788, multi-car) |
+| `:protocol` | `libs/protocol/` | Shared wire constants (headers, paths, event types) |
 
 HU and phone share the same web UI. Native code owns VHAL, cameras, install, and the HTTP server.
 
@@ -85,7 +87,7 @@ Portable product surface: HA-shaped `domain.object_id`. See [`EntityContract`](.
 
 **Rules:** automations/UI use registry ids only; one catalog (no per-make forks); scenes tolerate missing targets. Taxonomy: [domains.md](domains.md). Wire format: [openapi/open-automotive-assistant-v1.yaml](openapi/open-automotive-assistant-v1.yaml).
 
-Outbound MQTT/HA discovery is deferred. Inbound HA remains `:plugin-homeassistant`.
+Outbound MQTT/HA discovery is deferred for the HU. **Self-hosted hub** (Docker / HAOS app) and a HACS custom component expose car entities into Home Assistant — see [hub.md](hub.md), and [adr/0003-hub.md](adr/0003-hub.md). Remote camera media (live, playback, download) uses a WebRTC media plane next to the JSON control plane — see [webrtc.md](webrtc.md). Inbound HA remains `:plugin-homeassistant` on the car.
 
 ## Web UI (sketch)
 

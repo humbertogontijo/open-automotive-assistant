@@ -13,7 +13,7 @@ import android.os.Build
  * the app core flushes via [consume] once shortcuts exist.
  */
 object PendingWake {
-    const val PREFS = "oca_wake"
+    const val PREFS = "oaa_wake"
     const val KEY_KIND = "pending" // "on" | "off"
     const val KEY_SOURCE = "source"
     const val KEY_AT = "at"

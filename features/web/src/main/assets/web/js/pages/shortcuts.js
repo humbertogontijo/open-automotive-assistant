@@ -1,7 +1,7 @@
 import { html, nothing } from "../lit.js";
 import { live } from "../lit.js";
 import { repeat } from "../lit.js";
-import { api } from "../api.js";
+import { api, errText } from "../api.js";
 import { state, notify, findControl } from "../store.js";
 import { prefCard, segmentToggle, choiceSelect, boolToggle, prefSegment } from "../ui/cards.js";
 import { runPref } from "../actions.js";
@@ -56,7 +56,7 @@ export async function loadShortcuts() {
     state.shortcutOverlay = (res && res.overlay) || {};
     state.shortcutWheelKeys = (res && res.wheelKeys) || state.shortcutWheelKeys;
   } catch (e) {
-    state.shortcutMessage = String(e && e.message ? e.message : e);
+    state.shortcutMessage = errText(e);
   }
   try {
     const apps = await api("/api/apps");
@@ -673,7 +673,6 @@ function pluginParamsFields(pluginId, kind, name, params, index, indexKind) {
         data-param-key="_raw"
         style="width:100%;margin-top:8px"
         placeholder="params"
-        .value=${live("")}
       />
     `;
   }
@@ -1397,7 +1396,7 @@ async function saveShortcut() {
     }
     await loadShortcuts();
   } catch (e) {
-    state.shortcutMessage = String(e && e.message ? e.message : e);
+    state.shortcutMessage = errText(e);
   }
   notify();
 }
@@ -1532,7 +1531,7 @@ async function runShortcut(id) {
       state.shortcutMessage = null;
     }
   } catch (e) {
-    state.shortcutMessage = String(e && e.message ? e.message : e);
+    state.shortcutMessage = errText(e);
   }
   notify();
 }
@@ -1651,7 +1650,7 @@ async function toggleScene(id, active) {
     });
     await loadShortcuts();
   } catch (e) {
-    state.shortcutMessage = String(e && e.message ? e.message : e);
+    state.shortcutMessage = errText(e);
   }
   notify();
 }
@@ -1665,7 +1664,7 @@ async function runRoutine(id) {
       state.shortcutMessage = res.error || t("shortcuts.run_failed", "Run failed");
     }
   } catch (e) {
-    state.shortcutMessage = String(e && e.message ? e.message : e);
+    state.shortcutMessage = errText(e);
   }
   notify();
 }
@@ -1779,7 +1778,7 @@ async function saveRoutine() {
     }
     await loadShortcuts();
   } catch (e) {
-    state.shortcutMessage = String(e && e.message ? e.message : e);
+    state.shortcutMessage = errText(e);
   }
   notify();
 }
@@ -1967,7 +1966,7 @@ function scenesTab() {
               }
               await loadShortcuts();
             } catch (e) {
-              state.shortcutMessage = String(e && e.message ? e.message : e);
+              state.shortcutMessage = errText(e);
             }
             notify();
           },
@@ -1996,7 +1995,7 @@ function scenesTab() {
               }
               await loadShortcuts();
             } catch (e) {
-              state.shortcutMessage = String(e && e.message ? e.message : e);
+              state.shortcutMessage = errText(e);
             }
             notify();
           },

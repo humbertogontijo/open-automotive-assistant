@@ -11,10 +11,11 @@ import { pageCameras, loadRecordings, startCameraLive, stopCameraLive, applyCame
 import { pageHistory, loadHistoryPoints } from "./history.js";
 import { pageStore, ensureStoreLoaded } from "./store.js";
 import { pageSettings } from "./settings.js";
-import { pageLab } from "./lab.js";
+import { pageLab, stopLabLogs } from "./lab.js";
 import { pageAbout } from "./about.js";
 import { pageShortcuts } from "./shortcuts.js";
 import { pagePlugins } from "./plugins.js";
+import { pageFleet, loadFleet } from "./fleet.js";
 
 export {
   pageHome,
@@ -33,12 +34,15 @@ export {
   pageAbout,
   pageShortcuts,
   pagePlugins,
+  pageFleet,
+  loadFleet,
   loadHistoryPoints,
   loadEnergyDash,
   loadRecordings,
   loadSounds,
   startCameraLive,
   stopCameraLive,
+  stopLabLogs,
   applyCameraPlayerSrc,
   ensureStoreLoaded,
   isTimelineBusy,
@@ -47,6 +51,7 @@ export {
 export function pageView(page) {
   const map = {
     home: pageHome,
+    fleet: pageFleet,
     history: pageHistory,
     controls: pageControls,
     drive: pageDrive,

@@ -253,16 +253,11 @@ class AndroidSettingsController(
      * Best-effort enable of [OaaNotificationListener] via Secure settings
      * (works from shell / privileged; no-op for normal apps).
      *
-     * Always rewrites legacy `OcaNotificationListener` → `OaaNotificationListener`
-     * so a rename cannot leave a dead component that still counts as "enabled"
-     * for the package (which hid the missing bind after we removed media polling).
+     * Drops any other component of this package from the list so a renamed
+     * listener cannot leave a dead entry that still counts as "enabled".
      */
     fun tryEnableMediaListener(): Boolean {
         val target = ComponentName(context, OaaNotificationListener::class.java).flattenToString()
-        val legacy = ComponentName(
-            context.packageName,
-            "cc.opencar.assistant.feature.web.OcaNotificationListener",
-        ).flattenToString()
         return try {
             val cr = context.contentResolver
             val key = "enabled_notification_listeners"
@@ -272,10 +267,6 @@ class AndroidSettingsController(
                 .filter { it.isNotEmpty() }
                 .toMutableSet()
             var changed = false
-            if (parts.remove(legacy)) {
-                Log.i(TAG, "migrating notification listener Oca → Oaa")
-                changed = true
-            }
             val stale = parts.filter {
                 it.startsWith("${context.packageName}/") && it != target
             }
@@ -362,7 +353,6 @@ class AndroidSettingsController(
             mapOf(
                 "id" to ID_BRIGHTNESS,
                 "group" to "display",
-                "entity" to EntityType.NUMBER.id,
                 "domain" to EntityType.NUMBER.id,
                 "labelKey" to "control.${ID_BRIGHTNESS}",
                 "hintKey" to "control.${ID_BRIGHTNESS}.hint",
@@ -417,7 +407,6 @@ class AndroidSettingsController(
             mapOf(
                 "id" to ID_MEDIA_PLAYER,
                 "group" to "sound",
-                "entity" to EntityType.MEDIA_PLAYER.id,
                 "domain" to EntityType.MEDIA_PLAYER.id,
                 "labelKey" to "control.${ID_MEDIA_PLAYER}",
                 "hintKey" to "control.${ID_MEDIA_PLAYER}.hint",
@@ -454,7 +443,6 @@ class AndroidSettingsController(
                 mapOf(
                     "id" to def.entityId,
                     "group" to "sound",
-                    "entity" to EntityType.NUMBER.id,
                     "domain" to EntityType.NUMBER.id,
                     "labelKey" to "control.${def.entityId}",
                     "hintKey" to "control.${def.entityId}.hint",
@@ -494,7 +482,6 @@ class AndroidSettingsController(
             mapOf(
                 "id" to id,
                 "group" to group,
-                "entity" to EntityType.SWITCH.id,
                 "domain" to EntityType.SWITCH.id,
                 "labelKey" to labelKey,
                 "hintKey" to hintKey,

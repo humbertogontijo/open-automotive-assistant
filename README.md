@@ -5,6 +5,8 @@ Local-first, capability-based companion for **Android Automotive** head units. V
 **Canonical repository name:** `open-automotive-assistant`  
 Web UI: `http://CAR_IP:8787` (LAN) or `http://127.0.0.1:8787` on the HU  
 
+Self-hosted **hub** (multi-car, Docker / HAOS): [docs/hub.md](docs/hub.md) · `deploy/docker` · `deploy/homeassistant`
+
 Short name: **OAA**. Host tool: `./tools/oaa-setup` (env `OAA_*`). Android package id remains `cc.opencar.assistant` for install continuity.
 
 First shipping platforms: Antora 1000 / SE1000 and IHU629G (Flyme Auto family), plus **`demo`** for CI without a head unit. More SoCs welcome via [docs/adding-an-integration.md](docs/adding-an-integration.md).
@@ -59,4 +61,4 @@ Integrations and plugins are plug-and-play. First-party features and the product
 
 Full index (by audience): **[docs/README.md](docs/README.md)**
 
-Highlights: [Architecture](docs/architecture.md) · [ADR-0001](docs/adr/0001-architecture-north-star.md) · [ADR-0002 models](docs/adr/0002-model-variant-bindings.md) · [Protocol OpenAPI](docs/openapi/open-automotive-assistant-v1.yaml) · [Domains](docs/domains.md) · [Contributing](CONTRIBUTING.md)
+Highlights: [Architecture](docs/architecture.md) · [Hub / self-host](docs/hub.md) · [ADR-0001](docs/adr/0001-architecture-north-star.md) · [ADR-0003 hub](docs/adr/0003-hub.md) · [Protocol OpenAPI](docs/openapi/open-automotive-assistant-v1.yaml) · [Domains](docs/domains.md) · [Contributing](CONTRIBUTING.md)

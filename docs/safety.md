@@ -6,10 +6,32 @@ Only properties with `access` `w` or `rw` in each integration's `platform.json` 
 
 ## Threat model / network
 
-- Ktor binds to LAN (`0.0.0.0:8787`) with cleartext HTTP for the in-car WebView and same-LAN browsers. **Do not** expose the port to the public internet.
+- Dual faces (see [adr/0003-hub.md](adr/0003-hub.md)):
+  - **Human** (`OAA_PORT` 8787): SPA + control APIs. Requires **hub session** after first-run admin setup (local password, HA OAuth, or HA Ingress `X-Remote-User-*` when addon). Login/setup/static assets may be public; entity writes never are.
+  - **Node** (`OAA_NODE_PORT` 8788): `/api/nodes/pair` + `/api/nodes/session` only. Auth is short-lived pairing codes then opaque **node bearer tokens**. No SPA on this face.
+- HU Ktor on the car still binds LAN cleartext for the in-car WebView. **Do not** expose HU ports to the public internet.
+- Away cars: prefer **Home Assistant Cloud** → narrow HA views → hub node face (token-gated). Compose users use Cloudflare Tunnel / Caddy / Tailscale ([deploy/docker/REMOTE.md](../deploy/docker/REMOTE.md)). Never naked WAN bind without TLS.
+- Pairing codes are short-lived; node tokens grant full proxy control of a car — treat hub `/data` like HA secrets.
 - Contributor writes and sensitive debug reads require a token when Contributor mode is on; the token may appear in `/debug` HTML while that mode is enabled.
 - Host CLI installs under **`/data`** (user-space). Wireless ADB and optional on-device `su` (e.g. ADB toggle helpers) are for **owned userdebug** head units only — not production locked cars or third-party devices.
 - Home Assistant long-lived access tokens are stored in app prefs when configured via the UI/API; they are not shipped in the repo. GET APIs return only a masked token hint.
+
+### WebRTC media plane
+
+See [adr/0003-hub.md](adr/0003-hub.md) and [webrtc.md](webrtc.md).
+
+- Remote Cameras use WebRTC between car and viewer. Opening a session needs a **hub session** on the human face (`/api/webrtc/signal`); the node face never accepts signaling.
+- The hub relays signaling only and never carries, logs or stores camera media. TURN relays DTLS ciphertext.
+- TURN credentials are HMAC-derived and expire after `OAA_TURN_TTL`; `OAA_TURN_SECRET` stays on the hub and coturn.
+- Car-side file access is **basename-only** inside the DVR directory (`/`, `\`, `..` rejected); cuts are capped at 30 minutes and temp files are deleted after transfer.
+- Limits: one session per car, 2 concurrent transfers, 128 relayed ICE candidates per direction, 64 KiB signaling frames.
+- v1 access is coarse: any authenticated hub user can view any paired car's cameras. Only give hub accounts to people who may see the car's cameras.
+- It does not replace Cloud node dial-in or hub login.
+
+### Deferred: hub mesh
+
+- **Hub-to-hub federation** is deferred.
+- **Nabu Casa TURN** is not integrated; use the compose `turn` profile or your own coturn.
 
 ## Redaction
 
@@ -39,7 +61,7 @@ Web UI setup (`/api/setup/actions/*`): request runtime permissions and show host
 
 ### Camera note
 
-Live and DVR share one GPU path: camera `SurfaceTexture` → GLES mosaic → HW `MediaCodec` H.264. Live is HLS (CMAF); recordings are `MediaMuxer` `.mp4`. Legacy `.mjpeg` / `.seg` files remain readable if present.
+Live and DVR share one GPU path: camera `SurfaceTexture` → GLES mosaic → HW `MediaCodec` H.264. Live is HLS (CMAF) on the car's LAN and a pass-through H.264 WebRTC track via the hub; recordings are `MediaMuxer` `.mp4` (restreamed as fMP4 over the WebRTC data channel for remote playback). Legacy `.mjpeg` / `.seg` files remain readable if present.
 
 ## Multi-app VHAL writers
 

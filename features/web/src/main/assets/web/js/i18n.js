@@ -96,11 +96,6 @@ export function entityValueLabel(c, raw) {
   if (s === "open") return t("common.open", "Open");
   if (s === "closed" || s === "close") return t("common.closed", "Closed");
 
-  const asInt = parseInt(String(value), 10);
-  if (!isNaN(asInt) && asInt > 0xff && String(value) === String(asInt)) {
-    return "0x" + asInt.toString(16);
-  }
-
   return String(value);
 }
 
@@ -130,7 +125,7 @@ export async function setLocale(locale) {
     valueMaps: res.valueMaps || {},
   };
   try {
-    localStorage.setItem("oca_locale", res.locale);
+    localStorage.setItem("oaa_locale", res.locale);
   } catch (e) {}
   document.documentElement.lang = res.locale || "pt-BR";
   applyChrome();

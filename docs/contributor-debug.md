@@ -2,6 +2,22 @@
 
 Anyone on the car LAN can inspect app state, pull logs, and attach Android Studio without reverse-engineering the HU alone.
 
+## 0. adb-free loop through a hub
+
+Once the car is paired with a [hub](hub.md), day-to-day development needs no adb:
+
+```bash
+export OAA_HUB_URL=http://hub.local:8787
+export OAA_HUB_USER=admin            # or OAA_HUB_TOKEN=<admin session / system token>
+./tools/oaa-setup hub-deploy         # build → sign → upload → OTA rollout → wait
+./tools/oaa-setup hub-deploy --node node-abc123 --no-build
+./tools/oaa-setup hub-deploy --all --no-wait
+```
+
+The password is prompted once (or read from `OAA_HUB_PASSWORD`); the session token is cached in `~/.config/oaa/hub-token` (mode 600). With exactly one paired car, `--node` is optional.
+
+Then open the hub UI, pick the car in Fleet and use **Lab**: re-probe, OBD2, **Export zip** and **Live logs** all go through the hub (admin only). adb is still needed for the very first install and for attaching a debugger.
+
 ## 1. Wireless ADB
 
 1. On the HU: enable Developer options → Wireless debugging (or an existing Wi‑Fi ADB setup).
@@ -46,7 +62,7 @@ adb shell am force-stop cc.opencar.assistant.debug
 adb shell monkey -p cc.opencar.assistant.debug -c android.intent.category.LAUNCHER 1
 ```
 
-Prefs key: `oca_runtime` / `integration_override` (set via Lab or `POST /api/lab/integration-override`).
+Prefs key: `oaa_runtime` / `integration_override` (set via Lab or `POST /api/lab/integration-override`).
 
 ## 3. HTTP `/debug` API
 
@@ -57,13 +73,15 @@ Base: `http://CAR_IP:8787`
 | `GET /debug` | HTML status: platform links, token hint |
 | `GET /api/lab` | Lab snapshot (preferred for UI) |
 | `GET /debug/logs?token=…` | Ring-buffer app logs |
-| `WS /debug/logs/stream?token=…` | Live log stream |
+| `WS /debug/logs/stream?token=…` | Live log stream (Lab → **Live logs**) |
 | `GET /debug/integration` | Matched integration, variant, catalog size |
 | `GET /debug/props?token=…&q=` | Safe catalog browse |
 | `GET /debug/props/{key}?token=…` | Read one property (VIN redacted) |
 | `POST /debug/props/{key}?token=…` | Write if allowlisted + contributor |
 | `GET /debug/export?token=…` | Zip: logs, identity, capabilities, telemetry |
 | `GET /debug/adb-hint` | Wi‑Fi IP + suggested `adb connect` |
+
+Through a hub, use the same paths on the hub URL with `?node=ID` (or the `oaa_node` cookie set by Fleet); responses over 2.5 MiB return 413.
 
 Token is required when Contributor mode is on. Without Contributor mode, write/debug routes refuse (probe summary may still run for Lab re-probe when mode is off).
 

@@ -14,6 +14,9 @@
 #   setup                connect → build → sign → install → grant → check
 #   uninstall            remove the package (best-effort legacy priv-app cleanup)
 #   start                launch MainActivity for the target user
+#   hub-deploy [--node ID|--all] [--no-build] [--no-wait]
+#                        build → sign → upload to the hub → OTA rollout (no adb;
+#                        needs OAA_HUB_URL and OAA_HUB_TOKEN or OAA_HUB_USER)
 #
 set -euo pipefail
 
@@ -24,6 +27,8 @@ source "$ROOT/tools/lib/common.sh"
 source "$ROOT/tools/lib/permissions.sh"
 # shellcheck source=lib/install.sh
 source "$ROOT/tools/lib/install.sh"
+# shellcheck source=lib/hub.sh
+source "$ROOT/tools/lib/hub.sh"
 
 INTEGRATION="${OAA_INTEGRATION:-antora1000}"
 HOST="${OAA_HOST:-}"
@@ -31,14 +36,14 @@ ANDROID_USER="${OAA_USER:-}"
 CMD=""
 
 usage() {
-  sed -n '2,20p' "$0" | sed 's/^# \?//'
+  sed -n '2,/^set -euo/p' "$0" | sed '$d' | sed -E 's/^# ?//'
   echo
   echo "Integrations:"
   for f in "$ROOT/integrations"/*/host.sh; do
     [[ -f "$f" ]] && basename "$(dirname "$f")"
   done | sed 's/^/  /'
   echo
-  echo "Device commands require --host / -H CAR_IP (or OAA_HOST)."
+  echo "Device commands require --host / -H CAR_IP (or OAA_HOST). hub-deploy uses OAA_HUB_URL instead."
 }
 
 while [[ $# -gt 0 ]]; do
@@ -104,6 +109,9 @@ case "${CMD:-}" in
   start)
     oaa_connect
     oaa_start
+    ;;
+  hub-deploy)
+    hub_deploy "${EXTRA[@]+"${EXTRA[@]}"}"
     ;;
   "" )
     usage

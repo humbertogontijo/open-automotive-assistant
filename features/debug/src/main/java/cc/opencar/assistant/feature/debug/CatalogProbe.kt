@@ -165,7 +165,7 @@ class CatalogProbe(
     }
 
     private fun cacheFile(): File =
-        File(context.filesDir, "oca_catalog_probe.json")
+        File(context.filesDir, "oaa_catalog_probe.json")
 
     private fun saveToDisk(report: ProbeReport) {
         runCatching {

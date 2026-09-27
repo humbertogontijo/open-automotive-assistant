@@ -37,7 +37,7 @@ const DOMAIN_CARDS = {
 };
 
 export function controlCard(c, restore) {
-  const domain = c.domain || c.entity;
+  const domain = c.domain;
   const render = DOMAIN_CARDS[domain];
   if (render) {
     if (domain === "sensor" && !restore && c.status !== "ok") return nothing;

@@ -82,7 +82,7 @@ private fun findSibling(name: String): File {
         File("../../libs/signing", name),
     )
     // Also resolve relative to this class's jar/module root when run via Gradle
-    val fromProp = System.getProperty("oca.signing.dir")
+    val fromProp = System.getProperty("oaa.signing.dir")
     if (fromProp != null) {
         val f = File(fromProp, name)
         if (f.isFile) return f

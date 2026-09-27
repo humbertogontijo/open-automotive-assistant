@@ -1,0 +1,7 @@
+* text=auto
+*.sh text eol=lf
+*.pem text eol=lf
+*.pk8 binary
+*.jar binary
+*.png binary
+*.webp binary

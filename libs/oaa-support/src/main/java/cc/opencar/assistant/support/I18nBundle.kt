@@ -101,8 +101,7 @@ class I18nBundle(
         ): I18nBundle {
             val loc = normalize(
                 locale
-                    ?: context.getSharedPreferences("oca_ui_prefs", Context.MODE_PRIVATE)
-                        .getString(PREF_LOCALE, null)
+                    ?: OaaPrefs.ui(context).getString(PREF_LOCALE, null)
                     ?: context.resources.configuration.locales[0]?.toLanguageTag(),
             )
             val cacheKey = "$integrationId|$loc"

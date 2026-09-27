@@ -93,7 +93,7 @@ class MainActivity : ComponentActivity() {
                     return@launch
                 }
             }
-            webView.loadUrl(ocaUrl(intent))
+            webView.loadUrl(oaaUrl(intent))
         }
     }
 
@@ -126,7 +126,7 @@ class MainActivity : ComponentActivity() {
         else super.onBackPressed()
     }
 
-    private fun ocaUrl(intent: Intent?): String {
+    private fun oaaUrl(intent: Intent?): String {
         val section = intent?.getStringExtra(QuickEntryMenu.EXTRA_SECTION)?.trim().orEmpty()
         return if (section.isNotEmpty() && section != "home") {
             "http://127.0.0.1:8787/" + android.net.Uri.encode(section)
@@ -141,12 +141,12 @@ class MainActivity : ComponentActivity() {
         if (section.isEmpty()) return
         // Prefer in-page navigation if UI already loaded.
         webView.evaluateJavascript(
-            "(function(){try{if(window.__ocaGoPage){window.__ocaGoPage(" +
+            "(function(){try{if(window.__oaaGoPage){window.__oaaGoPage(" +
                 org.json.JSONObject.quote(section) +
                 ");return true;}return false;}catch(e){return false;}})()",
         ) { result ->
             if (result != "true") {
-                webView.loadUrl(ocaUrl(intent))
+                webView.loadUrl(oaaUrl(intent))
             }
         }
     }

@@ -1,0 +1,106 @@
+services:
+  oaa-hub:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    image: ghcr.io/humbertogontijo/open-automotive-assistant:latest
+    container_name: oaa-hub
+    restart: unless-stopped
+    # Host networking recommended when using LAN mDNS discovery (Music Assistant–style).
+    # Bridge mode works for manual hub URL pairing on published ports.
+    ports:
+      - "8787:8787"
+      - "8788:8788"
+    volumes:
+      - oaa-data:/data
+    environment:
+      - OAA_DATA=/data
+      - OAA_PORT=8787
+      - OAA_NODE_PORT=8788
+      - LOG_LEVEL=info
+      # Optional remote URLs (set when using tunnel / proxy profiles):
+      # - OAA_PUBLIC_NODE_URL=https://oaa-nodes.example.com
+      # - OAA_PUBLIC_HUMAN_URL=https://oaa.example.com
+      # - OAA_SESSION_PATH=/api/nodes/session
+      # HA OAuth (compose hubs that offer “Sign in with Home Assistant”):
+      # - OAA_HA_URL=http://homeassistant:8123
+      # - OAA_HA_CLIENT_ID=...
+      # WebRTC media plane (remote Cameras). STUN defaults to Cloudflare; "none" disables it.
+      # TURN is enabled only when both URLs and the shared secret are set (see --profile turn).
+      - OAA_STUN_URLS=${OAA_STUN_URLS:-}
+      - OAA_TURN_URLS=${OAA_TURN_URLS:-}
+      - OAA_TURN_SECRET=${OAA_TURN_SECRET:-}
+      - OAA_TURN_TTL=${OAA_TURN_TTL:-3600}
+
+  # coturn relay for viewers/cars behind symmetric NAT or CGNAT (typical on cellular).
+  # The hub mints short-lived credentials from OAA_TURN_SECRET (coturn use-auth-secret);
+  # the secret never reaches browsers or cars. Media relays through coturn, never the hub.
+  #   export OAA_TURN_SECRET=$(openssl rand -hex 32)
+  #   export OAA_TURN_EXTERNAL_IP=<public IP of this host>
+  #   export OAA_TURN_URLS=turn:turn.example.com:3478?transport=udp,turn:turn.example.com:3478?transport=tcp
+  #   docker compose --profile turn up -d
+  # Forward 3478/udp+tcp and the relay range 49160-49200/udp to this host.
+  coturn:
+    profiles: ["turn"]
+    image: coturn/coturn:4.6
+    container_name: oaa-coturn
+    restart: unless-stopped
+    ports:
+      - "3478:3478/udp"
+      - "3478:3478/tcp"
+      - "49160-49200:49160-49200/udp"
+    command:
+      - -n
+      - --log-file=stdout
+      - --listening-port=3478
+      - --min-port=49160
+      - --max-port=49200
+      - --external-ip=${OAA_TURN_EXTERNAL_IP:-}
+      - --realm=${OAA_TURN_REALM:-oaa}
+      - --use-auth-secret
+      - --static-auth-secret=${OAA_TURN_SECRET:-}
+      - --fingerprint
+      - --no-cli
+      - --no-multicast-peers
+      - --denied-peer-ip=0.0.0.0-0.255.255.255
+      - --denied-peer-ip=127.0.0.0-127.255.255.255
+      - --denied-peer-ip=169.254.0.0-169.254.255.255
+      - --denied-peer-ip=::1
+
+  # Cloudflare Tunnel — expose node + human faces with TLS.
+  # Create a tunnel token in Zero Trust, then:
+  #   docker compose --profile tunnel up -d
+  cloudflared:
+    profiles: ["tunnel"]
+    image: cloudflare/cloudflared:latest
+    container_name: oaa-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      - oaa-hub
+    # In the Cloudflare dashboard, map:
+    #   oaa-nodes.example.com → http://oaa-hub:8788
+    #   oaa.example.com       → http://oaa-hub:8787
+    # Then set OAA_PUBLIC_NODE_URL / OAA_PUBLIC_HUMAN_URL on oaa-hub.
+
+  # Caddy reverse proxy with path ACLs (alternative to Cloudflare).
+  #   docker compose --profile proxy up -d
+  caddy:
+    profiles: ["proxy"]
+    image: caddy:2-alpine
+    container_name: oaa-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      - oaa-hub
+
+volumes:
+  oaa-data:
+  caddy-data:

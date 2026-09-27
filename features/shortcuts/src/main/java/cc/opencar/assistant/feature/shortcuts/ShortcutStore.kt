@@ -15,13 +15,10 @@ import org.json.JSONObject
 /**
  * Process-wide singleton — DataStore forbids two instances on the same file.
  * Holds **flows** (Shortcuts tab) and **routines**; scenes live in [SceneStore].
- *
- * Schema v2 migrates legacy combined shortcuts into a routine + a flow that
- * `run_routine`s it (flow id preserved for pin slots).
  */
 class ShortcutStore private constructor(context: Context) {
     private val store = PreferenceDataStoreFactory.create {
-        context.applicationContext.preferencesDataStoreFile("oca_shortcuts")
+        context.applicationContext.preferencesDataStoreFile("oaa_shortcuts")
     }
 
     val shortcuts: Flow<List<Shortcut>> = store.data.map { prefs ->
@@ -75,7 +72,6 @@ class ShortcutStore private constructor(context: Context) {
     suspend fun upsert(shortcut: Shortcut): Shortcut {
         val normalized = normalizeFlow(shortcut)
         store.edit { prefs ->
-            migrateIfNeededLocked(prefs)
             val current = parseShortcutList(prefs[KEY_LIST]).toMutableList()
             val idx = current.indexOfFirst { it.id == normalized.id }
             if (idx >= 0) current[idx] = normalized else current.add(normalized)
@@ -89,7 +85,6 @@ class ShortcutStore private constructor(context: Context) {
             actions = routine.actions.take(ShortcutAction.MAX_ACTIONS),
         )
         store.edit { prefs ->
-            migrateIfNeededLocked(prefs)
             val current = parseRoutineList(prefs[KEY_ROUTINES]).toMutableList()
             val idx = current.indexOfFirst { it.id == normalized.id }
             if (idx >= 0) current[idx] = normalized else current.add(normalized)
@@ -101,7 +96,6 @@ class ShortcutStore private constructor(context: Context) {
     suspend fun delete(id: String): Boolean {
         var removed = false
         store.edit { prefs ->
-            migrateIfNeededLocked(prefs)
             val current = parseShortcutList(prefs[KEY_LIST]).toMutableList()
             removed = current.removeAll { it.id == id }
             prefs[KEY_LIST] = serializeShortcuts(current)
@@ -115,7 +109,6 @@ class ShortcutStore private constructor(context: Context) {
     suspend fun deleteRoutine(id: String): Boolean {
         var removed = false
         store.edit { prefs ->
-            migrateIfNeededLocked(prefs)
             val current = parseRoutineList(prefs[KEY_ROUTINES]).toMutableList()
             removed = current.removeAll { it.id == id }
             prefs[KEY_ROUTINES] = serializeRoutines(current)
@@ -126,74 +119,9 @@ class ShortcutStore private constructor(context: Context) {
     private fun normalizeFlow(s: Shortcut): Shortcut =
         s.copy(actions = s.actions.take(ShortcutAction.MAX_ACTIONS))
 
-    private fun migrateIfNeededLocked(prefs: androidx.datastore.preferences.core.MutablePreferences) {
-        if (prefs[KEY_SCHEMA_V2] == true) return
-        val legacy = parseShortcutList(prefs[KEY_LIST])
-        if (legacy.isEmpty()) {
-            prefs[KEY_SCHEMA_V2] = true
-            if (prefs[KEY_ROUTINES].isNullOrBlank()) {
-                prefs[KEY_ROUTINES] = serializeRoutines(emptyList())
-            }
-            return
-        }
-        // Already looks like v2 if every flow only has run_routine / set_scene and routines exist
-        val routinesExisting = parseRoutineList(prefs[KEY_ROUTINES])
-        val needsSplit = legacy.any { flow ->
-            flow.actions.any { it !is ShortcutAction.RunRoutine && it !is ShortcutAction.SetScene } &&
-                flow.actions.isNotEmpty()
-        }
-        if (!needsSplit && routinesExisting.isNotEmpty()) {
-            prefs[KEY_SCHEMA_V2] = true
-            return
-        }
-        if (!needsSplit && legacy.all { it.actions.isEmpty() || it.actions.all { a ->
-                a is ShortcutAction.RunRoutine || a is ShortcutAction.SetScene
-            } }) {
-            prefs[KEY_SCHEMA_V2] = true
-            return
-        }
-
-        val newRoutines = routinesExisting.toMutableList()
-        val newFlows = mutableListOf<Shortcut>()
-        for (old in legacy) {
-            val hasLegacyActions = old.actions.any {
-                it !is ShortcutAction.RunRoutine && it !is ShortcutAction.SetScene
-            }
-            if (!hasLegacyActions) {
-                newFlows.add(old)
-                continue
-            }
-            val routineId = "r_${old.id}"
-            if (newRoutines.none { it.id == routineId }) {
-                newRoutines.add(
-                    Routine(
-                        id = routineId,
-                        name = old.name,
-                        icon = old.icon,
-                        enabled = old.enabled,
-                        actions = old.actions.filter {
-                            it !is ShortcutAction.RunRoutine && it !is ShortcutAction.SetScene
-                        }.ifEmpty { old.actions },
-                    ),
-                )
-            }
-            newFlows.add(
-                old.copy(
-                    actions = listOf(ShortcutAction.RunRoutine(routineId)),
-                ),
-            )
-        }
-        prefs[KEY_LIST] = serializeShortcuts(newFlows)
-        prefs[KEY_ROUTINES] = serializeRoutines(newRoutines)
-        prefs[KEY_SCHEMA_V2] = true
-    }
-
-    /** Ensure migration runs once via a suspend edit when listing. */
-    suspend fun ensureMigrated() {
-        store.edit { prefs ->
-            migrateIfNeededLocked(prefs)
-            seedSentinelFlowLocked(prefs)
-        }
+    /** Seed builtin flows (Sentinel) once. */
+    suspend fun ensureSeeded() {
+        store.edit { prefs -> seedSentinelFlowLocked(prefs) }
     }
 
     private fun seedSentinelFlowLocked(prefs: androidx.datastore.preferences.core.MutablePreferences) {
@@ -218,7 +146,6 @@ class ShortcutStore private constructor(context: Context) {
         private val KEY_ROUTINES = stringPreferencesKey("routines_json")
         private val KEY_SLOTS = stringPreferencesKey("pin_slots_json")
         private val KEY_OVERLAY = booleanPreferencesKey("overlay_enabled")
-        private val KEY_SCHEMA_V2 = booleanPreferencesKey("schema_v2")
 
         @Volatile
         private var instance: ShortcutStore? = null

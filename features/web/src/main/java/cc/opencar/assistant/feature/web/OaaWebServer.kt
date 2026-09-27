@@ -13,6 +13,8 @@ import cc.opencar.assistant.feature.history.EntityHistoryRecorder
 import cc.opencar.assistant.feature.install.ApkInstaller
 import cc.opencar.assistant.feature.memory.SettingsMemoryController
 import cc.opencar.assistant.feature.shortcuts.ShortcutsController
+import cc.opencar.assistant.protocol.OaaPorts
+import cc.opencar.assistant.support.OaaPrefs
 import io.ktor.serialization.gson.gson
 import io.ktor.server.application.install
 import io.ktor.server.cio.CIO
@@ -34,7 +36,7 @@ class OaaWebServer(
     private val obd2: Obd2Probe? = null,
     private val capabilities: Set<String>,
     private val variantId: String,
-    private val port: Int = 8787,
+    private val port: Int = OaaPorts.HUMAN_DEFAULT,
     private val androidSettings: AndroidSettingsController? = null,
     private val locationTracker: LocationTrackerController? = null,
     private val history: EntityHistoryRecorder? = null,
@@ -44,12 +46,13 @@ class OaaWebServer(
     private val integrationIds: List<String> = emptyList(),
     private val getIntegrationOverride: () -> String? = { null },
     private val setIntegrationOverride: (String?) -> Unit = {},
+    private val hub: HubClient? = null,
 ) {
     private val engine = AtomicReference<ApplicationEngine?>(null)
 
     fun start() {
         if (engine.get() != null) return
-        val prefs = context.getSharedPreferences("oca_ui_prefs", Context.MODE_PRIVATE)
+        val prefs = OaaPrefs.ui(context)
         val deps = OaaWebDeps(
             context = context,
             session = session,
@@ -72,6 +75,7 @@ class OaaWebServer(
             integrationIds = integrationIds,
             getIntegrationOverride = getIntegrationOverride,
             setIntegrationOverride = setIntegrationOverride,
+            hub = hub,
         )
         val server = embeddedServer(CIO, port = port, host = "0.0.0.0") {
             install(ContentNegotiation) { gson() }
@@ -86,6 +90,7 @@ class OaaWebServer(
                 registerDebugRoutes(deps)
                 registerShortcutRoutes(deps)
                 registerPluginRoutes(deps)
+                registerHubRoutes(deps)
                 registerSpaFallbackRoutes(deps)
             }
         }

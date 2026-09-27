@@ -126,14 +126,4 @@ export function gotoPage(page, options) {
   return router.goto(path);
 }
 
-/** One-shot `?page=` / legacy `?section=` → path redirect before the router connects. */
-export function applyLegacyPageQuery() {
-  try {
-    var params = new URLSearchParams(window.location.search || "");
-    var page = params.get("page") || params.get("section");
-    if (!page || !isKnownPage(page)) return;
-    window.history.replaceState({}, "", pagePath(page));
-  } catch (e) {}
-}
-
 export { pagePath, pathToPage, isKnownPage, PAGE_IDS };

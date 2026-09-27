@@ -14,7 +14,7 @@ async function saveUnitPrefs(unitsObj) {
     });
   } catch (e) {}
   try {
-    localStorage.setItem("oca_units", json);
+    localStorage.setItem("oaa_units", json);
   } catch (e) {}
   patch({ prefs: Object.assign({}, state.prefs || {}, { units: unitsObj }) });
 }

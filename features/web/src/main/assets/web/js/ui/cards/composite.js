@@ -140,7 +140,7 @@ function optionsFromValueMap(mapId, current) {
 }
 
 function choiceOptions(c, attr) {
-  if (attr === PRIMARY_CHOICE[c.domain || c.entity] && c.options && c.options.length) {
+  if (attr === PRIMARY_CHOICE[c.domain] && c.options && c.options.length) {
     return c.options;
   }
   const mapId = ATTR_VALUE_MAP[attr];
@@ -419,7 +419,7 @@ function genericBody(c, attrs, locked, sendAttr, domain) {
 export function compositeCard(c, restore) {
   const locked = c.status !== "ok" && c.status !== "cached";
   const attrs = productAttrs(c.attributes);
-  const domain = c.domain || c.entity || c.id;
+  const domain = c.domain || c.id;
   const pinned = !!c.persistEnabled && pinSnapshot(c) != null;
   const pinTitle = pinned
     ? t("persist.unpin", "Unpin reboot value")

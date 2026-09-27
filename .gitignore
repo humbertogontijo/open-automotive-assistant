@@ -33,11 +33,16 @@ captures/
 *.keystore
 keys/
 apks/
-# Only the disclosed AOSP community testkey under libs/signing/ (and the synced
-# features/install copy) should exist as *.pem / *.pk8 in this repo.
+# Only the disclosed AOSP community testkey under libs/signing/ should exist as
+# *.pem / *.pk8 in this repo (features/install copies it at build time).
 # Do not add other PEM/PKCS8 material.
 
 # Local tooling leftovers
 APK.Easy.Tool*/
 *.log
 out/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/

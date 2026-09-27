@@ -1,4 +1,5 @@
 import { api, $ } from "./api.js";
+import { loadSelectedNode, rememberNode, setNodeSelectHandler } from "./node-select.js";
 import { state, patch, notify, subscribe } from "./store.js";
 import { render as litRender } from "./lit.js";
 import { pageView } from "./pages/index.js";
@@ -9,18 +10,27 @@ import {
   loadSounds,
   startCameraLive,
   stopCameraLive,
+  stopLabLogs,
   applyCameraPlayerSrc,
   ensureStoreLoaded,
 } from "./pages/index.js";
 import { loadShortcuts } from "./pages/shortcuts.js";
+import { loadFleet } from "./pages/fleet.js";
 import { shouldShowSetup, renderSetupOverlay } from "./ui/setup.js";
+import {
+  ensureHubAuth,
+  onHubAuthenticated,
+  renderHubAuthOverlay,
+  shouldShowHubLogin,
+  shouldShowHubSetup,
+} from "./ui/hub-auth.js";
 import { setTheme } from "./theme.js";
+import { defaultUnitPrefs } from "./units.js";
 import { loadI18n } from "./i18n.js";
 import { loadIcons, mountNavIcons } from "./icons.js";
 import { stashCurrentScroll, restorePageScroll, rememberScroll } from "./nav.js";
-import { connectEvents } from "./events.js";
+import { connectEvents, reconnectEvents } from "./events.js";
 import {
-  applyLegacyPageQuery,
   setRouteEnterHandler,
   startRouter,
   gotoPage,
@@ -33,13 +43,22 @@ function updateNavActive(sec) {
   });
 }
 
-/** Hide nav items that require capabilities (e.g. Energia needs CHARGING|HYBRID_ENERGY). */
+/** Show/hide nav by host role and capabilities. */
 function applyCapabilityNav() {
+  const role = state.role || "local";
   const caps = state.capabilities || [];
   const has = function (name) {
     return caps.indexOf(name) >= 0;
   };
+  document.querySelectorAll(".nav-item[data-role]").forEach(function (el) {
+    const need = el.getAttribute("data-role");
+    el.style.display = !need || need === role ? "" : "none";
+  });
   document.querySelectorAll(".nav-item[data-cap]").forEach(function (el) {
+    if (role === "hub" && !state.selectedNodeId) {
+      el.style.display = "none";
+      return;
+    }
     const needed = (el.getAttribute("data-cap") || "").split(",");
     const ok = needed.some(function (c) {
       return c && has(c.trim());
@@ -49,7 +68,24 @@ function applyCapabilityNav() {
       goPage("home", { replace: true });
     }
   });
+  const fleetNav = document.querySelector('.nav-item[data-page="fleet"]');
+  if (fleetNav) fleetNav.style.display = role === "hub" ? "" : "none";
+  applyHubLevel();
 }
+
+/** Hub with no car open: fleet-only view, no car sidebar. */
+function applyHubLevel() {
+  const hub = state.role === "hub";
+  document.body.classList.toggle("hub-fleet", hub && !state.selectedNodeId);
+  const carEl = document.getElementById("sideCar");
+  if (!carEl) return;
+  const nodes = (state.fleet && state.fleet.nodes) || [];
+  const node = nodes.find(function (n) { return n.id === state.selectedNodeId; });
+  carEl.textContent = node ? node.name || node.id : state.selectedNodeId || "";
+  carEl.hidden = !(hub && state.selectedNodeId);
+}
+
+let hubBooted = false;
 
 function paint() {
   const main = $("main");
@@ -60,6 +96,7 @@ function paint() {
   var outlet = router.outlet();
   litRender(outlet != null ? outlet : pageView(state.page), main);
   renderSetupOverlay();
+  renderHubAuthOverlay();
   mountNavIcons();
   updateNavActive(state.page);
 
@@ -90,8 +127,56 @@ subscribe(function () {
 export async function refresh() {
   await loadIcons();
   await loadI18n();
+  await ensureHubAuth();
+  if (shouldShowHubSetup() || shouldShowHubLogin()) {
+    document.body.classList.add("hub-fleet");
+    notify();
+    return;
+  }
   const status = await api("/api/status");
-  const setup = status.setup || (await api("/api/setup"));
+  const role = (status && status.role) || "local";
+  let selectedNodeId = state.selectedNodeId || loadSelectedNode();
+  if (role === "hub") {
+    const fleet = status.fleet || (await api("/api/nodes").catch(function () {
+      return { nodes: [] };
+    }));
+    const nodes = (fleet && fleet.nodes) || [];
+    if (selectedNodeId && !nodes.some(function (n) { return n.id === selectedNodeId; })) {
+      selectedNodeId = "";
+    }
+    // Single-car convenience on first load only; returning to the fleet must stick.
+    if (!selectedNodeId && !hubBooted && state.page !== "fleet" && nodes.length === 1 && nodes[0].online) {
+      selectedNodeId = nodes[0].id;
+    }
+    hubBooted = true;
+    state.role = role;
+    rememberNode(selectedNodeId);
+    state.fleet = fleet;
+    if (!selectedNodeId) {
+      Object.assign(state, {
+        status: status,
+        role: role,
+        fleet: fleet,
+        selectedNodeId: "",
+        setup: status.setup || { complete: true },
+        entities: [],
+        controls: [],
+        historyEntities: [],
+        hiddenEntities: [],
+        capabilities: [],
+        hubJoin: status.hub || null,
+      });
+      applyCapabilityNav();
+      if (state.page !== "fleet") goPage("fleet", { replace: true });
+      notify();
+      return;
+    }
+  } else {
+    state.role = "local";
+    state.selectedNodeId = "";
+  }
+
+  const setup = status.setup || (await api("/api/setup").catch(function () { return { complete: true }; }));
   const entities = await api("/api/entities");
   const controls = await api("/api/controls");
   let historyEntities = [];
@@ -119,50 +204,15 @@ export async function refresh() {
     const hint = await api("/debug/adb-hint");
     if (!token && hint.contributor && hint.tokenHint) token = hint.tokenHint;
   } catch (e) {}
-  let updatesPrefs = {
-    units: {
-      temperature: "celsius",
-      distance: "km",
-      speed: "km_h",
-      fuel_economy: "l_100km",
-      energy_economy: "kwh_100km",
-    },
-  };
+  let updatesPrefs = { units: defaultUnitPrefs() };
   try {
     const prefs = await api("/api/prefs");
     if (prefs.theme) setTheme(prefs.theme);
     let units = prefs.units;
-    if (typeof units === "string") {
-      try {
-        units = JSON.parse(units);
-      } catch (e) {
-        units = units === "imperial"
-          ? {
-              temperature: "fahrenheit",
-              distance: "mi",
-              speed: "mph",
-              fuel_economy: "mpg",
-              energy_economy: "kwh_100km",
-            }
-          : updatesPrefs.units;
-      }
-    }
     try {
-      const local = localStorage.getItem("oca_units");
-      if (local) {
-        if (local.charAt(0) === "{") units = JSON.parse(local);
-        else if (local === "imperial" || local === "metric") {
-          units = local === "imperial"
-            ? {
-                temperature: "fahrenheit",
-                distance: "mi",
-                speed: "mph",
-                fuel_economy: "mpg",
-                energy_economy: "kwh_100km",
-              }
-            : updatesPrefs.units;
-        }
-      }
+      const local = localStorage.getItem("oaa_units");
+      if (local) units = local;
+      if (typeof units === "string") units = JSON.parse(units);
     } catch (e) {}
     if (units && typeof units === "object") {
       updatesPrefs = { units: units };
@@ -174,6 +224,10 @@ export async function refresh() {
 
   const updates = {
     status: status,
+    role: role,
+    selectedNodeId: selectedNodeId,
+    fleet: status.fleet || state.fleet,
+    hubJoin: status.hub || null,
     setup: setup,
     entities: entities,
     controls: controls,
@@ -192,6 +246,9 @@ export async function refresh() {
   Object.assign(state, updates);
   applyCapabilityNav();
 
+  if (state.page === "fleet") {
+    await loadFleet();
+  }
   if (state.page === "history") {
     if (!state.historySelected && state.historyEntities && state.historyEntities.length) {
       patch({ historySelected: state.historyEntities[0] });
@@ -217,6 +274,13 @@ export async function refresh() {
   notify();
 }
 
+onHubAuthenticated(refresh);
+setNodeSelectHandler(async function (id) {
+  reconnectEvents();
+  goPage(id ? "home" : "fleet");
+  await refresh();
+});
+
 function onPageEnter(page, prev) {
   if (prev && prev !== page) {
     stashCurrentScroll();
@@ -227,6 +291,14 @@ function onPageEnter(page, prev) {
     ) {
       stopCameraLive();
     }
+    if (prev === "lab") stopLabLogs();
+  }
+
+  if (page === "fleet" && state.role === "hub" && state.selectedNodeId) {
+    rememberNode("");
+    applyHubLevel();
+    reconnectEvents();
+    refresh();
   }
 
   updateNavActive(page);
@@ -242,6 +314,10 @@ function onPageEnter(page, prev) {
 
   if (page === "shortcuts" || page === "settings" || page === "system") {
     loadShortcuts().then(function () {
+      notify();
+    });
+  } else if (page === "fleet") {
+    loadFleet().then(function () {
       notify();
     });
   } else if (page === "history") {
@@ -304,9 +380,9 @@ function goPage(page, options) {
   return gotoPage(page, options);
 }
 
-window.__ocaGoPage = goPage;
+/** Native quick-entry (MainActivity) navigates in-page through this. */
+window.__oaaGoPage = goPage;
 
-applyLegacyPageQuery();
 setRouteEnterHandler(onPageEnter);
 startRouter(function () {
   notify();
@@ -320,6 +396,23 @@ startRouter(function () {
 refresh().then(function () {
   connectEvents();
 });
+
+function isTextField(el) {
+  if (!el) return false;
+  if (el.tagName === "TEXTAREA" || el.isContentEditable) return true;
+  if (el.tagName !== "INPUT") return false;
+  return !/^(checkbox|radio|range|button|submit|reset|color|file|hidden)$/.test(el.type);
+}
+
+// The HU keyboard shrinks the WebView (adjustResize); keep the focused field visible.
+function revealFocusedField() {
+  const el = document.activeElement;
+  if (isTextField(el)) el.scrollIntoView({ block: "center", behavior: "smooth" });
+}
+document.addEventListener("focusin", function (ev) {
+  if (isTextField(ev.target)) setTimeout(revealFocusedField, 350);
+});
+(window.visualViewport || window).addEventListener("resize", revealFocusedField);
 
 // Persist in-session scroll while scrolling.
 document.addEventListener(

@@ -15,7 +15,7 @@ import java.io.File
 class SoundsController(
     private val context: Context,
     private val prefs: SharedPreferences =
-        context.getSharedPreferences("oca_sounds", Context.MODE_PRIVATE),
+        context.getSharedPreferences("oaa_sounds", Context.MODE_PRIVATE),
 ) {
     enum class Kind(val id: String) {
         AVAS("avas"),

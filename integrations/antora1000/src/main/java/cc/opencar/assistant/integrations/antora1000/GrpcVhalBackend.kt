@@ -43,7 +43,7 @@ class GrpcVhalBackend(
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
     private val writeExecutor = Executors.newSingleThreadExecutor { r ->
-        Thread(r, "oca-vhal-grpc-write").apply { isDaemon = true }
+        Thread(r, "oaa-vhal-grpc-write").apply { isDaemon = true }
     }
     private val connected = AtomicBoolean(false)
     private var channel: ManagedChannel? = null
@@ -58,7 +58,7 @@ class GrpcVhalBackend(
         if (connected.get()) return true
         return try {
             val sessionId = UUID.randomUUID().toString()
-            val clientId = "oca_vhal_" +
+            val clientId = "oaa_vhal_" +
                 UUID.randomUUID().toString().replace("-", "").take(8)
             val headers = Metadata().apply {
                 put(SESSION_KEY, sessionId)
@@ -126,7 +126,7 @@ class GrpcVhalBackend(
                     Log.w(TAG, "stream start failed: ${t.message}")
                     latch.countDown()
                 }
-            }, "oca-vhal-grpc-stream").apply { isDaemon = true }.start()
+            }, "oaa-vhal-grpc-stream").apply { isDaemon = true }.start()
 
             // Snapshot push
             try {

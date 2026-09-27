@@ -39,7 +39,7 @@ export function valueOptionsForControl(c) {
       };
     });
   }
-  const domain = c.domain || c.entity;
+  const domain = c.domain;
   if (domain === "device_tracker") {
     return [
       { value: "home", label: t("device_tracker.home", "Home") },

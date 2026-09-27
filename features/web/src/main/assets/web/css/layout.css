@@ -7,10 +7,10 @@ html {
   height: 100%;
   /*
    * Proportional scale from the stable screen size (not live viewport).
-   * Keyboard / soft-input must not shrink rem — see --oca-vmin lock in index.html
+   * Keyboard / soft-input must not shrink rem — see --oaa-vmin lock in index.html
    * and MainActivity windowSoftInputMode=adjustPan.
    */
-  font-size: clamp(12px, calc(var(--oca-vmin, 100vmin) * 0.0175), 36px);
+  font-size: clamp(12px, calc(var(--oaa-vmin, 100vmin) * 0.0175), 36px);
 }
 body {
   height: 100%; margin: 0;
@@ -64,6 +64,14 @@ a.btn {
   font-weight: 700; font-size: 1.1rem; letter-spacing: 0.04em;
   color: var(--text);
 }
+.sidebar .brand-car {
+  flex-shrink: 0;
+  padding: 0 0.7rem 0.5rem;
+  font-size: 0.85rem; font-weight: 600; color: var(--accent);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* Hub top level (no car open): the car nav does not apply. */
+body.hub-fleet .sidebar { display: none; }
 .nav-list {
   flex: 1 1 auto;
   display: flex;
@@ -615,6 +623,7 @@ pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-s
     text-align: center;
   }
   .sidebar .ver { display: none; }
+  .sidebar .brand-car { padding: 0 0.2rem 0.35rem; font-size: 0.65rem; text-align: center; }
   .nav-list { gap: 0.15rem; }
   .nav-item {
     flex-direction: column;

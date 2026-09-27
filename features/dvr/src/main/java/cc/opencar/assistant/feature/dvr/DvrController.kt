@@ -53,9 +53,12 @@ class DvrController(
     private var recordingHubHeld = false
     /** Extra hub seat held while a live preview / HLS client is active. */
     private var previewHubHeld = false
+    /** Hub seats held by remote (WebRTC) live viewers. */
+    private val remoteLiveSeats = java.util.concurrent.atomic.AtomicInteger(0)
+    private val liveTaps = java.util.concurrent.CopyOnWriteArraySet<SharedH264Pipeline.SampleTap>()
     private var mosaicWriter: Future<*>? = null
     private val writerExec = Executors.newSingleThreadExecutor { r ->
-        Thread(r, "oca-dvr-writer").apply { isDaemon = true }
+        Thread(r, "oaa-dvr-writer").apply { isDaemon = true }
     }
     private var h264: SharedH264Pipeline? = null
     @Volatile private var streamFormat: String = "off"
@@ -110,6 +113,7 @@ class DvrController(
             mosaic.mosaicHeight(),
             mosaic.sourceFps(),
         )
+        liveTaps.forEach(pipe::addTap)
         val ids = mosaic.cameraIds()
         val ok = pipe.start(ids.size) { textures ->
             singlePreview.rebindPreviewTextures(ids, textures)
@@ -383,6 +387,48 @@ class DvrController(
         }
     }
 
+    /** Seat for a remote WebRTC live viewer; pair every true result with [releaseRemoteLive]. */
+    fun acquireRemoteLive(): Boolean {
+        if (!hub.acquire()) {
+            lastError = hub.lastError() ?: lastError ?: "Mosaic failed"
+            return false
+        }
+        remoteLiveSeats.incrementAndGet()
+        return true
+    }
+
+    fun releaseRemoteLive() {
+        if (remoteLiveSeats.getAndUpdate { if (it > 0) it - 1 else 0 } > 0) hub.release()
+    }
+
+    /** Release every remote viewer seat and tap (WebRTC shutdown). */
+    fun releaseAllRemoteLive() {
+        repeat(remoteLiveSeats.getAndSet(0)) { hub.release() }
+        liveTaps.forEach { h264?.removeTap(it) }
+        liveTaps.clear()
+    }
+
+    fun addLiveTap(tap: SharedH264Pipeline.SampleTap) {
+        liveTaps.add(tap)
+        h264?.addTap(tap)
+    }
+
+    fun removeLiveTap(tap: SharedH264Pipeline.SampleTap) {
+        liveTaps.remove(tap)
+        h264?.removeTap(tap)
+    }
+
+    fun requestLiveKeyFrame() {
+        h264?.requestKeyFrame()
+    }
+
+    fun liveParameterSets(): ByteArray? = h264?.parameterSetsAnnexB()
+
+    /** Encoded mosaic size, or null while the pipeline is down. */
+    fun liveVideoSize(): Pair<Int, Int>? = h264?.let { it.videoWidth() to it.videoHeight() }
+
+    fun liveFps(): Int = h264?.fps() ?: mosaic.sourceFps()
+
     fun previewStatus(): Map<String, Any?> {
         if (hub.isRunning()) {
             return hub.status() + mapOf(
@@ -400,13 +446,6 @@ class DvrController(
             "format" to streamFormat,
             "h264" to h264?.status(),
         )
-    }
-
-    /** Legacy alias for [setMode](MODE_DVR). Persists mode and starts the writer. */
-    @Deprecated("Prefer setMode(MODE_DVR)")
-    fun start(cameraId: String? = null): Boolean {
-        val res = setMode(MODE_DVR)
-        return res["ok"] == true && (recording.get() || mode == MODE_DVR)
     }
 
     private fun startInternal(): Boolean {
@@ -552,7 +591,7 @@ class DvrController(
 
     private fun newRecordingFile(ext: String): File {
         val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-        return File(dvrDir(), "oca_dvr_$stamp.$ext")
+        return File(dvrDir(), "oaa_dvr_$stamp.$ext")
     }
 
     fun stop() {
@@ -781,8 +820,8 @@ class DvrController(
             Mp4ClipRemuxer.Range(s.file, mediaFrom, mediaTo)
         }
         val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-        val downloadName = "oca_clip_${stamp}.mp4"
-        val out = File(context.cacheDir, "oca_cut_${stamp}_${Thread.currentThread().id}.mp4")
+        val downloadName = "oaa_clip_${stamp}.mp4"
+        val out = File(context.cacheDir, "oaa_cut_${stamp}_${Thread.currentThread().id}.mp4")
         try {
             val durationMs = Mp4ClipRemuxer.remuxRanges(ranges, out)
             if (durationMs <= 0L || !out.isFile || out.length() < 32) {
@@ -1023,7 +1062,7 @@ class DvrController(
 
     companion object {
         private const val TAG = "OaaDvr"
-        private const val PREFS = "oca_dvr"
+        private const val PREFS = "oaa_dvr"
         private const val KEY_STORAGE = "dvr_storage_id"
         private const val KEY_MODE = "dvr_mode"
         private const val KEY_MAX_TOTAL_MB = "dvr_max_total_mb"

@@ -7,7 +7,7 @@ export function theme() {
 export function setTheme(t) {
   document.documentElement.setAttribute("data-theme", t);
   try {
-    localStorage.setItem("oca_theme", t);
+    localStorage.setItem("oaa_theme", t);
   } catch (e) {}
   api("/api/prefs", {
     method: "POST",

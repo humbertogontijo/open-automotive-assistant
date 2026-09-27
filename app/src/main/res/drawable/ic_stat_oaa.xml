@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Status-bar glyph: white on transparent (small icons must be single-color silhouettes). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <group
+        android:scaleX="0.0266"
+        android:scaleY="0.0266"
+        android:translateX="-1.619"
+        android:translateY="-1.832">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:fillType="evenOdd"
+            android:pathData="M360,262Q512,252 664,262C714,268 734,290 752,322L792,414C845,450 878,490 880,575L880,668C880,695 870,710 856,716L856,752C856,775 842,788 820,788L772,788C750,788 738,775 738,752L738,732C738,724 732,718 724,718L300,718C292,718 286,724 286,732L286,752C286,775 274,788 252,788L204,788C182,788 168,775 168,752L168,716C154,710 144,695 144,668L144,575C146,490 179,450 232,414L272,322C290,290 310,268 360,262Z M376,300Q512,292 648,300C676,302 694,314 706,338L750,440C758,460 748,468 728,468L296,468C276,468 266,460 274,440L318,338C330,314 348,302 376,300Z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M160,410H212A24,24 0,0 1,236 434V444A24,24 0,0 1,212 468H160A24,24 0,0 1,136 444V434A24,24 0,0 1,160 410Z M812,410H864A24,24 0,0 1,888 434V444A24,24 0,0 1,864 468H812A24,24 0,0 1,788 444V434A24,24 0,0 1,812 410Z M394,362A16,16 0,0 1,426 362V402A16,16 0,0 1,394 402Z M462,334A16,16 0,0 1,494 334V430A16,16 0,0 1,462 430Z M530,334A16,16 0,0 1,562 334V430A16,16 0,0 1,530 430Z M598,362A16,16 0,0 1,630 362V402A16,16 0,0 1,598 402Z" />
+    </group>
+</vector>

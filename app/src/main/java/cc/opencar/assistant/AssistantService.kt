@@ -276,7 +276,7 @@ class AssistantService : Service() {
         }
             .setContentTitle(getString(R.string.app_name))
             .setContentText(getString(R.string.service_notification))
-            .setSmallIcon(R.drawable.ic_launcher)
+            .setSmallIcon(R.drawable.ic_stat_oaa)
             .setContentIntent(contentPi)
             .setOngoing(true)
 
@@ -317,7 +317,7 @@ class AssistantService : Service() {
 
     companion object {
         private const val TAG = "AssistantService"
-        private const val CHANNEL_ID = "oca_fg"
+        private const val CHANNEL_ID = "oaa_fg"
         private const val NOTIF_ID = 42
         private const val INTERACTIVE_POLL_MS = 1_500L
     }

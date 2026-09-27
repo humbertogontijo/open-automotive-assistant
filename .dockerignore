@@ -1,0 +1,14 @@
+.git
+.gradle
+**/build
+.kotlin
+.idea
+.vscode
+local.properties
+*.apk
+apks/
+keys/
+out/
+**/__pycache__
+**/*.pyc
+**/node_modules

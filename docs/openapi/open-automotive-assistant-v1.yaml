@@ -1,19 +1,69 @@
 openapi: 3.0.3
 info:
   title: Open Automotive Assistant Protocol
-  version: 0.1.0
   description: |
-    Versioned HTTP + WebSocket contract for Open Automotive Assistant on the head unit (default port 8787).
+    Versioned HTTP + WebSocket contract for Open Automotive Assistant.
+    Host roles: `local` (head unit) and `hub` (always-on fleet server).
     Entity field names follow EntityContract (HA-shaped domain.object_id).
+    On a hub, car APIs are the same paths; the car is selected by the
+    `X-Oaa-Node` header, then `?node=`, then the `oaa_node` cookie. The hub
+    forwards `/api/*` (any signed-in user) and `/debug/*` (admins) to that car
+    as `rpc` frames; bodies are binary-safe and capped at 2.5 MiB each way (413).
+
+    Hub dual faces (ADR-0003): human UI/API on port 8787 (hub session required);
+    node dial-in on port 8788 (`/api/nodes/pair`, `/api/nodes/session`,
+    `/api/nodes/artifacts/{sha256}` only). Away cars may reach the node face via
+    Home Assistant Cloud narrow views (`/api/oaa_node/pair|session|artifacts`).
+
+    Node session frames are `{type, payload}`; see `NodeFrame`. App updates are
+    hub-delivered (`/api/ota/*`, `ota_offer` / `ota_status`).
+
+    Two planes (ADR-0003). **Control plane:** this HTTP API, `/api/events`,
+    and node session frames (proxied HTTP, events, OTA, logs). **Media
+    plane:** WebRTC between the car and the viewer — H.264 RTP for live camera
+    video plus a reliable SCTP data channel (`oaa-media`) for DVR playback
+    (fMP4 into MSE) and downloads. The hub relays signaling only
+    (`/api/webrtc/signal`) and never carries or stores media bytes.
+    Signaling frames and data-channel JSON carry `v: 1`; see `WebRtcSignal`,
+    `DataChannelHello` and `MediaChunk` below. LAN `role=local` keeps HLS and
+    direct `/api/dvr/*` HTTP.
+  version: 0.1.0
 servers:
   - url: http://127.0.0.1:8787
-    description: HU WebView / localhost
+    description: HU WebView / localhost (role=local)
   - url: http://{carHost}:8787
-    description: Same-LAN browser
+    description: Same-LAN browser against a car
     variables:
       carHost:
         default: 192.168.1.1
+  - url: http://{hubHost}:8787
+    description: Self-hosted OAA hub human face (role=hub; session required)
+    variables:
+      hubHost:
+        default: 192.168.1.10
+  - url: http://{hubHost}:8788
+    description: Hub node face (pair, session and OTA artifacts only)
+    variables:
+      hubHost:
+        default: 192.168.1.10
+security:
+  - {}
+  - hubSession: []
+  - bearer: []
 paths:
+  /api/status:
+    get:
+      summary: Host status and role
+      operationId: getStatus
+      parameters:
+        - $ref: "#/components/parameters/OaaNodeHeader"
+      responses:
+        "200":
+          description: Status snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Status"
   /api/entities:
     get:
       summary: List product entities
@@ -25,6 +75,7 @@ paths:
             type: string
             enum: ["1"]
           description: When `1`, include entities marked hidden by the user
+        - $ref: "#/components/parameters/OaaNodeHeader"
       responses:
         "200":
           description: Entity catalog snapshot (JSON array of Entity maps)
@@ -38,15 +89,536 @@ paths:
     get:
       summary: WebSocket event stream (upgrade)
       description: |
-        Clients connect with `Upgrade: websocket`. Frames are JSON objects with a `type` field.
+        Clients connect with `Upgrade: websocket`. Frames are `EventEnvelope` JSON objects.
+        On a hub, pass `X-Oaa-Node` (or `?node=`) to subscribe to one car's events.
       operationId: eventsWebSocket
+      parameters:
+        - $ref: "#/components/parameters/OaaNodeHeader"
+        - name: node
+          in: query
+          schema:
+            type: string
+          description: Alternate to X-Oaa-Node for WebSocket clients
       responses:
         "101":
           description: Switching Protocols (WebSocket)
         "200":
           description: Documentation stub — live clients must use WebSocket
+  /api/nodes:
+    get:
+      summary: List fleet nodes (hub only)
+      operationId: listNodes
+      responses:
+        "200":
+          description: Fleet snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fleet"
+        "404":
+          description: Not a hub (`role` is local)
+  /api/nodes/pairing:
+    post:
+      summary: Create a short-lived pairing code (hub only)
+      operationId: createPairingCode
+      responses:
+        "200":
+          description: Pairing offer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PairingOffer"
+  /api/nodes/pair:
+    post:
+      summary: Complete pairing from a car node (hub only)
+      operationId: pairNode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PairRequest"
+      responses:
+        "200":
+          description: Paired node credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PairResponse"
+        "400":
+          description: Invalid or expired code
+  /api/nodes/{nodeId}:
+    delete:
+      summary: Disconnect / forget a node (hub only)
+      operationId: removeNode
+      parameters:
+        - name: nodeId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Removed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+  /api/nodes/session:
+    get:
+      summary: Node outbound WebSocket session (hub only)
+      description: |
+        Cars connect with `Upgrade: websocket` and authenticate with
+        `Authorization: Bearer <nodeToken>` (or query `token=`). Frames are
+        `NodeFrame` JSON. Car→hub: `hello`, `event`, `rpc_result`,
+        `ota_status`, `log`, `pong`, WebRTC answers/ICE. Hub→car: `rpc`,
+        `ota_offer`, `log_subscribe`, `log_unsubscribe`, `ping`, WebRTC
+        offers/ICE/hangup.
+      operationId: nodeSessionWebSocket
+      responses:
+        "101":
+          description: Switching Protocols
+  /api/nodes/artifacts/{sha256}:
+    get:
+      summary: Download an OTA artifact (hub node face; node token)
+      description: |
+        Served on the node face only, with `Authorization: Bearer <nodeToken>`
+        (or `?token=`). Supports `Range` so cars resume interrupted downloads.
+        The `ota_offer` frame carries the path to use, which may be the
+        HA Cloud bridge (`/api/oaa_node/artifacts/{sha256}`).
+      operationId: downloadArtifact
+      parameters:
+        - $ref: "#/components/parameters/Sha256Path"
+      responses:
+        "200":
+          description: APK bytes
+          content:
+            application/vnd.android.package-archive:
+              schema:
+                type: string
+                format: binary
+        "206":
+          description: Partial content for a `Range` request
+        "401":
+          description: Missing or invalid node token
+        "404":
+          description: Unknown artifact
+  /api/ota/artifacts:
+    post:
+      summary: Upload an APK for OTA (hub; admin)
+      operationId: uploadArtifact
+      parameters:
+        - name: X-Oaa-Package
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: X-Oaa-Version-Name
+          in: header
+          schema:
+            type: string
+        - name: X-Oaa-Version-Code
+          in: header
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/vnd.android.package-archive:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: Stored (content-addressed; re-uploads are idempotent)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  artifact:
+                    $ref: "#/components/schemas/Artifact"
+        "413":
+          description: Over 256 MiB
+    get:
+      summary: List stored artifacts, newest first (hub; admin)
+      operationId: listArtifacts
+      responses:
+        "200":
+          description: Artifacts (the hub keeps the last 5)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  artifacts:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Artifact"
+  /api/ota/rollouts:
+    post:
+      summary: Roll an artifact out to cars (hub; admin)
+      description: |
+        Online targets get `ota_offer` immediately; offline ones when they
+        reconnect. A target becomes `installed` only when the car's `hello`
+        reports the artifact's APK hash.
+      operationId: createRollout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [artifact]
+              properties:
+                artifact:
+                  type: string
+                  description: Artifact sha256
+                nodes:
+                  type: array
+                  items:
+                    type: string
+                all:
+                  type: boolean
+                  description: Target every paired car instead of `nodes`
+      responses:
+        "200":
+          description: Rollout created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  rollout:
+                    $ref: "#/components/schemas/Rollout"
+        "400":
+          description: Missing targets or unknown nodes
+        "404":
+          description: Unknown artifact
+    get:
+      summary: List rollouts (hub; admin)
+      operationId: listRollouts
+      responses:
+        "200":
+          description: Rollouts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rollouts:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Rollout"
+  /api/ota/rollouts/{id}:
+    get:
+      summary: One rollout with per-car state (hub; admin)
+      operationId: getRollout
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Rollout
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Rollout"
+        "404":
+          description: Unknown rollout
+  /debug/logs/stream:
+    get:
+      summary: Live app log stream (WebSocket)
+      description: |
+        Text frames, one log line each (recent backlog first). On a car the
+        contributor `token` is required. On a hub (admins only, car chosen by
+        `?node=`), the hub sends `log_subscribe {token}` to the car and relays
+        its `log` frames while at least one viewer is attached. Other
+        `/debug/*` routes are proxied as regular `rpc` requests.
+      operationId: debugLogStream
+      parameters:
+        - name: token
+          in: query
+          schema:
+            type: string
+        - name: node
+          in: query
+          schema:
+            type: string
+      responses:
+        "101":
+          description: Switching Protocols
+  /api/webrtc/ice:
+    get:
+      summary: ICE servers for the media plane (hub human face; session required)
+      description: |
+        Returns STUN URLs and, when `OAA_TURN_URLS` + `OAA_TURN_SECRET` are set,
+        short-lived TURN credentials in the coturn REST format
+        (`username = <unixExpiry>:<userId>`, `credential = base64(HMAC-SHA1(secret, username))`).
+        The shared secret never leaves the hub. The hub injects its own
+        `iceServers` into the offer it relays to the car.
+      operationId: getIceServers
+      responses:
+        "200":
+          description: ICE configuration for RTCPeerConnection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IceConfig"
+        "401":
+          description: Hub session required
+  /api/webrtc/signal:
+    get:
+      summary: WebRTC signaling WebSocket (hub human face; session required)
+      description: |
+        `Upgrade: websocket`, scoped to one car with `?node=<nodeId>` (or
+        `X-Oaa-Node`). The hub binds this socket to the node's session by
+        `sessionId` and relays `webrtc_offer` / `webrtc_ice` / `webrtc_hangup`
+        to the car over the existing node WebSocket; `webrtc_answer` /
+        `webrtc_ice` / `webrtc_hangup` come back. SDP is never inspected or
+        persisted.
+
+        Limits (v1): one WebRTC session per node — a newer offer replaces the
+        prior one (`reason=replaced`); at most 128 relayed ICE candidates per
+        session per direction; frames ≤ 64 KiB. Any frame whose `v` differs
+        from 1 is answered with `webrtc_hangup` `reason=version`. Offline node →
+        `reason=offline`; node without WebRTC support → `reason=unsupported`.
+
+        Access (v1): any authenticated hub user may open a session to any
+        paired node; per-node ACLs are future work.
+      operationId: webrtcSignalWebSocket
+      parameters:
+        - name: node
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "101":
+          description: Switching Protocols. Frames are `WebRtcSignal` JSON.
+  /api/hub:
+    get:
+      summary: Hub join config on a local node (local only)
+      operationId: getHubConfig
+      responses:
+        "200":
+          description: Current hub pairing state on this car
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HubJoinConfig"
+    post:
+      summary: Join or update hub pairing on a local node
+      operationId: setHubConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HubJoinRequest"
+      responses:
+        "200":
+          description: Updated config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HubJoinConfig"
+    delete:
+      summary: Leave hub (local only)
+      operationId: leaveHub
+      responses:
+        "200":
+          description: Cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
 components:
+  securitySchemes:
+    hubSession:
+      type: apiKey
+      in: cookie
+      name: oaa_session
+      description: Hub login session (human face). Cars on their own LAN need no auth.
+    bearer:
+      type: http
+      scheme: bearer
+      description: Hub session / system token on the human face, or node token on the node face
+  parameters:
+    OaaNodeHeader:
+      name: X-Oaa-Node
+      in: header
+      required: false
+      schema:
+        type: string
+      description: On hub hosts, select which paired car to address (else `?node=`, else the `oaa_node` cookie)
+    Sha256Path:
+      name: sha256
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[0-9a-f]{64}$"
   schemas:
+    Status:
+      type: object
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [local, hub]
+        nodeId:
+          type: string
+          nullable: true
+          description: This host's node id when role=local
+        fleet:
+          $ref: "#/components/schemas/Fleet"
+        remote:
+          type: boolean
+          description: True when the HTTP client is not localhost
+        webPort:
+          type: integer
+        integration:
+          type: string
+        variant:
+          type: string
+        capabilities:
+          type: array
+          items:
+            type: string
+        theme:
+          type: string
+        webrtc:
+          type: object
+          description: Present on hubs that relay the media plane (ADR-0003)
+          properties:
+            v:
+              type: integer
+            turn:
+              type: boolean
+    Fleet:
+      type: object
+      properties:
+        nodes:
+          type: array
+          items:
+            $ref: "#/components/schemas/NodeSummary"
+    NodeSummary:
+      type: object
+      required: [id, name, online]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        online:
+          type: boolean
+        integration:
+          type: string
+          nullable: true
+        lastSeenMs:
+          type: integer
+          format: int64
+          nullable: true
+        app:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/AppInfo"
+          description: Build reported in the car's last `hello`
+        ota:
+          type: object
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/OtaTargetState"
+          description: Latest rollout state for this car
+    PairingOffer:
+      type: object
+      required: [code, expiresAtMs]
+      properties:
+        code:
+          type: string
+          description: Short numeric/alphanumeric code shown in hub UI
+        expiresAtMs:
+          type: integer
+          format: int64
+    PairRequest:
+      type: object
+      required: [code, nodeId, name]
+      properties:
+        code:
+          type: string
+        nodeId:
+          type: string
+          description: Stable id chosen by the car (e.g. android_id hash)
+        name:
+          type: string
+        integration:
+          type: string
+    PairResponse:
+      type: object
+      required: [ok, nodeId, token]
+      properties:
+        ok:
+          type: boolean
+        nodeId:
+          type: string
+        token:
+          type: string
+          description: Long-lived bearer token for /api/nodes/session
+        publicNodeUrl:
+          type: string
+          nullable: true
+          description: Node-face base URL the car should dial (tunnel / HA Cloud)
+        sessionPath:
+          type: string
+          description: Session path on publicNodeUrl (default `/api/nodes/session`)
+    HubJoinConfig:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        hubUrl:
+          type: string
+        nodeUrl:
+          type: string
+          nullable: true
+        nodeId:
+          type: string
+          nullable: true
+        paired:
+          type: boolean
+        online:
+          type: boolean
+        lastError:
+          type: string
+          nullable: true
+    HubJoinRequest:
+      type: object
+      required: [hubUrl, code]
+      properties:
+        hubUrl:
+          type: string
+          description: Base URL of the hub (e.g. http://192.168.1.10:8787)
+        code:
+          type: string
+        name:
+          type: string
+          description: Optional display name override
     Entity:
       type: object
       required: [id, domain]
@@ -59,9 +631,6 @@ components:
           type: string
           description: EntityType id (climate, sensor, switch, …)
           example: climate
-        entity:
-          type: string
-          description: Legacy alias of domain
         state:
           type: string
           nullable: true
@@ -98,14 +667,363 @@ components:
           description: Live-update policy for WebSocket clients
     EventEnvelope:
       type: object
+      required: [t]
+      additionalProperties: true
+      description: Viewer event on `/api/events`; fields besides `t` depend on the type.
+      properties:
+        t:
+          type: string
+          enum: [hello, ping, telemetry, entity, catalog]
+          description: |
+            `entity` — atomic value patch (`id`, `value`, `status`);
+            `catalog` — reload /api/entities; `telemetry` — session telemetry snapshot
+    NodeFrame:
+      type: object
       required: [type]
+      description: |
+        Frame on `/api/nodes/session`. Payload shapes: `hello` → `NodeHello`,
+        `event` → `EventEnvelope`, `rpc` → `RpcRequest`, `rpc_result` →
+        `RpcResult`, `ota_offer` → `OtaOffer`, `ota_status` → `OtaStatus`,
+        `log_subscribe` → `{v, token?}`, `log` → `{line}`; WebRTC frames are
+        `WebRtcSignal`. `ping` / `pong` / `log_unsubscribe` carry no payload.
       properties:
         type:
           type: string
-          enum: [telemetry, entity, catalog]
-          description: |
-            `entity` — atomic value patch; `catalog` — reload /api/entities;
-            `telemetry` — session telemetry snapshot
+          enum:
+            - hello
+            - event
+            - ping
+            - pong
+            - rpc
+            - rpc_result
+            - ota_offer
+            - ota_status
+            - log_subscribe
+            - log_unsubscribe
+            - log
+            - webrtc_offer
+            - webrtc_answer
+            - webrtc_ice
+            - webrtc_hangup
         payload:
           type: object
           additionalProperties: true
+    NodeHello:
+      type: object
+      required: [v, nodeId]
+      properties:
+        v:
+          type: integer
+          enum: [1]
+        nodeId:
+          type: string
+        name:
+          type: string
+        integration:
+          type: string
+        version:
+          type: string
+          description: Protocol / app version (0.1.0)
+        app:
+          $ref: "#/components/schemas/AppInfo"
+    AppInfo:
+      type: object
+      properties:
+        package:
+          type: string
+        versionName:
+          type: string
+        versionCode:
+          type: integer
+          format: int64
+        apkSha256:
+          type: string
+          nullable: true
+          description: Hash of the installed APK; the hub's source of truth for `installed`
+    RpcRequest:
+      type: object
+      required: [id, method, path]
+      description: |
+        Hub→car proxied HTTP. Textual bodies (text/*, JSON, XML, JS, form) use
+        `body`; anything else `bodyB64`. Bodies over 2.5 MiB are refused (413).
+      properties:
+        id:
+          type: string
+        method:
+          type: string
+          enum: [GET, POST, PUT, DELETE]
+        path:
+          type: string
+        query:
+          type: string
+          description: Raw query string without `?`
+        contentType:
+          type: string
+        body:
+          type: string
+        bodyB64:
+          type: string
+          format: byte
+    RpcResult:
+      type: object
+      required: [id, status]
+      properties:
+        id:
+          type: string
+        status:
+          type: integer
+        contentType:
+          type: string
+        contentDisposition:
+          type: string
+        body:
+          type: string
+        bodyB64:
+          type: string
+          format: byte
+    OtaOffer:
+      type: object
+      required: [v, rolloutId, sha256, path]
+      properties:
+        v:
+          type: integer
+          enum: [1]
+        rolloutId:
+          type: string
+        sha256:
+          type: string
+        size:
+          type: integer
+          format: int64
+        package:
+          type: string
+        versionName:
+          type: string
+          nullable: true
+        versionCode:
+          type: integer
+          format: int64
+          nullable: true
+        path:
+          type: string
+          description: Download path relative to the car's node URL
+    OtaStatus:
+      type: object
+      required: [v, rolloutId, state]
+      description: Car progress report. `installed` is ignored here; only `hello` confirms it.
+      properties:
+        v:
+          type: integer
+          enum: [1]
+        rolloutId:
+          type: string
+        state:
+          $ref: "#/components/schemas/OtaState"
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        error:
+          type: string
+    OtaState:
+      type: string
+      enum: [pending, offered, downloading, verifying, installing, pending_user, installed, failed]
+    OtaTargetState:
+      type: object
+      properties:
+        rolloutId:
+          type: string
+        sha256:
+          type: string
+        state:
+          $ref: "#/components/schemas/OtaState"
+        progress:
+          type: integer
+          nullable: true
+        error:
+          type: string
+          nullable: true
+        updatedAtMs:
+          type: integer
+          format: int64
+    Artifact:
+      type: object
+      required: [sha256, size, packageName]
+      properties:
+        sha256:
+          type: string
+        size:
+          type: integer
+          format: int64
+        packageName:
+          type: string
+        versionName:
+          type: string
+          nullable: true
+        versionCode:
+          type: integer
+          format: int64
+          nullable: true
+        uploadedAtMs:
+          type: integer
+          format: int64
+    Rollout:
+      type: object
+      required: [id, sha256, targets, done]
+      properties:
+        id:
+          type: string
+        sha256:
+          type: string
+        createdAtMs:
+          type: integer
+          format: int64
+        done:
+          type: boolean
+        targets:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              state:
+                $ref: "#/components/schemas/OtaState"
+              progress:
+                type: integer
+                nullable: true
+              error:
+                type: string
+                nullable: true
+              updatedAtMs:
+                type: integer
+                format: int64
+    IceConfig:
+      type: object
+      required: [v, iceServers]
+      properties:
+        v:
+          type: integer
+          enum: [1]
+        iceServers:
+          type: array
+          items:
+            type: object
+            required: [urls]
+            properties:
+              urls:
+                type: array
+                items:
+                  type: string
+              username:
+                type: string
+              credential:
+                type: string
+        ttlSec:
+          type: integer
+          description: Lifetime of the TURN credential
+        turn:
+          type: boolean
+          description: True when TURN relay credentials are included
+    WebRtcSignal:
+      type: object
+      required: [type, payload]
+      description: |
+        Signaling envelope on `/api/webrtc/signal` and on the node session.
+        Directions: `webrtc_offer` viewer→car; `webrtc_answer` car→viewer;
+        `webrtc_ice` and `webrtc_hangup` both ways. The viewer creates the
+        offer (recvonly H.264 video + the `oaa-media` data channel).
+      properties:
+        type:
+          type: string
+          enum: [webrtc_offer, webrtc_answer, webrtc_ice, webrtc_hangup]
+        payload:
+          type: object
+          required: [v, sessionId]
+          properties:
+            v:
+              type: integer
+              enum: [1]
+            sessionId:
+              type: string
+              pattern: "^[A-Za-z0-9_-]{8,64}$"
+            sdp:
+              type: string
+              description: offer / answer only
+            codecs:
+              type: array
+              items:
+                type: string
+              description: answer only — negotiated codecs (e.g. `H264`)
+            candidate:
+              type: string
+            sdpMid:
+              type: string
+              nullable: true
+            sdpMLineIndex:
+              type: integer
+              nullable: true
+            iceServers:
+              type: array
+              items:
+                type: object
+              description: Added by the hub to the offer it forwards to the car
+            reason:
+              type: string
+              enum: [version, busy, replaced, offline, unsupported, bye, invalid, error]
+              description: hangup only
+    DataChannelHello:
+      type: object
+      required: [type, v, sessionId, features]
+      description: |
+        First message the car sends on the `oaa-media` data channel (reliable,
+        ordered). The viewer must only use features listed here.
+
+        Viewer→car JSON messages (all with `v: 1` and a numeric `reqId`):
+        `playback_open {reqId, name?, atMs?, mode: file|scrub}`,
+        `playback_seek {reqId, atMs? | offsetMs?}`, `playback_close {reqId}`,
+        `download_open {reqId, name}` (basename only — `/`, `\`, `..` rejected),
+        `cut_request {reqId, fromMs, toMs}`, `transfer_cancel {reqId}`,
+        `live_pause` / `live_resume` (no `reqId`; stop/start sending live video
+        frames, e.g. while the viewer tab is hidden — resume starts on a key frame).
+
+        Car→viewer JSON: `media_meta {reqId, kind, name?, mime, codec?, size?,
+        offsetMs?, atMs?, durationMs?}` precedes the bytes of each transfer
+        (and each playback restart after a seek); `media_error {reqId, error}`.
+        Bytes arrive as binary `MediaChunk` frames.
+
+        Playback container contract: always fragmented MP4 (init + moof/mdat)
+        for Media Source Extensions, mime `video/mp4; codecs="avc1.PPCCLL"`
+        taken from the SPS. Downloads and cuts are progressive MP4 files.
+        At most 2 concurrent transfers per session; chunks ≤ `chunkMaxBytes`;
+        senders respect `bufferedAmount` backpressure.
+      properties:
+        type:
+          type: string
+          enum: [dc_hello]
+        v:
+          type: integer
+          enum: [1]
+        sessionId:
+          type: string
+        features:
+          type: array
+          items:
+            type: string
+            enum: [live, playback, download, cut]
+        playbackContainer:
+          type: string
+          enum: [fmp4]
+        chunkMaxBytes:
+          type: integer
+          example: 262144
+        maxTransfers:
+          type: integer
+          example: 2
+    MediaChunk:
+      type: string
+      format: binary
+      description: |
+        Binary data-channel frame, big-endian:
+        `u8 type (1=chunk) | u32 reqId | u32 seq | u8 flags | payload`.
+        Flags: `0x01` eof (last chunk of the transfer), `0x02` init (fMP4
+        initialization segment). `seq` restarts at 0 for each transfer or
+        playback restart. Payload ≤ `chunkMaxBytes`.

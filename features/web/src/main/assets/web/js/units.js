@@ -63,21 +63,12 @@ export var UNIT_CHOICES = {
   energy_economy: ["kwh_100km", "km_kwh", "wh_km"],
 };
 
-/** Default / legacy metric map (also used when migrating old "metric" string prefs). */
+/** Canonical platform units. */
 var DEFAULT_UNIT_PREFS = {
   temperature: "celsius",
   distance: "km",
   speed: "km_h",
   fuel_economy: "l_100km",
-  energy_economy: "kwh_100km",
-};
-
-/** Legacy imperial map for migrating old "imperial" string prefs. */
-var LEGACY_IMPERIAL_PREFS = {
-  temperature: "fahrenheit",
-  distance: "mi",
-  speed: "mph",
-  fuel_economy: "mpg",
   energy_economy: "kwh_100km",
 };
 
@@ -88,11 +79,6 @@ export function defaultUnitPrefs() {
 /** Normalized per-dimension prefs object. */
 export function unitPrefs() {
   var raw = (state.prefs && state.prefs.units) || {};
-  if (typeof raw === "string") {
-    return raw === "imperial"
-      ? Object.assign({}, LEGACY_IMPERIAL_PREFS)
-      : Object.assign({}, DEFAULT_UNIT_PREFS);
-  }
   var out = defaultUnitPrefs();
   Object.keys(UNIT_CHOICES).forEach(function (dim) {
     var v = raw[dim];

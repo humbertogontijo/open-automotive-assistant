@@ -37,6 +37,7 @@ internal data class OaaWebDeps(
     val integrationIds: List<String> = emptyList(),
     val getIntegrationOverride: () -> String? = { null },
     val setIntegrationOverride: (String?) -> Unit = {},
+    val hub: HubClient? = null,
 ) {
     val store by lazy { AppStore(context, installer = installer) }
     val entityVisibility by lazy { EntityVisibilityStore(prefs) }

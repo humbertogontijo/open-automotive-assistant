@@ -7,7 +7,7 @@
 # block package replace for a long time.
 oaa_install_data() {
   [[ -f "$OAA_APK_SIGNED" ]] || die "Missing signed APK: $OAA_APK_SIGNED"
-  local remote="/data/local/tmp/oca-install.apk"
+  local remote="/data/local/tmp/oaa-install.apk"
   local serial="${OAA_HOST}:${OAA_ADB_PORT}"
 
   log "Preparing install (force-stop $OAA_PACKAGE user $OAA_ANDROID_USER)"

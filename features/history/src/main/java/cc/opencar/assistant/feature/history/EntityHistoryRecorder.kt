@@ -193,9 +193,9 @@ class EntityHistoryRecorder(
 
     private class HistoryDb(context: Context) : SQLiteOpenHelper(
         context,
-        "oca_entity_history.db",
+        "oaa_entity_history.db",
         null,
-        2,
+        1,
     ) {
         override fun onCreate(db: SQLiteDatabase) {
             db.execSQL(
@@ -214,11 +214,6 @@ class EntityHistoryRecorder(
             db.execSQL("CREATE INDEX idx_hist_family_ts ON $TABLE(family, ts)")
         }
 
-        override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-            // v2: drop heartbeat-era duplicates; change-only recording going forward.
-            if (oldVersion < 2) {
-                db.execSQL("DELETE FROM $TABLE")
-            }
-        }
+        override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
     }
 }

@@ -1,7 +1,7 @@
 import { html, nothing } from "../lit.js";
 import { state, patch } from "../store.js";
 import { t } from "../i18n.js";
-import { api } from "../api.js";
+import { api, errText } from "../api.js";
 import { entitiesByGroup } from "../store.js";
 import { familySections } from "./group.js";
 import { prefCard } from "../ui/cards.js";
@@ -169,7 +169,7 @@ function soundKindCard(kind, title) {
           try {
             await uploadSound(kind, f);
           } catch (e) {
-            alert(String(e && e.message ? e.message : e));
+            alert(errText(e));
           }
           ev.target.value = "";
         }}

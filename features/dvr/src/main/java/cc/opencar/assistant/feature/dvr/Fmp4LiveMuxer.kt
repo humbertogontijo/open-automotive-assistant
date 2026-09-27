@@ -78,19 +78,23 @@ class Fmp4LiveMuxer(
     }
 
     fun setParameterSets(spsIn: ByteArray, ppsIn: ByteArray) {
-        val sps = stripEmulationOrStartCode(spsIn) ?: return
-        val pps = stripEmulationOrStartCode(ppsIn) ?: return
+        val sps = AnnexB.stripStartCode(spsIn)
+        val pps = AnnexB.stripStartCode(ppsIn)
         if (sps.size < 4 || pps.size < 2) return
-        if ((sps[0].toInt() and 0x1f) != 7) return
-        if ((pps[0].toInt() and 0x1f) != 8) return
+        if (AnnexB.nalType(sps) != AnnexB.NAL_SPS || AnnexB.nalType(pps) != AnnexB.NAL_PPS) return
         initSegment = buildInit(sps, pps)
         Log.i(TAG, "init ready sps=${sps.size} pps=${pps.size}")
     }
 
-    fun onSample(data: ByteArray, isKey: Boolean) {
+    /** Append a sample; [durationTicks] (in [timescale]) defaults to one frame at the current fps. */
+    fun onSample(
+        data: ByteArray,
+        isKey: Boolean,
+        durationTicks: Long = (timescale / fps.coerceAtLeast(1)).toLong(),
+    ) {
         if (initSegment == null) return
         val avcc = toAvcc(data) ?: return
-        val dur = (timescale / fps.coerceAtLeast(1)).toLong().coerceAtLeast(1L)
+        val dur = durationTicks.coerceAtLeast(1L)
         // Start a new segment on keyframe if we already have media buffered.
         if (isKey && pending.isNotEmpty()) {
             flushPending()
@@ -101,6 +105,9 @@ class Fmp4LiveMuxer(
             flushPending()
         }
     }
+
+    /** Publish buffered samples as a final fragment (end of a restreamed file). */
+    fun flush() = flushPending()
 
     private fun flushPending() {
         if (pending.isEmpty()) return
@@ -157,102 +164,12 @@ class Fmp4LiveMuxer(
         synchronized(segmentLock) { segmentLock.notifyAll() }
     }
 
-    private fun stripEmulationOrStartCode(data: ByteArray): ByteArray? {
-        if (data.isEmpty()) return null
-        var i = 0
-        if (data.size >= 4 && data[0] == 0.toByte() && data[1] == 0.toByte() &&
-            data[2] == 0.toByte() && data[3] == 1.toByte()
-        ) {
-            i = 4
-        } else if (data.size >= 3 && data[0] == 0.toByte() && data[1] == 0.toByte() && data[2] == 1.toByte()) {
-            i = 3
-        }
-        return data.copyOfRange(i, data.size)
-    }
-
+    /** Media NAL units as AVCC; parameter sets and AUDs are dropped (they live in the init segment). */
     private fun toAvcc(data: ByteArray): ByteArray? {
         if (data.size < 5) return null
-
-        fun isStartCode(at: Int): Int = when {
-            at + 4 <= data.size && data[at] == 0.toByte() && data[at + 1] == 0.toByte() &&
-                data[at + 2] == 0.toByte() && data[at + 3] == 1.toByte() -> 4
-            at + 3 <= data.size && data[at] == 0.toByte() && data[at + 1] == 0.toByte() &&
-                data[at + 2] == 1.toByte() -> 3
-            else -> 0
-        }
-
-        val annexB = isStartCode(0) > 0
-
-        if (!annexB) {
-            // Length-prefixed AVCC access unit.
-            var i = 0
-            val kept = ArrayList<ByteArray>()
-            while (i + 4 <= data.size) {
-                val len = ((data[i].toInt() and 0xff) shl 24) or
-                    ((data[i + 1].toInt() and 0xff) shl 16) or
-                    ((data[i + 2].toInt() and 0xff) shl 8) or
-                    (data[i + 3].toInt() and 0xff)
-                // Reject absurd lengths (e.g. misread Annex-B as AVCC).
-                if (len < 1 || len > data.size - i - 4) return null
-                val nal = data.copyOfRange(i + 4, i + 4 + len)
-                val type = nal[0].toInt() and 0x1f
-                if (type != 7 && type != 8 && type != 9) kept += nal
-                i += 4 + len
-            }
-            if (i != data.size || kept.isEmpty()) return null
-            if (kept.size == 1) {
-                val out = ByteArray(4 + kept[0].size)
-                val n = kept[0].size
-                out[0] = ((n ushr 24) and 0xff).toByte()
-                out[1] = ((n ushr 16) and 0xff).toByte()
-                out[2] = ((n ushr 8) and 0xff).toByte()
-                out[3] = (n and 0xff).toByte()
-                System.arraycopy(kept[0], 0, out, 4, n)
-                return out
-            }
-            val out = ByteArrayOutputStream()
-            for (n in kept) {
-                out.write((n.size ushr 24) and 0xff)
-                out.write((n.size ushr 16) and 0xff)
-                out.write((n.size ushr 8) and 0xff)
-                out.write(n.size and 0xff)
-                out.write(n)
-            }
-            return out.toByteArray()
-        }
-
-        // Annex-B → AVCC (drop SPS/PPS/AUD).
-        val nals = ArrayList<ByteArray>()
-        var i = 0
-        while (i + 3 < data.size) {
-            val sc = isStartCode(i)
-            if (sc == 0) {
-                i++; continue
-            }
-            val start = i + sc
-            var end = start
-            while (end < data.size) {
-                val nsc = isStartCode(end)
-                if (nsc > 0) break
-                end++
-            }
-            if (end > start) {
-                val nal = data.copyOfRange(start, end)
-                val type = nal[0].toInt() and 0x1f
-                if (type != 7 && type != 8 && type != 9) nals += nal
-            }
-            i = end
-        }
-        if (nals.isEmpty()) return null
-        val out = ByteArrayOutputStream()
-        for (n in nals) {
-            out.write((n.size ushr 24) and 0xff)
-            out.write((n.size ushr 16) and 0xff)
-            out.write((n.size ushr 8) and 0xff)
-            out.write(n.size and 0xff)
-            out.write(n)
-        }
-        return out.toByteArray()
+        val nals = (if (AnnexB.hasStartCode(data)) AnnexB.split(data) else AnnexB.splitAvcc(data) ?: return null)
+            .filter { AnnexB.nalType(it) !in AnnexB.NAL_SPS..AnnexB.NAL_AUD }
+        return if (nals.isEmpty()) null else AnnexB.toAvcc(nals)
     }
 
     private fun buildInit(sps: ByteArray, pps: ByteArray): ByteArray {

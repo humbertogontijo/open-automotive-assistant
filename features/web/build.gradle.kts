@@ -19,6 +19,7 @@ android {
     }
 }
 dependencies {
+    implementation(project(":protocol"))
     api(project(":integration-api"))
     api(project(":oaa-support"))
     api(project(":feature-debug"))
@@ -35,4 +36,7 @@ dependencies {
     implementation("io.ktor:ktor-serialization-gson:2.3.12")
     implementation("io.ktor:ktor-server-websockets:2.3.12")
     implementation("io.ktor:ktor-server-status-pages:2.3.12")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    // Standard libwebrtc (SDP/ICE/DTLS) for the ADR-0003 media plane; no vendor signaling.
+    implementation("io.getstream:stream-webrtc-android:1.3.10")
 }

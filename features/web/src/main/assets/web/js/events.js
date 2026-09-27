@@ -134,7 +134,10 @@ function handleMessage(raw) {
 function wsUrl() {
   const loc = window.location;
   const proto = loc.protocol === "https:" ? "wss:" : "ws:";
-  return proto + "//" + loc.host + "/api/events";
+  return proto + "//" + loc.host + "/api/events" +
+    (state.role === "hub" && state.selectedNodeId
+      ? "?node=" + encodeURIComponent(state.selectedNodeId)
+      : "");
 }
 
 function scheduleReconnect() {
@@ -154,14 +157,17 @@ export function connectEvents() {
   if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
     return;
   }
+  let ws;
   try {
-    socket = new WebSocket(wsUrl());
+    ws = new WebSocket(wsUrl());
   } catch (e) {
     state._eventsOpen = false;
     scheduleReconnect();
     return;
   }
-  socket.onopen = function () {
+  socket = ws;
+  ws.onopen = function () {
+    if (socket !== ws) return;
     backoffMs = 1000;
     state._eventsOpen = true;
     // After a drop, pull once so the first paint is not stale.
@@ -176,19 +182,41 @@ export function connectEvents() {
     }
     everConnected = true;
   };
-  socket.onmessage = function (ev) {
-    handleMessage(ev.data);
+  ws.onmessage = function (ev) {
+    if (socket === ws) handleMessage(ev.data);
   };
-  socket.onclose = function () {
-    socket = null;
+  ws.onclose = function () {
+    if (socket !== ws) return;
     state._eventsOpen = false;
+    socket = null;
     scheduleReconnect();
   };
-  socket.onerror = function () {
+  ws.onerror = function () {
     try {
-      socket && socket.close();
+      ws.close();
     } catch (e) {}
   };
+}
+
+function dropSocket() {
+  const ws = socket;
+  socket = null;
+  if (!ws) return;
+  ws.onopen = ws.onmessage = ws.onclose = ws.onerror = null;
+  try {
+    ws.close();
+  } catch (e) {}
+}
+
+/** Force reconnect (e.g. after hub fleet node selection changes). */
+export function reconnectEvents() {
+  dropSocket();
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = 0;
+  }
+  backoffMs = 1000;
+  connectEvents();
 }
 
 document.addEventListener("visibilitychange", function () {

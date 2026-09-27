@@ -80,10 +80,10 @@ class DvrStorageMathTest {
 
     @Test
     fun isDvrRecordingName() {
-        assertTrue(DvrStorageMath.isDvrRecordingName("oca_dvr_20260101_120000.mp4"))
-        assertFalse(DvrStorageMath.isDvrRecordingName("oca_dvr_x.mjpeg"))
-        assertFalse(DvrStorageMath.isDvrRecordingName("../oca_dvr_x.mp4"))
-        assertFalse(DvrStorageMath.isDvrRecordingName("oca_dvr_x.mp4.meta"))
+        assertTrue(DvrStorageMath.isDvrRecordingName("oaa_dvr_20260101_120000.mp4"))
+        assertFalse(DvrStorageMath.isDvrRecordingName("oaa_dvr_x.mjpeg"))
+        assertFalse(DvrStorageMath.isDvrRecordingName("../oaa_dvr_x.mp4"))
+        assertFalse(DvrStorageMath.isDvrRecordingName("oaa_dvr_x.mp4.meta"))
     }
 
     @Test

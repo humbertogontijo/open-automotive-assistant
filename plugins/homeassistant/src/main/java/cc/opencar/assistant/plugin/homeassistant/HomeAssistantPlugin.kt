@@ -218,7 +218,7 @@ class HomeAssistantPlugin : OaaPlugin {
         const val ID = "homeassistant"
         const val ACTION_CALL_SERVICE = "call_service"
         const val TRIGGER_ENTITY_STATE = "entity_state"
-        private const val PREFS = "oca_plugin_homeassistant"
+        private const val PREFS = "oaa_plugin_homeassistant"
         private const val KEY_BASE_URL = "base_url"
         private const val KEY_TOKEN = "token"
         private const val KEY_ENABLED = "enabled"

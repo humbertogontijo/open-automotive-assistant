@@ -29,7 +29,7 @@ object DvrStorageMath {
             return false
         }
         if (name.endsWith(".lock") || name.endsWith(".meta")) return false
-        return name.startsWith("oca_dvr_") && name.endsWith(".mp4")
+        return name.startsWith("oaa_dvr_") && name.endsWith(".mp4")
     }
 
     data class PruneFile(

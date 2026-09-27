@@ -17,7 +17,6 @@ package cc.opencar.assistant.api
  * |-------|------|
  * | `id` | Stable catalog id (`climate.cabin`, `sensor.soc`, …) — HA-shaped `domain.object_id` |
  * | `domain` | Same as [EntityType.id] (`sensor`, `climate`, `cover`, `switch`, …) |
- * | `entity` | Alias of `domain` (legacy UI field) |
  * | `state` / `value` | Current state string (HA `state` / product `value`) |
  * | `friendlyName` / `label` | Localized display name |
  * | `available` | `true` when `status` is `ok` or `cached` |
@@ -54,7 +53,6 @@ package cc.opencar.assistant.api
 object EntityContract {
     const val FIELD_ID = "id"
     const val FIELD_DOMAIN = "domain"
-    const val FIELD_ENTITY = "entity"
     const val FIELD_STATE = "state"
     const val FIELD_VALUE = "value"
     const val FIELD_FRIENDLY_NAME = "friendlyName"
@@ -89,8 +87,8 @@ object EntityContract {
         if (composite) UPDATE_CATALOG else UPDATE_ENTITY
 
     /**
-     * Adds HA-shaped aliases (`domain`, `state`, `friendlyName`, `available`,
-     * `attributes`) without removing legacy keys used by the web shell.
+     * Adds HA-shaped fields (`state`, `friendlyName`, `available`, `attributes`)
+     * and defaults `domain` to [EntityType.EXTRA].
      * Ensures [FIELD_COMPOSITE] / [FIELD_UPDATE] are always present.
      */
     fun enrich(row: Map<String, Any?>): Map<String, Any?> {
@@ -112,9 +110,7 @@ object EntityContract {
         }
         val status = row[FIELD_STATUS] as? String
         val label = row[FIELD_LABEL] as? String
-        val domain = (row[FIELD_DOMAIN] as? String)
-            ?: (row[FIELD_ENTITY] as? String)
-            ?: EntityType.EXTRA.id
+        val domain = (row[FIELD_DOMAIN] as? String) ?: EntityType.EXTRA.id
         val value = row[FIELD_VALUE]
         @Suppress("UNCHECKED_CAST")
         val existingAttrs = row[FIELD_ATTRIBUTES] as? Map<*, *>
@@ -142,7 +138,6 @@ object EntityContract {
         }.filterValues { it != null }
         return row + mapOf(
             FIELD_DOMAIN to domain,
-            FIELD_ENTITY to (row[FIELD_ENTITY] ?: domain),
             FIELD_STATE to value,
             FIELD_FRIENDLY_NAME to label,
             FIELD_AVAILABLE to isAvailable(status),

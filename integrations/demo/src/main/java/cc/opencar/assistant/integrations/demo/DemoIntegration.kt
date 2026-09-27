@@ -10,7 +10,7 @@ import cc.opencar.assistant.integrations.aaos.PlatformConfig
 
 /**
  * In-memory fake vehicle for CI and laptop contributors (no head unit).
- * Match fingerprint needles `demo` / `oca-demo`, or Lab override integration id `demo`.
+ * Match fingerprint needles `demo` / `oaa-demo`, or Lab override integration id `demo`.
  */
 class DemoIntegration : VehicleIntegration {
     override val id: String = ID
@@ -45,7 +45,7 @@ class DemoIntegration : VehicleIntegration {
             id = ID,
             displayName = "Demo (fake vehicle)",
             backend = "demo",
-            match = listOf("demo", "oca-demo"),
+            match = listOf("demo", "oaa-demo"),
             capabilities = setOf(
                 Capability.READ_TELEMETRY,
                 Capability.WRITE_SETTINGS,

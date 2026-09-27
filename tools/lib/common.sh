@@ -29,15 +29,6 @@ load_integration() {
   fi
   # shellcheck source=/dev/null
   source "$file"
-  # Legacy OCA_* env → OAA_* (one transition period).
-  : "${OAA_HOST:=${OCA_HOST:-}}"
-  : "${OAA_ADB_PORT:=${OCA_ADB_PORT:-}}"
-  : "${OAA_ANDROID_USER:=${OCA_ANDROID_USER:-}}"
-  : "${OAA_PACKAGE:=${OCA_PACKAGE:-}}"
-  : "${OAA_ACTIVITY:=${OCA_ACTIVITY:-}}"
-  : "${OAA_APK_DEBUG:=${OCA_APK_DEBUG:-}}"
-  : "${OAA_APK_SIGNED:=${OCA_APK_SIGNED:-}}"
-  : "${OAA_INTEGRATION_ID:=${OCA_INTEGRATION_ID:-}}"
   : "${OAA_ADB_PORT:?integration must set OAA_ADB_PORT}"
   : "${OAA_ANDROID_USER:?}"
   : "${OAA_PACKAGE:?}"

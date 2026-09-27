@@ -24,8 +24,10 @@ import cc.opencar.assistant.feature.shortcuts.ShortcutsController
 import cc.opencar.assistant.feature.telemetry.TelemetryRepository
 import cc.opencar.assistant.feature.web.AndroidSettingsController
 import cc.opencar.assistant.feature.web.ControlCatalog
+import cc.opencar.assistant.feature.web.HubClient
 import cc.opencar.assistant.feature.web.LocationTrackerController
 import cc.opencar.assistant.feature.web.OaaWebServer
+import cc.opencar.assistant.support.OaaPrefs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -76,6 +78,8 @@ class AssistantRuntime(private val app: OaaApp) {
     var history: EntityHistoryRecorder? = null
         private set
     var shortcuts: ShortcutsController? = null
+        private set
+    var hub: HubClient? = null
         private set
 
     fun startAsync() {
@@ -134,7 +138,7 @@ class AssistantRuntime(private val app: OaaApp) {
         }
         locationTracker = LocationTrackerController(
             app,
-            app.getSharedPreferences("oca_ui_prefs", Context.MODE_PRIVATE),
+            OaaPrefs.ui(app),
         )
         history = EntityHistoryRecorder(app, sess).also { it.start() }
 
@@ -205,6 +209,16 @@ class AssistantRuntime(private val app: OaaApp) {
             }
         }
 
+        val hubClient = HubClient(
+            context = app,
+            session = sess,
+            prefs = OaaPrefs.ui(app),
+            debug = debug,
+            installer = installer!!,
+            dvr = dvr,
+        )
+        hub = hubClient
+
         web = OaaWebServer(
             context = app,
             session = sess,
@@ -224,7 +238,9 @@ class AssistantRuntime(private val app: OaaApp) {
             integrationIds = registry.all().map { it.id },
             getIntegrationOverride = { integrationOverride() },
             setIntegrationOverride = { setIntegrationOverride(it) },
+            hub = hubClient,
         ).also { it.start() }
+        hubClient.start()
 
         // Warm probe in background (non-blocking for UI)
         scope.launch(Dispatchers.IO) {
@@ -298,11 +314,11 @@ class AssistantRuntime(private val app: OaaApp) {
     fun wakeSignals(): WakeSignals = integration?.wakeSignals() ?: WakeSignals()
 
     fun integrationOverride(): String? =
-        app.getSharedPreferences("oca_runtime", Context.MODE_PRIVATE)
+        app.getSharedPreferences("oaa_runtime", Context.MODE_PRIVATE)
             .getString("integration_override", null)
 
     fun setIntegrationOverride(id: String?) {
-        val prefs = app.getSharedPreferences("oca_runtime", Context.MODE_PRIVATE).edit()
+        val prefs = app.getSharedPreferences("oaa_runtime", Context.MODE_PRIVATE).edit()
         if (id.isNullOrBlank()) {
             prefs.remove("integration_override")
         } else {

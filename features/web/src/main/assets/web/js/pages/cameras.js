@@ -1,17 +1,29 @@
 import { html, nothing } from "../lit.js";
 import { state, patch, patchSilent, entitiesByGroup } from "../store.js";
 import { t } from "../i18n.js";
-import { api } from "../api.js";
+import { api, errText } from "../api.js";
 import { prefCard, prefSegment, boolToggle, entityGrid } from "../ui/cards.js";
 import {
   cameraPlayerView,
-  cameraTimelineView,
   applyCameraPlayerSrc,
   stopRecordingPlayback,
   isRecordingPlayback,
+  backToLive,
 } from "../ui/camera-player.js";
+import { cameraTimelineView } from "../ui/camera-timeline-view.js";
+import { mediaTransport, isLiveSrc } from "../ui/media-transport.js";
+import { setMediaCloseHandler, reasonText } from "../ui/webrtc-session.js";
 
-export { isTimelineBusy } from "../ui/camera-player.js";
+setMediaCloseHandler(function (reason) {
+  if (state.page !== "cameras" && state.page !== "dvr") return;
+  patch({
+    cameraPreviewActive: false,
+    cameraPreviewSrc: "",
+    cameraPreviewError: reasonText(reason),
+  });
+});
+
+export { isTimelineBusy } from "../ui/camera-timeline-view.js";
 
 function fmtBytes(n) {
   const v = Number(n) || 0;
@@ -95,42 +107,27 @@ export async function loadRecordings(opts) {
 
 export async function startCameraLive() {
   if (isRecordingPlayback()) return;
-  if (
-    state.cameraPreviewActive &&
-    state.cameraPreviewSrc &&
-    state.cameraPreviewSrc.indexOf("live.m3u8") >= 0
-  ) {
-    return;
-  }
+  if (state.cameraPreviewActive && isLiveSrc(state.cameraPreviewSrc)) return;
+  const media = mediaTransport();
   try {
-    const start = await api("/api/dvr/preview/start", { method: "POST" });
-    if (!start || start.ok === false) {
-      throw new Error(
-        (start && start.status && start.status.lastError) || "preview start failed",
-      );
-    }
+    await media.acquireLive();
     patch({
       cameraPreviewActive: true,
-      cameraPreviewSrc: "/api/dvr/live.m3u8",
-      cameraPreviewError: "",
+      cameraPreviewSrc: media.liveSrc,
       cameraPlayerMode: "live",
       cameraPlayingName: "",
       cameraPlayingKind: "",
       cameraTimelineAtMs: Date.now(),
     });
   } catch (e) {
-    patch({
-      cameraPreviewActive: false,
-      cameraPreviewSrc: "",
-      cameraPreviewError: String(e && e.message ? e.message : e),
-    });
+    patch({ cameraPreviewActive: false, cameraPreviewSrc: "", cameraPreviewError: errText(e) });
   }
 }
 
 export async function stopCameraLive() {
   stopRecordingPlayback();
-  const { stopH264Live } = await import("../ui/live-h264.js");
-  stopH264Live(document.getElementById("cameraPlayerVideo"));
+  const media = mediaTransport(state.cameraPreviewSrc);
+  media.stopLive(document.getElementById("cameraPlayerVideo"));
   patch({
     cameraPreviewActive: false,
     cameraPreviewSrc: "",
@@ -139,9 +136,7 @@ export async function stopCameraLive() {
     cameraPlayingKind: "",
     cameraPreviewError: "",
   });
-  try {
-    await api("/api/dvr/preview/stop", { method: "POST" });
-  } catch (e) {}
+  await media.close();
 }
 
 export { applyCameraPlayerSrc };
@@ -281,12 +276,9 @@ export function pageCameras() {
                     const s = await api("/api/status");
                     patch({ status: s });
                     await loadRecordings();
-                    const { backToLive } = await import("../ui/camera-player.js");
                     await backToLive(startCameraLive);
                   } catch (e) {
-                    patch({
-                      cameraPreviewError: String(e && e.message ? e.message : e),
-                    });
+                    patch({ cameraPreviewError: errText(e) });
                   }
                 }}
               >

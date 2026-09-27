@@ -1,0 +1,22 @@
+# Example Caddyfile for OAA dual faces (profile: proxy).
+# Replace example.com hostnames and enable automatic HTTPS.
+
+oaa.example.com {
+	encode gzip
+	reverse_proxy oaa-hub:8787
+	# Hub login is required; Cloudflare Access / Basic auth is optional extra layer only.
+}
+
+oaa-nodes.example.com {
+	encode gzip
+	# Node face only — no SPA. Cars use pairing code + bearer token.
+	@allowed {
+		path /api/nodes/pair /api/nodes/session /api/nodes/artifacts/* /api/health
+	}
+	handle @allowed {
+		reverse_proxy oaa-hub:8788
+	}
+	handle {
+		respond "OAA node face — pair, session and artifacts only" 404
+	}
+}
