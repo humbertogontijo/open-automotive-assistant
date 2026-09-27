@@ -56,6 +56,10 @@ class NodeSession(
     private val sendMutex = Mutex()
 
     suspend fun handleFrame(text: String) {
+        OaaFrames.eventPayload(text)?.let {
+            eventBus.publish(nodeId, it)
+            return
+        }
         val json = OaaFrames.parse(text) ?: return
         val type = json.optString("type")
         if (type in OaaWebRtc.SIGNAL_TYPES) {
@@ -68,7 +72,7 @@ class NodeSession(
                 val p = payload ?: return
                 pending.remove(p.optString("id"))?.complete(OaaRpc.decodeResponse(p))
             }
-            OaaFrames.EVENT -> payload?.let { eventBus.publish(nodeId, it) }
+            OaaFrames.EVENT -> payload?.let { eventBus.publish(nodeId, it.toString()) }
             OaaFrames.HELLO -> payload?.let { listener.onHello(nodeId, it) }
             OaaFrames.OTA_STATUS -> payload?.let { listener.onOtaStatus(nodeId, it) }
             OaaFrames.LOG -> payload?.optString("line")?.let { listener.onLog(nodeId, it) }

@@ -4,7 +4,6 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
-import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondBytes
@@ -21,47 +20,32 @@ import kotlinx.coroutines.withContext
 
 /**
  * DVR HTTP surface: mode / timeline / play / cut / clear / storage / policy / live HLS.
- * Legacy start/stop map to setMode; list/lock/mjpeg stream routes are gone.
  */
 internal fun Routing.registerDvrRoutes(deps: OaaWebDeps) {
     val dvr = deps.dvr
 
-    // Aliases → setMode (prefer POST /api/dvr/mode).
-    post("/api/dvr/start") {
-        val storage = call.request.queryParameters["storage"]
-        if (storage != null) dvr.setStorage(storage)
-        val res = withContext(Dispatchers.IO) { dvr.setMode("dvr") }
-        call.respond(res)
-    }
-    post("/api/dvr/stop") {
-        val res = withContext(Dispatchers.IO) { dvr.setMode("off") }
-        call.respond(res)
-    }
     post("/api/dvr/mode") {
-        val params = call.receiveParameters()
-        val mode = params["mode"] ?: call.request.queryParameters["mode"]
-        val storage = params["storage"] ?: call.request.queryParameters["storage"]
+        val params = call.params()
+        val mode = params["mode"]
+        val storage = params["storage"]
         if (storage != null) dvr.setStorage(storage)
         val res = withContext(Dispatchers.IO) { dvr.setMode(mode) }
         call.respond(res)
     }
     post("/api/dvr/policy") {
-        val params = call.receiveParameters()
-        val maxTotalMb = (params["maxTotalMb"] ?: call.request.queryParameters["maxTotalMb"])
+        val params = call.params()
+        val maxTotalMb = (params["maxTotalMb"])
             ?.toIntOrNull()
-        val maxAgeDays = (params["maxAgeDays"] ?: call.request.queryParameters["maxAgeDays"])
+        val maxAgeDays = (params["maxAgeDays"])
             ?.toIntOrNull()
         val status = withContext(Dispatchers.IO) { dvr.setPolicy(maxTotalMb, maxAgeDays) }
         call.respond(mapOf("ok" to true, "status" to status))
     }
     post("/api/dvr/storage") {
-        val params = call.receiveParameters()
-        val id = params["id"] ?: call.request.queryParameters["id"]
+        val params = call.params()
+        val id = params["id"]
         val ok = withContext(Dispatchers.IO) { dvr.setStorage(id) }
         call.respond(mapOf("ok" to ok, "status" to dvr.status()))
-    }
-    get("/api/dvr/status") {
-        call.respond(withContext(Dispatchers.IO) { dvr.status() })
     }
     get("/api/dvr/timeline") {
         call.respond(withContext(Dispatchers.IO) { dvr.timeline() })
@@ -125,21 +109,8 @@ internal fun Routing.registerDvrRoutes(deps: OaaWebDeps) {
         call.response.header(HttpHeaders.ContentType, "video/mp4")
         call.respondFile(file)
     }
-    delete("/api/dvr/recordings/{name}") {
-        val name = call.parameters["name"] ?: return@delete
-        val ok = withContext(Dispatchers.IO) { dvr.deleteRecording(name) }
-        if (!ok) {
-            call.respond(HttpStatusCode.NotFound, mapOf("ok" to false, "error" to "not found"))
-        } else {
-            call.respond(mapOf("ok" to true))
-        }
-    }
     post("/api/dvr/clear") {
-        val params = runCatching { call.receiveParameters() }.getOrNull()
-        val includeLocked = when (params?.get("includeLocked") ?: call.request.queryParameters["includeLocked"]) {
-            "0", "false", "off" -> false
-            else -> true
-        }
+        val includeLocked = parseBool(call.params()["includeLocked"]) ?: true
         val res = withContext(Dispatchers.IO) { dvr.clearRecordings(includeLocked) }
         call.respond(res)
     }

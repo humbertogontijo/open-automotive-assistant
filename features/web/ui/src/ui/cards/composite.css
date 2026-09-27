@@ -1,0 +1,74 @@
+/* composite.css — multi-attribute car-native cards */
+
+/* Labeled control: small caption above a segment toggle or select */
+.composite-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  width: 100%;
+}
+.composite-row-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text-muted);
+  text-align: start;
+  padding-inline: 0.15rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Read-only enum (parking brake, unknown gear) */
+.composite-stat-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0 0.15rem;
+  font-size: 0.85rem;
+  line-height: 1.3;
+}
+.composite-stat-row .k {
+  color: var(--text-muted);
+  font-weight: 550;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.composite-stat-row .v {
+  color: var(--text);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.composite-stat-row .v.is-on {
+  color: var(--accent);
+}
+
+/* Telemetry key/value grid (charger, battery…) */
+.composite-status {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.3rem 0.75rem;
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.25;
+  text-align: start;
+}
+.composite-stat {
+  min-width: 0;
+}
+.composite-stat dt {
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.composite-stat dd {
+  margin: 0;
+  color: var(--text);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}

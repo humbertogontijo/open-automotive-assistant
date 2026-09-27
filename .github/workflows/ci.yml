@@ -17,60 +17,58 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
       # ubuntu-latest already ships an Android SDK. Avoid android-actions/setup-android:
       # its default still installs the obsolete `tools` package removed from sdkmanager.
-      - name: Accept Android licenses & ensure platform
+      - name: Android SDK platform and NDK
         run: |
           set -euo pipefail
-          echo "ANDROID_HOME=${ANDROID_HOME:-}"
-          echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-}"
           : "${ANDROID_HOME:=${ANDROID_SDK_ROOT:-$HOME/Android/Sdk}}"
-          export ANDROID_HOME ANDROID_SDK_ROOT="$ANDROID_HOME"
           echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || \
-            yes | sdkmanager --licenses >/dev/null || true
           SDKMANAGER=$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | tail -1)
-          if [ -z "$SDKMANAGER" ]; then
-            SDKMANAGER=$(command -v sdkmanager || true)
-          fi
-          echo "Using sdkmanager=$SDKMANAGER"
-          "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          SDKMANAGER=${SDKMANAGER:-$(command -v sdkmanager)}
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "ndk;$(grep '^oaa.ndkVersion=' gradle.properties | cut -d= -f2 | tr -d '\r')"
 
-      - name: Grant execute on gradlew
-        run: chmod +x gradlew
+      # libs/oaartc (Pion via gomobile) downloads its own Go toolchain into ~/.gradle.
+      - name: Cache Go toolchain
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/oaa-toolchains
+          key: oaa-toolchains-${{ hashFiles('gradle.properties', 'libs/oaartc/go.sum') }}
 
-      - name: ServiceLoader descriptors
+      - name: Required repository files
         run: |
           set -euo pipefail
-          antora="$(cat integrations/antora1000/src/main/resources/META-INF/services/cc.opencar.assistant.api.VehicleIntegration)"
-          ihu="$(cat integrations/ihu629g/src/main/resources/META-INF/services/cc.opencar.assistant.api.VehicleIntegration)"
-          demo="$(cat integrations/demo/src/main/resources/META-INF/services/cc.opencar.assistant.api.VehicleIntegration)"
-          ha="$(cat plugins/homeassistant/src/main/resources/META-INF/services/cc.opencar.assistant.api.plugin.OaaPlugin)"
-          echo "antora1000 -> $antora"
-          echo "ihu629g -> $ihu"
-          echo "demo -> $demo"
-          echo "homeassistant -> $ha"
-          echo "$antora" | grep -q 'Antora1000Integration'
-          echo "$ihu" | grep -q 'Ihu629gIntegration'
-          echo "$demo" | grep -q 'DemoIntegration'
-          echo "$ha" | grep -q 'HomeAssistantPlugin'
-          test -f libs/signing/community.pem
-          test -f libs/signing/community.pk8
-          test -f NOTICE
-          test -f LICENSE
-          test -f SECURITY.md
-          test -f CODE_OF_CONDUCT.md
-          test -f docs/disclaimer.md
+          for f in libs/signing/community.pem libs/signing/community.pk8 NOTICE LICENSE \
+            SECURITY.md CODE_OF_CONDUCT.md docs/disclaimer.md; do
+            test -f "$f" || { echo "missing $f"; exit 1; }
+          done
 
       - name: Version in sync
         run: python3 tools/sync-version --check
 
-      - name: Assemble debug
-        run: ./gradlew :app:assembleDebug :signing:compileKotlin --no-daemon --stacktrace
+      # Unit tests (incl. ServiceLoader descriptors), Android lint, web typecheck/eslint/tests.
+      - name: Gradle check + debug APK + hub jar
+        run: ./gradlew check :app:assembleDebug :server:jar --stacktrace
 
-      - name: Hub server jar + tests
-        run: ./gradlew :server:jar :server:test --no-daemon --stacktrace
+      - name: Go tests (libs/oaartc)
+        working-directory: libs/oaartc
+        run: |
+          set -euo pipefail
+          go_version=$(grep '^oaa.goVersion=' ../../gradle.properties | cut -d= -f2 | tr -d '\r')
+          GOTOOLCHAIN=local GOPATH="$HOME/.gradle/oaa-toolchains/gopath" \
+            "$HOME/.gradle/oaa-toolchains/go$go_version/go/bin/go" test ./...
 
-      - name: Unit tests
-        run: ./gradlew :integrations:platform:aaos:testDebugUnitTest :integrations:demo:testDebugUnitTest :integration-api:testDebugUnitTest --no-daemon --stacktrace
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Home Assistant integration tests
+        run: |
+          python -m pip install --quiet pytest
+          python -m pytest -q homeassistant/tests

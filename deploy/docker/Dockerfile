@@ -1,10 +1,15 @@
+# syntax=docker/dockerfile:1
 # OAA hub image for docker compose and the Home Assistant app (same image).
 # Build context: repository root.
 FROM eclipse-temurin:17-jdk-jammy AS build
 WORKDIR /src
 COPY . .
-RUN chmod +x gradlew \
-  && OAA_HUB_ONLY=1 ./gradlew :server:jar --no-daemon -x test
+# Cache mounts keep Gradle dependencies, the Node.js download and npm packages between builds.
+RUN --mount=type=cache,target=/root/.gradle \
+    --mount=type=cache,target=/root/.npm \
+    --mount=type=cache,target=/src/features/web/ui/.gradle \
+    chmod +x gradlew \
+  && OAA_HUB_ONLY=1 ./gradlew :server:jar --no-daemon
 
 FROM eclipse-temurin:17-jre-jammy
 RUN mkdir -p /data /app

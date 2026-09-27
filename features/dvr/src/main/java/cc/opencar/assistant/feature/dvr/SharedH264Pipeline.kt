@@ -4,6 +4,7 @@ import android.graphics.SurfaceTexture
 import android.media.MediaCodec
 import android.media.MediaFormat
 import android.media.MediaMuxer
+import android.os.SystemClock
 import android.util.Log
 import java.io.File
 import java.nio.ByteBuffer
@@ -57,11 +58,23 @@ class SharedH264Pipeline(
 
     fun isRunning(): Boolean = running.get()
     fun measuredFps(): Int = measuredFps
-    fun fmp4Init(): ByteArray? = fmp4.initSegment()
-    fun fmp4Fragment(seq: Long): ByteArray? = fmp4.fragment(seq)
-    fun hlsPlaylist(): String? = fmp4.hlsPlaylist()
-    fun hlsPlaylistBlocking(msn: Long?, timeoutMs: Long = 3_000L): String? =
-        fmp4.hlsPlaylistBlocking(msn, timeoutMs)
+    fun fmp4Init(): ByteArray? = fmp4.initSegment().also { touchLive() }
+    fun fmp4Fragment(seq: Long): ByteArray? = fmp4.fragment(seq).also { touchLive() }
+    fun hlsPlaylist(): String? = fmp4.hlsPlaylist().also { touchLive() }
+    fun hlsPlaylistBlocking(msn: Long?, timeoutMs: Long = 3_000L): String? {
+        touchLive()
+        return fmp4.hlsPlaylistBlocking(msn, timeoutMs)
+    }
+
+    /** fMP4 muxing only runs while an HLS client has read within [LIVE_IDLE_MS]. */
+    @Volatile private var liveReadAtMs = 0L
+    private var liveIdle = true
+
+    private fun touchLive() {
+        val now = SystemClock.elapsedRealtime()
+        if (now - liveReadAtMs > LIVE_IDLE_MS) encoder.requestKeyFrame()
+        liveReadAtMs = now
+    }
     fun activeFile(): File? = activeMp4
     fun bytesWritten(): Long = bytesWritten.get()
     fun videoWidth(): Int = width
@@ -212,7 +225,15 @@ class SharedH264Pipeline(
         if (unit.isConfig) return
         synchronized(muxerLock) {
             writeDvrLocked(unit)
-            fmp4.onSample(unit.data, unit.isKeyFrame)
+            if (SystemClock.elapsedRealtime() - liveReadAtMs < LIVE_IDLE_MS) {
+                if (liveIdle) {
+                    liveIdle = false
+                    fmp4.resetMedia()
+                }
+                fmp4.onSample(unit.data, unit.isKeyFrame)
+            } else {
+                liveIdle = true
+            }
         }
         for (tap in taps) {
             runCatching { tap.onSample(unit) }.onFailure { Log.w(TAG, "tap: ${it.message}") }
@@ -232,6 +253,8 @@ class SharedH264Pipeline(
     private fun writeDvrLocked(unit: MosaicH264Encoder.AccessUnit) {
         val m = dvrMuxer ?: return
         if (encoder.csd0() == null && encoder.spsPps() == null) return
+        // Each file must open on a keyframe to be playable from its start.
+        if (!dvrStarted && !unit.isKeyFrame) return
         try {
             if (!dvrStarted) {
                 dvrTrack = m.addTrack(videoFormat())
@@ -303,5 +326,6 @@ class SharedH264Pipeline(
 
     companion object {
         private const val TAG = "OaaH264Pipe"
+        private const val LIVE_IDLE_MS = 15_000L
     }
 }

@@ -29,7 +29,6 @@ object SetupStatus {
 
     private val CHECKS = listOf(
         Triple("android.permission.CAMERA", "setup.perm.camera", "runtime"),
-        Triple("android.permission.RECORD_AUDIO", "setup.perm.mic", "runtime"),
         Triple("android.car.permission.CAR_SPEED", "setup.perm.speed", "runtime"),
         Triple("android.car.permission.CAR_ENERGY", "setup.perm.energy", "runtime"),
         Triple("android.car.permission.CAR_INFO", "setup.perm.info", "install"),

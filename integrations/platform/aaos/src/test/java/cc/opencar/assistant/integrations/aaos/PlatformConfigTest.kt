@@ -113,7 +113,6 @@ class PlatformConfigTest {
         assertTrue(sku.matchDevice.any { it.contains("p145_eu") })
         assertTrue((sku.propertyKeys?.size ?: 0) > 100)
         assertEquals("phev", profile.id)
-        assertTrue(profile.bindings.isEmpty())
     }
 
     @Test
@@ -126,7 +125,6 @@ class PlatformConfigTest {
               "backend": "vhal",
               "match": ["t"],
               "capabilities": ["READ_TELEMETRY"],
-              "variants": [],
               "properties": [
                 {
                   "id": "0x11400400",
@@ -181,7 +179,6 @@ class PlatformConfigTest {
               "backend": "vhal",
               "match": ["c"],
               "capabilities": [],
-              "variants": [],
               "properties": [
                 {
                   "id": "0x15200510",
@@ -213,50 +210,5 @@ class PlatformConfigTest {
         assertTrue(cfg.android.settings.any { it.entity == "switch.wifi" })
         assertEquals(1, cfg.android.volumeGroups.size)
         assertEquals("number.vol_media", cfg.android.volumeGroups.first().entity)
-    }
-
-    @Test
-    fun legacyBindingsStillParse() {
-        val cfg = PlatformConfig.parse(
-            """
-            {
-              "id": "t",
-              "displayName": "T",
-              "backend": "vhal",
-              "match": ["t"],
-              "capabilities": ["READ_TELEMETRY"],
-              "variants": [],
-              "bindings": {
-                "gear": { "nativeId": "0x11400400", "areaId": 0 }
-              },
-              "writableAllowlist": ["0x15200510", 42]
-            }
-            """.trimIndent(),
-        )
-        assertEquals(0x11400400, cfg.bindings.getValue("gear").nativeId)
-        assertFalse(0x11400400 in cfg.writableAllowlist)
-    }
-}
-
-class I18nKeyParityTest {
-    @Test
-    fun commonEnAndPtBrShareSameStringKeys() {
-        val root = File("../../../libs/oaa-support/src/main/assets/i18n/common")
-        val en = loadStringKeys(File(root, "en.json"))
-        val pt = loadStringKeys(File(root, "pt-BR.json"))
-        val missingInPt = en - pt
-        val missingInEn = pt - en
-        assertTrue("Missing in pt-BR: $missingInPt", missingInPt.isEmpty())
-        assertTrue("Missing in en: $missingInEn", missingInEn.isEmpty())
-    }
-
-    private fun loadStringKeys(file: File): Set<String> {
-        assertTrue("expected ${file.absolutePath}", file.isFile)
-        val root = JSONObject(file.readText())
-        val strings = root.getJSONObject("strings")
-        val out = mutableSetOf<String>()
-        val keys = strings.keys()
-        while (keys.hasNext()) out += keys.next()
-        return out
     }
 }

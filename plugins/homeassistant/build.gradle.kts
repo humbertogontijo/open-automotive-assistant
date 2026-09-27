@@ -4,17 +4,10 @@ plugins {
 }
 android {
     namespace = "cc.opencar.assistant.plugin.homeassistant"
-    compileSdk = 35
-    defaultConfig { minSdk = 30 }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-    kotlinOptions { jvmTarget = "17" }
 }
 dependencies {
     api(project(":integration-api"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
-    implementation("androidx.core:core-ktx:1.15.0")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation(project(":oaa-support"))
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.okhttp)
 }

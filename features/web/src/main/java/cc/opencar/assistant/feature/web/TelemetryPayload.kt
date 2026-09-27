@@ -10,9 +10,6 @@ internal fun telemetryPayload(snap: TelemetrySnapshot): Map<String, Any?> = mapO
     "hybridSocPercent" to snap.hybridSocPercent,
     "rangeKm" to snap.rangeKm,
     "driveMode" to snap.driveMode,
-    "driveModeKey" to snap.driveMode,
-    "energyMode" to snap.extras["energyMode"],
-    "energyModeKey" to snap.extras["energyMode"],
     "regenLevel" to snap.regenLevel,
     "hvacPower" to snap.hvacPower,
     "hvacTempC" to snap.hvacTempC,
@@ -20,7 +17,5 @@ internal fun telemetryPayload(snap: TelemetrySnapshot): Map<String, Any?> = mapO
     "chargeCurrentA" to snap.chargeCurrentA,
     "chargePlugConnected" to snap.chargePlugConnected,
     "ignitionState" to snap.ignitionState,
-    "model" to snap.extras["model"],
-    "parkingBrake" to snap.extras["parkingBrake"],
     "extras" to snap.extras,
 )

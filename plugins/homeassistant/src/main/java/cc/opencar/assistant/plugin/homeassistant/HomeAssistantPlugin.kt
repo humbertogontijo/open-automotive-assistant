@@ -10,6 +10,7 @@ import cc.opencar.assistant.api.plugin.PluginHost
 import cc.opencar.assistant.api.plugin.ShortcutActionHandler
 import cc.opencar.assistant.api.plugin.ShortcutTriggerListener
 import cc.opencar.assistant.api.plugin.ShortcutTriggerSource
+import cc.opencar.assistant.support.JsonMaps
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -19,7 +20,6 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
-import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -47,7 +47,7 @@ class HomeAssistantPlugin : OaaPlugin {
         .readTimeout(30, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
         .build()
-    private val wsClient = OkHttpClient.Builder()
+    private val wsClient = http.newBuilder()
         .pingInterval(30, TimeUnit.SECONDS)
         .build()
 
@@ -283,7 +283,7 @@ class HomeAssistantPlugin : OaaPlugin {
                 val text = resp.body?.string() ?: return@withContext Result.failure(
                     IllegalStateException("empty body"),
                 )
-                Result.success(jsonToMap(JSONObject(text)))
+                Result.success(JsonMaps.jsonObjectToMap(JSONObject(text)))
             }
         } catch (t: Throwable) {
             Result.failure(t)
@@ -399,7 +399,7 @@ class HomeAssistantPlugin : OaaPlugin {
                 for ((k, v) in data) {
                     val key = k as? String ?: continue
                     if (key == "entity_id" && into.has("entity_id")) continue
-                    into.put(key, toJsonValue(v))
+                    into.put(key, JsonMaps.anyToJson(v))
                 }
             }
             is String -> {
@@ -418,39 +418,5 @@ class HomeAssistantPlugin : OaaPlugin {
                 }
             }
         }
-    }
-
-    private fun toJsonValue(v: Any?): Any? = when (v) {
-        null -> JSONObject.NULL
-        is Number, is Boolean, is String -> v
-        is Map<*, *> -> JSONObject().also { o ->
-            for ((k, vv) in v) {
-                val key = k as? String ?: continue
-                o.put(key, toJsonValue(vv))
-            }
-        }
-        is List<*> -> JSONArray().also { a -> v.forEach { a.put(toJsonValue(it)) } }
-        else -> v.toString()
-    }
-
-    private fun jsonToMap(obj: JSONObject): Map<String, Any?> {
-        val out = mutableMapOf<String, Any?>()
-        val keys = obj.keys()
-        while (keys.hasNext()) {
-            val k = keys.next()
-            out[k] = when (val v = obj.get(k)) {
-                JSONObject.NULL -> null
-                is JSONObject -> jsonToMap(v)
-                is JSONArray -> (0 until v.length()).map { idx ->
-                    when (val item = v.get(idx)) {
-                        is JSONObject -> jsonToMap(item)
-                        JSONObject.NULL -> null
-                        else -> item
-                    }
-                }
-                else -> v
-            }
-        }
-        return out
     }
 }

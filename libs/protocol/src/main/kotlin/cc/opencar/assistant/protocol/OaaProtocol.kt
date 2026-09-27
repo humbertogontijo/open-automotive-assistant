@@ -13,14 +13,18 @@ object OaaHeaders {
     const val OTA_PACKAGE = "X-Oaa-Package"
     const val OTA_VERSION_NAME = "X-Oaa-Version-Name"
     const val OTA_VERSION_CODE = "X-Oaa-Version-Code"
-    /** Set by the car on requests it replays for the hub, so `/api/status` reports `remote`. */
-    const val VIA_HUB = "X-Oaa-Via-Hub"
+    /** Per-launch secret the head unit's own UI presents on its first page load. */
+    const val LOCAL_KEY = "X-Oaa-Local-Key"
+    /** In-process secret on requests the car replays for the hub (`rpc` frames). */
+    const val INTERNAL_RPC = "X-Oaa-Internal"
 }
 
 object OaaCookies {
     const val SESSION = "oaa_session"
     /** Selected car for requests that cannot set [OaaHeaders.NODE] (links, `/debug` HTML). */
     const val NODE = "oaa_node"
+    /** Car-issued session (head unit UI or a paired browser). */
+    const val CAR_SESSION = "oaa_car"
 }
 
 object OaaRoles {
@@ -45,8 +49,21 @@ object OaaPaths {
     const val NODES_SESSION = "/api/nodes/session"
     /** Node face: `GET /api/nodes/artifacts/{sha256}` (node bearer token). */
     const val NODES_ARTIFACTS = "/api/nodes/artifacts"
+    /** Hub: unpaired cars seen over mDNS. */
+    const val NODES_DISCOVERED = "/api/nodes/discovered"
+    /** Hub: start pairing a car (`POST`), then `POST {id}/confirm` with the car's code. */
+    const val NODES_INVITE = "/api/nodes/invite"
 
     const val AUTH_STATUS = "/api/auth/status"
+    /** Car: a device or hub asks for access; the head unit shows a code. */
+    const val AUTH_PAIR_REQUEST = "/api/auth/pair/request"
+    const val AUTH_PAIR_CONFIRM = "/api/auth/pair/confirm"
+    /** Car, head unit only: the open pairing request and its code. */
+    const val AUTH_PAIR_PENDING = "/api/auth/pair/pending"
+    /** Car, head unit only: trusted clients (`GET`, `DELETE /{id}`). */
+    const val AUTH_CLIENTS = "/api/auth/clients"
+    /** Car: swap [OaaHeaders.LOCAL_KEY] for a head unit session cookie. */
+    const val AUTH_LOCAL = "/api/auth/local"
     const val AUTH_SETUP = "/api/auth/setup"
     const val AUTH_LOGIN = "/api/auth/login"
     const val AUTH_LOGOUT = "/api/auth/logout"
@@ -75,6 +92,22 @@ object OaaUiEvents {
     const val TELEMETRY = "telemetry"
     const val ENTITY = "entity"
     const val CATALOG = "catalog"
+    /** DVR summary (`dvr`), sent only when it changes. */
+    const val DVR = "dvr"
+    /** Car, head unit sockets only: a pairing request opened or closed (`pending` or null). */
+    const val PAIR_REQUEST = "pair_request"
+}
+
+/** Car-issued access (ADR-0004): pairing by a code shown on the head unit. */
+object OaaCarAuth {
+    const val KIND_HU = "hu"
+    const val KIND_BROWSER = "browser"
+    const val KIND_HUB = "hub"
+    const val KIND_INTERNAL = "internal"
+    const val KIND_TOOL = "tool"
+
+    const val CODE_TTL_MS = 3 * 60_000L
+    const val MAX_ATTEMPTS = 5
 }
 
 /**
@@ -104,6 +137,19 @@ object OaaFrames {
     }
 
     fun parse(text: String): JSONObject? = runCatching { JSONObject(text) }.getOrNull()
+
+    /** [EVENT] frames are always `EVENT_PREFIX + payloadJson + "}"`, so the hub can forward the payload unparsed. */
+    const val EVENT_PREFIX = """{"type":"$EVENT","payload":"""
+
+    fun eventFrame(payloadJson: String): String = "$EVENT_PREFIX$payloadJson}"
+
+    /** Payload text of an [EVENT] frame, or null for any other frame. */
+    fun eventPayload(text: String): String? =
+        if (text.startsWith(EVENT_PREFIX) && text.endsWith("}")) {
+            text.substring(EVENT_PREFIX.length, text.length - 1)
+        } else {
+            null
+        }
 
     fun versioned(): JSONObject = JSONObject().put("v", VERSION)
 
@@ -224,6 +270,12 @@ object OaaOta {
 
     const val APK_MIME = "application/vnd.android.package-archive"
     const val MAX_ARTIFACT_BYTES = 256L * 1024 * 1024
+
+    /** `ota_offer.delta`: an OADP patch (see :apk-delta) from the car's installed APK. */
+    const val DELTA_MIME = "application/vnd.oaa.apk-delta"
+
+    /** Offer the full APK instead when a delta exceeds this share of it. */
+    const val MAX_DELTA_PERCENT = 70
 
     private val SHA256 = Regex("^[0-9a-f]{64}$")
 
@@ -359,9 +411,16 @@ object OaaMediaNames {
 object OaaMdns {
     const val SERVICE_TYPE = "_oaa-hub._tcp.local."
     const val SERVICE_NAME = "Open Automotive Assistant Hub"
+    /** Advertised by cars that are not paired to a hub. */
+    const val CAR_SERVICE_TYPE = "_oaa-car._tcp.local."
+    const val TXT_ID = "id"
+    const val TXT_NAME = "name"
+    const val TXT_INTEGRATION = "integration"
+    const val TXT_VERSION = "version"
+    const val TXT_HUB_ID = "hub_id"
 }
 
-/** Path segments that serve the SPA shell (keep in sync with web/js/pages/ids.js). */
+/** Path segments that serve the SPA shell (keep in sync with features/web/ui/src/pages/ids.js). */
 object OaaSpa {
     val PAGES = setOf(
         "home", "fleet", "history", "controls", "drive", "energy", "lights", "adas",

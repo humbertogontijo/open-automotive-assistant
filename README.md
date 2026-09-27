@@ -3,7 +3,7 @@
 Local-first, capability-based companion for **Android Automotive** head units. Vehicle platforms are plugins; the product surface is HA-shaped entities (`climate.cabin`, `sensor.soc`, …).
 
 **Canonical repository name:** `open-automotive-assistant`  
-Web UI: `http://CAR_IP:8787` (LAN) or `http://127.0.0.1:8787` on the HU  
+Web UI: `http://127.0.0.1:8787` on the HU, or `http://CAR_IP:8787` on the LAN after pairing with a code shown on the car ([ADR-0004](docs/adr/0004-car-auth.md))  
 
 Self-hosted **hub** (multi-car, Docker / HAOS): [docs/hub.md](docs/hub.md) · `deploy/docker` · `deploy/homeassistant`
 
@@ -15,10 +15,11 @@ License: [Apache-2.0](LICENSE) · [NOTICE](NOTICE) (community testkey) · [Discl
 
 ## Build without a head unit
 
-Requires **JDK 17** and an **Android SDK** (`ANDROID_HOME`, or `sdk.dir` in `local.properties` — never commit that file).
+Requires **JDK 17** and an **Android SDK** with platform 36 and the NDK from `oaa.ndkVersion` in `gradle.properties` (`ANDROID_HOME`, or `sdk.dir` in `local.properties` — never commit that file). Gradle fetches Go and Node.js itself.
 
 ```bash
 ./gradlew :app:assembleDebug
+./gradlew check   # unit tests, lint and web checks, as in CI
 ```
 
 Compiles against `libs/car-stubs`. Use Lab → integration override **`demo`**, or match fingerprint `demo`, for an in-memory vehicle. Live VHAL needs real AAOS hardware.

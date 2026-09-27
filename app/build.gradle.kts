@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "cc.opencar.assistant"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "cc.opencar.assistant"
@@ -13,12 +13,18 @@ android {
         targetSdk = 34
         versionCode = providers.gradleProperty("oaa.versionCode").get().toInt()
         versionName = providers.gradleProperty("oaa.version").get()
+        // GeckoView ships ~50 MB of native code per ABI; head units are arm64.
+        ndk { abiFilters += "arm64-v8a" }
     }
 
     buildTypes {
         debug {
             isDebuggable = true
             applicationIdSuffix = ".debug"
+            // Emulator ABI; head-unit installs pass -Poaa.arm64Only to skip ~90 MB of libs.
+            if (!providers.gradleProperty("oaa.arm64Only").isPresent) {
+                ndk { abiFilters += "x86_64" }
+            }
         }
         create("contributor") {
             initWith(getByName("release"))
@@ -28,10 +34,6 @@ android {
         }
         release {
             isMinifyEnabled = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro",
-            )
         }
     }
 
@@ -39,8 +41,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
+    lint { baseline = file("lint-baseline.xml") }
     packaging {
+        // libxul.so is ~150 MB raw; compressed it is ~50 MB, which is what OTA and sideloads download.
+        jniLibs.useLegacyPackaging = true
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
         resources.excludes += "/META-INF/INDEX.LIST"
         resources.excludes += "/META-INF/io.netty.versions.properties"
@@ -53,33 +57,24 @@ dependencies {
     implementation(project(":integration-api"))
     implementation(project(":oaa-support"))
     implementation(project(":feature-memory"))
-    implementation(project(":feature-telemetry"))
     implementation(project(":feature-web"))
     implementation(project(":feature-install"))
     implementation(project(":feature-dvr"))
     implementation(project(":feature-debug"))
     implementation(project(":feature-history"))
     implementation(project(":feature-shortcuts"))
-    compileOnly(project(":car-stubs"))
+    implementation(project(":protocol"))
 
-    // Auto-wire vehicle integrations (integrations/<id>/)
-    file("${rootProject.projectDir}/integrations").listFiles()
-        ?.filter { it.isDirectory && it.name != "platform" && File(it, "build.gradle.kts").exists() }
-        ?.sortedBy { it.name }
-        ?.forEach { dir ->
-            implementation(project(":integrations:${dir.name}"))
-        }
-
-    // Auto-wire plugins (plugins/<id>/ → :plugin-<id>)
-    file("${rootProject.projectDir}/plugins").listFiles()
-        ?.filter { it.isDirectory && File(it, "build.gradle.kts").exists() }
-        ?.sortedBy { it.name }
-        ?.forEach { dir ->
-            implementation(project(":plugin-${dir.name}"))
-        }
+    // Vehicle integrations and plugins discovered by settings.gradle.kts
+    @Suppress("UNCHECKED_CAST")
+    (gradle.extra["oaa.autoModules"] as List<String>).forEach { implementation(project(it)) }
 
     implementation("androidx.activity:activity-ktx:1.9.3")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
-    implementation("androidx.core:core-ktx:1.15.0")
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.androidx.core.ktx)
+    // Pinned: bump with Firefox releases for security fixes. 154+ pulls androidx.core 1.19,
+    // which needs Android Gradle plugin 9.1.
+    implementation("org.mozilla.geckoview:geckoview:153.0.20260810162159")
+    testImplementation(libs.junit)
 }

@@ -55,12 +55,14 @@ internal fun Routing.nodeFaceRoutes(hub: HubContext) = with(hub) {
             call.respondError(HttpStatusCode.Unauthorized, "node token required")
             return@get
         }
-        val file = artifacts.file(call.parameters["sha"].orEmpty())
+        val sha = call.parameters["sha"].orEmpty()
+        val file = artifacts.file(sha)
         if (file == null) {
             call.respondError(HttpStatusCode.NotFound, "unknown artifact")
             return@get
         }
-        call.respond(LocalFileContent(file, ContentType.parse(OaaOta.APK_MIME)))
+        val mime = if (artifacts.isDelta(sha)) OaaOta.DELTA_MIME else OaaOta.APK_MIME
+        call.respond(LocalFileContent(file, ContentType.parse(mime)))
     }
 
     get("/{path...}") {
@@ -104,6 +106,8 @@ private suspend fun HubContext.handlePair(call: ApplicationCall) {
             "token" to paired.second,
             "publicNodeUrl" to HubConfig.publicNodeUrl,
             "sessionPath" to HubConfig.sessionPath,
+            "hubId" to identity.id,
+            "hubName" to identity.name,
         ),
     )
 }

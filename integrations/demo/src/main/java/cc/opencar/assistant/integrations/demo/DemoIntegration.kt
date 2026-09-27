@@ -55,7 +55,6 @@ class DemoIntegration : VehicleIntegration {
                 Capability.GEAR_EVENTS,
                 Capability.IGNITION_EVENTS,
             ),
-            variants = emptyList(),
             properties = emptyList(),
         )
     }

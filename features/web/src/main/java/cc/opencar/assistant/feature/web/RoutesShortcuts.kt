@@ -97,7 +97,7 @@ internal fun Routing.registerShortcutRoutes(deps: OaaWebDeps) {
         val enabled = when (val v = body["enabled"]) {
             is Boolean -> v
             is Number -> v.toInt() != 0
-            is String -> v == "1" || v.equals("true", true)
+            is String -> parseBool(v) == true
             else -> true
         }
         call.respond(shortcuts.setOverlayEnabled(enabled) + mapOf("ok" to true))
@@ -195,22 +195,10 @@ internal fun Routing.registerShortcutRoutes(deps: OaaWebDeps) {
         val active = when (val v = body["active"]) {
             is Boolean -> v
             is Number -> v.toInt() != 0
-            is String -> v == "1" || v.equals("true", true) || v.equals("on", true)
+            is String -> parseBool(v) == true
             else -> return@post call.respond(mapOf("ok" to false, "error" to "missing active"))
         }
         call.respond(shortcuts.setSceneActive(id, active))
-    }
-
-    post("/api/scenes/{id}/reset") {
-        if (shortcuts == null) {
-            call.respond(HttpStatusCode.ServiceUnavailable, mapOf("ok" to false, "error" to "unavailable"))
-            return@post
-        }
-        val id = call.parameters["id"] ?: return@post call.respond(
-            HttpStatusCode.BadRequest,
-            mapOf("ok" to false, "error" to "missing id"),
-        )
-        call.respond(shortcuts.resetScene(id))
     }
 
     get("/api/apps") {
@@ -221,15 +209,4 @@ internal fun Routing.registerShortcutRoutes(deps: OaaWebDeps) {
         call.respond(mapOf("apps" to shortcuts.launcher.listLaunchable().map { it.toMap() }))
     }
 
-    post("/api/apps/launch") {
-        if (shortcuts == null) {
-            call.respond(HttpStatusCode.ServiceUnavailable, mapOf("ok" to false, "error" to "unavailable"))
-            return@post
-        }
-        val body = call.receive<Map<String, Any?>>()
-        val pkg = body["packageName"] as? String
-            ?: return@post call.respond(mapOf("ok" to false, "error" to "missing packageName"))
-        val ok = shortcuts.launcher.launch(pkg)
-        call.respond(mapOf("ok" to ok))
-    }
 }

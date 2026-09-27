@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pair_channel">Pedidos de pareamento</string>
+    <string name="pair_title_device">%1$s quer parear</string>
+    <string name="pair_title_hub">O hub %1$s quer parear</string>
+    <string name="pair_code">Código %1$s — digite no outro dispositivo</string>
+</resources>

@@ -64,7 +64,7 @@ oaa_build() {
   (
     cd "$ROOT"
     export JAVA_HOME="${JAVA_HOME:-$(/usr/libexec/java_home -v 17 2>/dev/null || true)}"
-    gradlew :app:assembleDebug --quiet
+    gradlew :app:assembleDebug -Poaa.arm64Only --quiet
   )
   ok "Built $OAA_APK_DEBUG"
 }
@@ -88,13 +88,11 @@ oaa_sign() {
 }
 
 oaa_ensure_apk() {
-  if [[ ! -f "$OAA_APK_SIGNED" ]]; then
-    if [[ -f "$OAA_APK_DEBUG" ]]; then
-      oaa_sign
-    else
-      oaa_build
-      oaa_sign
-    fi
+  if [[ -f "$OAA_APK_DEBUG" ]]; then
+    [[ -f "$OAA_APK_SIGNED" && ! "$OAA_APK_DEBUG" -nt "$OAA_APK_SIGNED" ]] || oaa_sign
+  elif [[ ! -f "$OAA_APK_SIGNED" ]]; then
+    oaa_build
+    oaa_sign
   fi
 }
 

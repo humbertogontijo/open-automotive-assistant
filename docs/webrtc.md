@@ -19,6 +19,8 @@ On the car's own LAN (`role=local`) nothing changes: live preview is HLS and rec
 | Download | Data channel → Blob | `download_open {name}`, basename only |
 | Cut | Data channel → Blob | `cut_request {fromMs, toMs}`, up to 30 minutes |
 
+The car's WebRTC stack is [Pion](https://github.com/pion/webrtc) (pure Go), bound to Kotlin with gomobile in `libs/oaartc`. It shares no `org.webrtc` classes with the GeckoView engine that hosts the in-car UI, and it has no native dependencies beyond the Go runtime (arm64, armv7 and x86_64, API 21+). `./gradlew :oaartc:assemble` downloads the pinned Go toolchain (`oaa.goVersion` in `gradle.properties`) into `~/.gradle/oaa-toolchains`. It needs the NDK named by `oaa.ndkVersion`. `cd libs/oaartc && go test ./...` runs a loopback session (H.264 track plus data channel) without a device.
+
 The car's first data-channel message is `dc_hello` with `features`; the SPA only uses what is advertised. Hiding the tab sends `live_pause` (the car stops sending video frames); showing it sends `live_resume`, and the car starts again with a key frame. Leaving Cameras hangs up the session.
 
 ## Error reasons

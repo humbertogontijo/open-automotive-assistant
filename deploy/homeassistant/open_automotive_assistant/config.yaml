@@ -14,6 +14,9 @@ panel_icon: mdi:car-connected
 panel_title: OAA
 # Same multi-arch image as docker compose (deploy/docker/Dockerfile, publish-hub.yml).
 image: "ghcr.io/humbertogontijo/open-automotive-assistant"
+# Host networking so the hub sees cars' mDNS announcements (Fleet → Nearby cars) and
+# reaches the car's LAN API to ask for a pairing code. The ports below stay the same.
+host_network: true
 ports:
   8787/tcp: 8787
   8788/tcp: 8788
@@ -25,8 +28,6 @@ map:
     read_only: false
 environment:
   OAA_HOMEASSISTANT_ADDON: "true"
-  OAA_PORT: "8787"
-  OAA_NODE_PORT: "8788"
 # WebRTC media plane (remote Cameras). Leave empty for public STUN only.
 options: {}
 schema:

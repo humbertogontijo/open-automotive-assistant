@@ -154,6 +154,13 @@ class Fmp4LiveMuxer(
         return sb.toString()
     }
 
+    /** Drop buffered media but keep the init segment and sequence numbering (live viewer returned). */
+    fun resetMedia() {
+        fragments.clear()
+        pending.clear()
+        pendingDur = 0
+    }
+
     fun clear() {
         initSegment = null
         fragments.clear()

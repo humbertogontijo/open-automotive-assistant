@@ -5,25 +5,10 @@ plugins {
 
 android {
     namespace = "cc.opencar.assistant.api"
-    compileSdk = 35
-
-    defaultConfig {
-        minSdk = 30
-    }
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = "17"
-    }
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
-    implementation("androidx.core:core-ktx:1.15.0")
-    implementation("org.json:json:20240303")
-    testImplementation("junit:junit:4.13.2")
+    api(libs.kotlinx.coroutines.android)
+    testImplementation(libs.org.json)
+    testImplementation(libs.junit)
 }

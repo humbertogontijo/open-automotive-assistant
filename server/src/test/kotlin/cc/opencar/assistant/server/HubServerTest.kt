@@ -1,9 +1,21 @@
 package cc.opencar.assistant.server
 
+import cc.opencar.assistant.protocol.OaaCarAuth
 import cc.opencar.assistant.protocol.OaaFrames
 import cc.opencar.assistant.protocol.OaaHeaders
 import cc.opencar.assistant.protocol.OaaOta
+import cc.opencar.assistant.protocol.OaaPaths
 import cc.opencar.assistant.protocol.OaaRpc
+import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.call
+import io.ktor.server.cio.CIO
+import io.ktor.server.engine.ApplicationEngine
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.request.receiveText
+import io.ktor.server.response.respondText
+import io.ktor.server.routing.post
+import io.ktor.server.routing.routing
 import cc.opencar.assistant.server.ota.ArtifactStore
 import cc.opencar.assistant.server.ota.OtaRollouts
 import kotlinx.coroutines.runBlocking
@@ -82,8 +94,33 @@ class HubServerTest {
         return reply
     }
 
+    /** Demo node plus `/api/echo` and an oversized `/api/big` for proxy tests. */
+    private class TestNode(bus: EventBus) : DemoNodeTransport("demo", bus) {
+        override suspend fun rpc(
+            method: String,
+            path: String,
+            query: String?,
+            contentType: String?,
+            body: ByteArray?,
+            timeoutMs: Long,
+        ): OaaRpc.Response = when (path) {
+            "/api/echo" -> OaaRpc.Response(
+                200,
+                "application/json",
+                body = JSONObject()
+                    .put("method", method)
+                    .put("query", query ?: "")
+                    .put("contentType", contentType ?: "")
+                    .put("body", body?.toString(Charsets.UTF_8) ?: "")
+                    .toString().toByteArray(),
+            )
+            "/api/big" -> OaaRpc.Response(200, "application/octet-stream", body = ByteArray(OaaRpc.MAX_BODY_BYTES + 1))
+            else -> super.rpc(method, path, query, contentType, body, timeoutMs)
+        }
+    }
+
     private fun startHub(human: Int, node: Int): OaaHubServer =
-        OaaHubServer(tmp, humanPort = human, nodePort = node, demoNode = true, mdnsEnabled = false).also {
+        OaaHubServer(tmp, humanPort = human, nodePort = node, demoNode = ::TestNode, mdnsEnabled = false).also {
             server = it
             it.start(wait = false)
             Thread.sleep(600)
@@ -135,6 +172,25 @@ class HubServerTest {
         assertEquals(401, http("http://127.0.0.1:18787/debug/export").code)
         assertEquals(404, http("http://127.0.0.1:18788/api/webrtc/ice").code)
         assertEquals(404, http("http://127.0.0.1:18788/debug/export").code)
+    }
+
+    @Test
+    fun staticBundleIsPrecompressedAndHashedAssetsAreImmutable() {
+        startHub(18827, 18828)
+        val index = http("http://127.0.0.1:18827/")
+        assertEquals(200, index.code)
+        assertEquals("no-store", index.header("Cache-Control"))
+        val entry = Regex("""/static/(assets/app-[A-Z0-9]+\.js)""").find(index.text())?.groupValues?.get(1)
+        assertNotNull(entry, "hashed entry in index.html")
+        val br = http("http://127.0.0.1:18827/static/$entry", headers = mapOf("Accept-Encoding" to "gzip, br"))
+        assertEquals(200, br.code)
+        assertEquals("br", br.header("Content-Encoding"))
+        assertEquals("public, max-age=31536000, immutable", br.header("Cache-Control"))
+        assertEquals("Accept-Encoding", br.header("Vary"))
+        val raw = http("http://127.0.0.1:18827/static/$entry")
+        assertNull(raw.header("Content-Encoding"))
+        assertTrue(raw.body.size > br.body.size)
+        assertEquals("no-store", http("http://127.0.0.1:18827/static/icons/sprite.svg").header("Cache-Control"))
     }
 
     @Test
@@ -266,6 +322,58 @@ class HubServerTest {
         assertTrue(rollouts.get(r.id)!!.done)
     }
 
+    private fun storedZip(vararg entries: Pair<String, ByteArray>): ByteArray {
+        val out = java.io.ByteArrayOutputStream()
+        java.util.zip.ZipOutputStream(out).use { z ->
+            for ((name, bytes) in entries) {
+                val e = java.util.zip.ZipEntry(name).apply {
+                    method = java.util.zip.ZipEntry.STORED
+                    size = bytes.size.toLong()
+                    compressedSize = bytes.size.toLong()
+                    crc = java.util.zip.CRC32().apply { update(bytes) }.value
+                }
+                z.putNextEntry(e)
+                z.write(bytes)
+                z.closeEntry()
+            }
+        }
+        return out.toByteArray()
+    }
+
+    @Test
+    fun rolloutOffersDeltaFromInstalledArtifact() = runBlocking {
+        val registry = NodeRegistry(tmp)
+        val artifacts = ArtifactStore(tmp)
+        val rollouts = OtaRollouts(tmp, registry, artifacts)
+        listOf("car1", "car2").forEach { id ->
+            registry.pair(registry.createPairingCode().code, id, id, null)
+        }
+        val car1 = FakeNode("car1").also { registry.attachSession("car1", it) }
+        val car2 = FakeNode("car2").also { registry.attachSession("car2", it) }
+
+        val lib = kotlin.random.Random(1).nextBytes(200_000)
+        val oldApk = storedZip("lib/a.so" to lib, "classes.dex" to "v1".toByteArray())
+        val newApk = storedZip("lib/a.so" to lib, "classes.dex" to "v2".toByteArray())
+        val old = artifacts.put(oldApk.inputStream(), "cc.opencar.assistant", "0.1.0", 1)
+        val new = artifacts.put(newApk.inputStream(), "cc.opencar.assistant", "0.1.1", 2)
+        registry.updateHello("car1", null, null, AppInfo(apkSha256 = old.sha256))
+        registry.updateHello("car2", null, null, AppInfo(apkSha256 = "e".repeat(64)))
+
+        rollouts.create(new, listOf("car1", "car2"))
+        val delta = car1.sent.single().getJSONObject("payload").getJSONObject("delta")
+        assertEquals(old.sha256, delta.getString("from"))
+        val patchSha = delta.getString("sha256")
+        assertEquals("/api/nodes/artifacts/$patchSha", delta.getString("path"))
+        assertTrue(delta.getLong("size") < newApk.size / 2)
+        assertTrue(artifacts.isDelta(patchSha))
+        assertFalse(car2.sent.single().getJSONObject("payload").has("delta"), "unknown installed build → full APK only")
+
+        val base = File(tmp, "base.apk").apply { writeBytes(oldApk) }
+        val out = File(tmp, "out.apk")
+        cc.opencar.assistant.apkdelta.ApkDelta.apply(base, artifacts.file(patchSha)!!, out)
+        assertArrayEquals(newApk, out.readBytes())
+    }
+
     @Test
     fun logRelaySubscribesWhileViewersAttached() = runBlocking {
         val registry = NodeRegistry(tmp)
@@ -312,6 +420,91 @@ class HubServerTest {
         assertEquals("0.1.0", rec.app?.versionName)
         assertEquals(3L, rec.app?.versionCode)
         assertEquals("a".repeat(64), rec.app?.apkSha256)
+        hub.registry.flush()
+    }
+
+    /** Minimal car auth API: one request, code 123456, records the hub link it was sent. */
+    private fun startStubCar(port: Int, linked: MutableList<JSONObject>): ApplicationEngine =
+        embeddedServer(CIO, port = port, host = "127.0.0.1") {
+            routing {
+                post(OaaPaths.AUTH_PAIR_REQUEST) {
+                    val req = JSONObject(call.receiveText())
+                    assertEquals(OaaCarAuth.KIND_HUB, req.getString("kind"))
+                    call.respondText(
+                        """{"ok":true,"requestId":"r1","expiresAtMs":${System.currentTimeMillis() + 60_000},""" +
+                            """"nodeId":"car-1","name":"Test car","integration":"demo"}""",
+                        ContentType.Application.Json,
+                    )
+                }
+                post(OaaPaths.AUTH_PAIR_CONFIRM) {
+                    val req = JSONObject(call.receiveText())
+                    if (req.optString("code") != "123456") {
+                        call.respondText("""{"ok":false,"error":"wrong code"}""", ContentType.Application.Json, HttpStatusCode.Forbidden)
+                    } else {
+                        linked += req.getJSONObject("hub")
+                        call.respondText("""{"ok":true,"token":"car-token","nodeId":"car-1"}""", ContentType.Application.Json)
+                    }
+                }
+            }
+        }.also { it.start(wait = false) }
+
+    @Test
+    fun hubInvitesCarWithCodeShownOnCar() {
+        val hub = startHub(18837, 18838)
+        val linked = Collections.synchronizedList(ArrayList<JSONObject>())
+        val car = startStubCar(18839, linked)
+        try {
+            val base = "http://127.0.0.1:18837"
+            val json = mapOf("Content-Type" to "application/json")
+            val invite = """{"host":"127.0.0.1","port":18839}""".toByteArray()
+            assertEquals(401, http("$base/api/nodes/invite", "POST", json, invite).code)
+
+            val admin = json + ("Authorization" to "Bearer ${setupAdmin(base)}")
+            val offer = http("$base/api/nodes/invite", "POST", admin, invite)
+            assertEquals(200, offer.code, offer.text())
+            val inviteId = offer.json().getString("inviteId")
+            assertEquals("car-1", offer.json().getString("nodeId"))
+
+            val wrong = http("$base/api/nodes/invite/$inviteId/confirm", "POST", admin, """{"code":"000000"}""".toByteArray())
+            assertEquals(403, wrong.code)
+            assertNull(hub.hub.registry.get("car-1"), "failed confirm must not leave a node behind")
+
+            val ok = http("$base/api/nodes/invite/$inviteId/confirm", "POST", admin, """{"code":"123 456"}""".toByteArray())
+            assertEquals(200, ok.code, ok.text())
+            val link = linked.single()
+            assertEquals(hub.hub.identity.id, link.getString("hubId"))
+            assertEquals(18838, link.getInt("nodePort"))
+            val record = hub.hub.registry.resolveToken(link.getString("nodeToken"))
+            assertEquals("car-1", record?.id)
+            assertEquals("car-token", record?.carToken)
+            assertEquals("http://127.0.0.1:18839", record?.lanUrl)
+            assertTrue(http("$base/api/nodes", headers = admin).text().contains("car-1"))
+        } finally {
+            car.stop(100, 500)
+        }
+    }
+
+    @Test
+    fun discoveredListsOnlyUnpairedCarsForAdmins() {
+        val hub = startHub(18847, 18848)
+        val base = "http://127.0.0.1:18847"
+        val now = System.currentTimeMillis()
+        hub.hub.discovered.put(DiscoveredCar("demo", "Demo", "demo", null, "10.0.0.2", 8787, now))
+        hub.hub.discovered.put(DiscoveredCar("car-9", "EX5", "antora1000", "0.1", "10.0.0.3", 8787, now))
+        assertEquals(401, http("$base/api/nodes/discovered").code)
+        val admin = mapOf("Authorization" to "Bearer ${setupAdmin(base)}")
+        val cars = http("$base/api/nodes/discovered", headers = admin).json().getJSONArray("cars")
+        assertEquals(1, cars.length())
+        assertEquals("car-9", cars.getJSONObject(0).getString("id"))
+        assertEquals("10.0.0.3", cars.getJSONObject(0).getString("host"))
+    }
+
+    @Test
+    fun hostPortParsing() {
+        assertEquals("10.0.0.3" to 8787, splitHostPort("10.0.0.3", 8787))
+        assertEquals("10.0.0.3" to 9000, splitHostPort("10.0.0.3:9000", 8787))
+        assertEquals("fe80::1" to 9000, splitHostPort("[fe80::1]:9000", 8787))
+        assertEquals("fe80::1" to 8787, splitHostPort("fe80::1", 8787))
     }
 
     private fun sha256(b: ByteArray) =

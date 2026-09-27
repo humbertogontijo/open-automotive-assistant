@@ -20,10 +20,8 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
-import org.webrtc.DataChannel
 import java.io.File
 import java.io.IOException
-import java.nio.ByteBuffer
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -32,20 +30,28 @@ import java.util.concurrent.ConcurrentHashMap
  * addressed by basename only and resolved inside the DVR directory.
  */
 class WebRtcMediaChannel(
-    private val dc: DataChannel,
+    private val dc: DataLink,
     private val sessionId: String,
     private val dvr: DvrController,
     private val liveAvailable: Boolean,
     private val onLivePaused: (Boolean) -> Unit,
-) : DataChannel.Observer {
+) {
+    /** The open `oaa-media` channel; the owning session delivers its events. */
+    interface DataLink {
+        val isOpen: Boolean
+        val bufferedAmount: Long
+        fun sendText(text: String): Boolean
+        fun sendBinary(data: ByteArray): Boolean
+    }
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val transfers = ConcurrentHashMap<Long, Job>()
     private val playbackFiles = ConcurrentHashMap<Long, File>()
     @Volatile private var closed = false
 
+    /** Call once the channel is open. */
     fun start() {
-        dc.registerObserver(this)
-        if (dc.state() == DataChannel.State.OPEN) sendHello()
+        if (dc.isOpen) sendHello()
     }
 
     fun close() {
@@ -54,25 +60,14 @@ class WebRtcMediaChannel(
         scope.cancel()
         transfers.clear()
         playbackFiles.clear()
-        runCatching { dc.unregisterObserver() }
-        runCatching { dc.close() }
-        runCatching { dc.dispose() }
     }
 
-    override fun onBufferedAmountChange(previousAmount: Long) = Unit
-
-    override fun onStateChange() {
-        when (dc.state()) {
-            DataChannel.State.OPEN -> sendHello()
-            DataChannel.State.CLOSED -> scope.cancel()
-            else -> Unit
-        }
+    fun onClosed() {
+        scope.cancel()
     }
 
-    override fun onMessage(buffer: DataChannel.Buffer) {
-        if (buffer.binary) return
-        val bytes = ByteArray(buffer.data.remaining())
-        buffer.data.get(bytes)
+    fun onMessage(bytes: ByteArray, binary: Boolean) {
+        if (binary || closed) return
         val msg = runCatching { JSONObject(String(bytes, Charsets.UTF_8)) }.getOrNull() ?: return
         val reqId = msg.optLong("reqId", -1L)
         if (!OaaFrames.isCurrentVersion(msg)) {
@@ -312,12 +307,12 @@ class WebRtcMediaChannel(
     }
 
     private suspend fun sendChunk(reqId: Long, seq: Long, data: ByteArray, off: Int, len: Int, flags: Int) {
-        while (dc.bufferedAmount() > HIGH_WATER_BYTES) {
-            if (closed || dc.state() != DataChannel.State.OPEN) throw IOException("channel closed")
+        while (dc.bufferedAmount > HIGH_WATER_BYTES) {
+            if (closed || !dc.isOpen) throw IOException("channel closed")
             delay(15)
         }
         val frame = OaaMediaChunk.encode(reqId, seq, flags, data, off, len)
-        if (!dc.send(DataChannel.Buffer(ByteBuffer.wrap(frame), true))) throw IOException("send failed")
+        if (!dc.sendBinary(frame)) throw IOException("send failed")
     }
 
     private fun sendError(reqId: Long, error: String) {
@@ -330,8 +325,7 @@ class WebRtcMediaChannel(
 
     private fun sendJson(obj: JSONObject) {
         if (closed) return
-        val bytes = obj.toString().toByteArray(Charsets.UTF_8)
-        runCatching { dc.send(DataChannel.Buffer(ByteBuffer.wrap(bytes), false)) }
+        dc.sendText(obj.toString())
     }
 
     companion object {

@@ -1,0 +1,49 @@
+{
+  "name": "@oaa/webui",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Open Automotive Assistant web UI (car and hub)",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "browserslist": [
+    "chrome >= 111",
+    "firefox >= 115",
+    "safari >= 16.4",
+    "ios_saf >= 16.4"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --watch",
+    "size": "node build.mjs --size",
+    "gen:api": "openapi-typescript ../../../docs/openapi/open-automotive-assistant-v1.yaml -o types/api.d.ts",
+    "typecheck": "tsc -p jsconfig.json",
+    "lint": "eslint .",
+    "test": "node --test \"test/**/*.test.mjs\"",
+    "check": "npm run typecheck && npm run lint && npm run test"
+  },
+  "dependencies": {
+    "@awesome.me/webawesome": "3.14.0",
+    "@lit-labs/router": "^0.1.4",
+    "@lit-labs/signals": "^0.3.0",
+    "hls.js": "^1.7.3",
+    "lit": "^3.3.3",
+    "signal-polyfill": "^0.2.2",
+    "urlpattern-polyfill": "^10.1.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.0",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.11.0",
+    "eslint-plugin-compat": "^7.0.2",
+    "eslint-plugin-lit": "^2.3.1",
+    "eslint-plugin-wc": "^3.1.0",
+    "globals": "^17.12.0",
+    "openapi-typescript": "^7.13.0",
+    "typescript": "^5.9.3"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
+  }
+}

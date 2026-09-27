@@ -29,5 +29,6 @@ fun main(args: Array<String>) {
     }
     File(dataDir).mkdirs()
     val hub = OaaHubServer(dataDir = File(dataDir), humanPort = humanPort, nodePort = nodePort)
+    Runtime.getRuntime().addShutdownHook(Thread { hub.stop() })
     hub.start(wait = true)
 }

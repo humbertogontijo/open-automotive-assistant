@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Open Automotive Assistant</title>
+  <link rel="icon" type="image/svg+xml" href="/static/icons/logo.svg">
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+  <script>
+    (function(){
+      try {
+        var t = localStorage.getItem('oaa_theme') || 'dark';
+        var root = document.documentElement;
+        root.setAttribute('data-theme', t);
+        root.classList.add(t === 'light' ? 'wa-light' : 'wa-dark');
+      } catch(e) {}
+      // Lock rem scale to the physical screen so the soft keyboard (shorter
+      // layout viewport) does not rescale the whole UI via vmin.
+      try {
+        var w = Math.max(screen.width || 0, screen.availWidth || 0, window.innerWidth || 0);
+        var h = Math.max(screen.height || 0, screen.availHeight || 0, window.innerHeight || 0);
+        var vmin = Math.min(w, h) || 800;
+        document.documentElement.style.setProperty('--oaa-vmin', vmin + 'px');
+      } catch(e) {}
+    })();
+  </script>
+  <link rel="stylesheet" href="./src/css/index.css">
+</head>
+<body>
+  <oaa-app></oaa-app>
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>

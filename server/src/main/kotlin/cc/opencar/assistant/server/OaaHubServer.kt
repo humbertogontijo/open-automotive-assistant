@@ -25,17 +25,18 @@ class OaaHubServer(
     dataDir: File,
     private val humanPort: Int = OaaPorts.HUMAN_DEFAULT,
     private val nodePort: Int = OaaPorts.NODE_DEFAULT,
-    private val demoNode: Boolean = HubConfig.demoNode,
+    private val demoNode: ((EventBus) -> DemoNodeTransport)? =
+        if (HubConfig.demoNode) { bus -> DemoNodeTransport("demo", bus) } else null,
     private val mdnsEnabled: Boolean = HubConfig.mdnsEnabled,
 ) {
     internal val hub = HubContext(dataDir, humanPort, nodePort)
     private var humanEngine: ApplicationEngine? = null
     private var nodeEngine: ApplicationEngine? = null
-    private var mdns: MdnsPublisher? = null
+    private var mdns: HubMdns? = null
 
     fun start(wait: Boolean = false) {
-        if (demoNode) {
-            val demo = DemoNodeTransport("demo", hub.eventBus)
+        demoNode?.let { create ->
+            val demo = create(hub.eventBus)
             hub.registry.registerDemo(demo)
             demo.start()
             log.info("demo node registered")
@@ -48,7 +49,7 @@ class OaaHubServer(
         }.also { it.start(wait = false) }
         log.info("node face listening on :$nodePort")
         if (mdnsEnabled) {
-            mdns = MdnsPublisher(humanPort, nodePort).also { it.start() }
+            mdns = HubMdns(hub.identity, hub.discovered, humanPort, nodePort).also { it.start() }
         }
         humanEngine = embeddedServer(CIO, port = humanPort, host = "0.0.0.0") {
             install(ContentNegotiation) { gson() }
@@ -59,6 +60,7 @@ class OaaHubServer(
                 authRoutes(hub)
                 webRtcRoutes(hub)
                 otaRoutes(hub)
+                inviteRoutes(hub)
                 proxyRoutes(hub)
             }
         }
@@ -70,6 +72,8 @@ class OaaHubServer(
         mdns?.stop()
         humanEngine?.stop(1000, 2000)
         nodeEngine?.stop(1000, 2000)
+        hub.registry.flush()
+        hub.auth.flush()
     }
 
     private companion object {

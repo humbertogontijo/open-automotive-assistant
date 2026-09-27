@@ -1,0 +1,78 @@
+/* Shortcuts page: list cards, tabs and the shortcut / routine / scene editors. */
+
+.shortcuts-tabs {
+  --indicator-color: var(--accent);
+}
+
+.shortcuts-tabs wa-tab-panel::part(base) {
+  padding: 1rem 0 0;
+}
+
+.page-head-tight {
+  margin-top: 0;
+}
+
+.list-summary {
+  margin: 0 0 0.6rem;
+}
+
+.list-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.list-actions wa-button.sc-run,
+.list-actions wa-button.sc-edit {
+  flex: 1;
+}
+
+oaa-shortcut-editor,
+oaa-routine-editor,
+oaa-scene-editor {
+  display: block;
+  grid-column: 1 / -1;
+}
+
+.editor-card wa-input.editor-name {
+  margin-bottom: 0.75rem;
+}
+
+.editor-section {
+  margin: 1.1rem 0 0.5rem;
+  font-size: 1rem;
+}
+
+.editor-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+  padding: 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 8px);
+}
+
+.editor-row > .hint {
+  margin-top: 0.3rem;
+}
+
+.editor-remove {
+  align-self: flex-end;
+}
+
+.editor-add {
+  margin-top: 0.25rem;
+}
+
+.editor-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.editor-actions wa-button {
+  flex: 1;
+}

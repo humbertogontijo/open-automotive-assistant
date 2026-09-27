@@ -11,6 +11,7 @@ import cc.opencar.assistant.feature.dvr.DvrController
 import cc.opencar.assistant.feature.install.ApkInstaller
 import cc.opencar.assistant.feature.web.webrtc.CarWebRtc
 import cc.opencar.assistant.protocol.OaaBuild
+import cc.opencar.assistant.protocol.OaaCarAuth
 import cc.opencar.assistant.protocol.OaaFrames
 import cc.opencar.assistant.protocol.OaaHeaders
 import cc.opencar.assistant.protocol.OaaPaths
@@ -37,6 +38,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -57,6 +59,7 @@ class HubClient(
     private val session: VehicleSession,
     private val prefs: SharedPreferences,
     private val debug: ContributorDebugState,
+    private val auth: CarAuth,
     installer: ApkInstaller,
     dvr: DvrController?,
     private val localPort: Int = OaaPorts.HUMAN_DEFAULT,
@@ -81,17 +84,25 @@ class HubClient(
     private var appInfo: JSONObject? = null
 
     private val dvrRef = dvr
-    private val webrtc = dvr?.let { CarWebRtc(context, it, ::send) }
+    private val webrtc = dvr?.let { CarWebRtc(it, ::send) }
     private val ota = OtaUpdater(context, installer, http, scope) { send(OaaFrames.frame(OaaFrames.OTA_STATUS, it)) }
+    private val advertiser = CarMdnsAdvertiser(context, localPort)
+    @Volatile private var nodeIndex = 0
 
     val nodeId: String? get() = prefs.getString(PREF_NODE_ID, null)
+
+    private val paired: Boolean get() = !prefs.getString(PREF_TOKEN, null).isNullOrBlank()
+
+    fun displayName(): String = prefs.getString(PREF_NAME, null)?.takeIf { it.isNotBlank() } ?: session.integrationId
 
     fun status(): Map<String, Any?> = mapOf(
         "enabled" to prefs.getBoolean(PREF_ENABLED, false),
         "hubUrl" to prefs.getString(PREF_HUB_URL, "")?.trim().orEmpty(),
-        "nodeUrl" to prefs.getString(PREF_NODE_URL, null),
+        "hubId" to prefs.getString(PREF_HUB_ID, null),
+        "hubName" to prefs.getString(PREF_HUB_NAME, null),
+        "nodeUrl" to nodeCandidates().getOrNull(nodeIndex)?.url,
         "nodeId" to nodeId,
-        "paired" to !prefs.getString(PREF_TOKEN, null).isNullOrBlank(),
+        "paired" to paired,
         "online" to online,
         "lastError" to prefs.getString(PREF_LAST_ERROR, null),
     )
@@ -99,6 +110,7 @@ class HubClient(
     fun start() {
         if (loopJob != null) return
         ensureNodeId()
+        updateAdvertising()
         loopJob = scope.launch {
             while (isActive) {
                 try {
@@ -115,6 +127,7 @@ class HubClient(
     /** Tear down for good; the instance is unusable afterwards (use [leave] to unpair). */
     fun stop() {
         webrtc?.shutdown()
+        advertiser.stop()
         disconnect()
         scope.cancel()
     }
@@ -164,23 +177,76 @@ class HubClient(
                     return@withLock mapOf("ok" to false, "error" to err) + status()
                 }
                 val publicNodeUrl = json.optString("publicNodeUrl").trim().takeIf { it.isNotEmpty() }?.trimEnd('/')
+                val publicPath = json.optString("sessionPath").trim().takeIf { it.isNotEmpty() } ?: defaultSessionPath
+                val candidates = listOfNotNull(
+                    publicNodeUrl?.let { NodeUrl(it, publicPath) },
+                    NodeUrl(origin, defaultSessionPath),
+                )
+                val hubId = json.optString("hubId").takeIf { it.isNotBlank() }
+                val hubName = json.optString("hubName").takeIf { it.isNotBlank() } ?: uri.host
+                trustHub(hubId, hubName)
                 prefs.edit()
                     .putBoolean(PREF_ENABLED, true)
                     .putString(PREF_HUB_URL, base)
                     .putString(PREF_TOKEN, json.getString("token"))
                     .putString(PREF_NODE_ID, json.optString("nodeId", id))
                     .putString(PREF_NAME, name)
-                    .putString(
-                        PREF_SESSION_PATH,
-                        json.optString("sessionPath").trim().takeIf { publicNodeUrl != null && it.isNotEmpty() } ?: defaultSessionPath,
-                    )
-                    .putString(PREF_NODE_URL, publicNodeUrl ?: origin)
+                    .putString(PREF_NODE_URLS, encodeCandidates(candidates))
+                    .putString(PREF_HUB_ID, hubId)
+                    .putString(PREF_HUB_NAME, hubName)
                     .remove(PREF_LAST_ERROR)
                     .apply()
+                nodeIndex = 0
                 disconnect()
+                updateAdvertising()
                 mapOf("ok" to true) + status()
             }
         }
+    }
+
+    /**
+     * Accept a hub that asked to pair and was confirmed with the car's code. [link] carries
+     * the node token the hub pre-registered plus its node port and public URLs; the address
+     * the hub called from is tried first.
+     */
+    suspend fun linkFromHub(link: JSONObject, sourceIp: String, requestName: String): Map<String, Any?> {
+        val token = link.optString("nodeToken").trim()
+        if (token.isEmpty()) return mapOf("ok" to false, "error" to "missing node token")
+        val nodePort = link.optInt("nodePort", OaaPorts.NODE_DEFAULT)
+        val host = if (':' in sourceIp) "[$sourceIp]" else sourceIp
+        val publicPath = link.optString("sessionPath").trim().ifEmpty { OaaPaths.NODES_SESSION }
+        val candidates = mutableListOf(NodeUrl("http://$host:$nodePort", OaaPaths.NODES_SESSION))
+        link.optJSONArray("nodeUrls")?.let { arr ->
+            for (i in 0 until arr.length()) {
+                val u = arr.optString(i).trim().trimEnd('/')
+                if (u.startsWith("http") && candidates.none { it.url == u }) candidates += NodeUrl(u, publicPath)
+            }
+        }
+        val hubId = link.optString("hubId").takeIf { it.isNotBlank() }
+        val hubName = link.optString("hubName").takeIf { it.isNotBlank() } ?: requestName
+        joinMutex.withLock {
+            val previous = prefs.getString(PREF_HUB_ID, null)
+            if (previous != null && previous != hubId) auth.store.revokeHub(previous)
+            prefs.edit()
+                .putBoolean(PREF_ENABLED, true)
+                .putString(PREF_HUB_URL, candidates.first().url)
+                .putString(PREF_TOKEN, token)
+                .putString(PREF_NODE_URLS, encodeCandidates(candidates))
+                .putString(PREF_HUB_ID, hubId)
+                .putString(PREF_HUB_NAME, hubName)
+                .remove(PREF_LAST_ERROR)
+                .apply()
+            nodeIndex = 0
+            disconnect()
+        }
+        updateAdvertising()
+        return mapOf("ok" to true)
+    }
+
+    /** A hub's trusted-client entry was revoked on the head unit; drop the link if it is ours. */
+    fun onHubRevoked(hubId: String?) {
+        val current = prefs.getString(PREF_HUB_ID, null)
+        if (hubId == null || current == null || hubId == current) leave()
     }
 
     fun leave(): Map<String, Any?> {
@@ -188,15 +254,39 @@ class HubClient(
             .putBoolean(PREF_ENABLED, false)
             .remove(PREF_TOKEN)
             .remove(PREF_HUB_URL)
-            .remove(PREF_NODE_URL)
-            .remove(PREF_SESSION_PATH)
+            .remove(PREF_NODE_URLS)
+            .remove(PREF_HUB_ID)
+            .remove(PREF_HUB_NAME)
             .remove(PREF_LAST_ERROR)
             .apply()
+        auth.store.revokeHub(null)
         disconnect()
+        updateAdvertising()
         return mapOf("ok" to true) + status()
     }
 
+    /** Manual pairing (code typed on the car) also lists the hub under trusted devices. */
+    private fun trustHub(hubId: String?, hubName: String) {
+        val previous = prefs.getString(PREF_HUB_ID, null)
+        if (previous != null && previous != hubId) auth.store.revokeHub(previous)
+        auth.store.addClient(OaaCarAuth.KIND_HUB, hubName, hubId)
+    }
+
+    private fun updateAdvertising() {
+        val id = nodeId
+        if (paired || id == null) advertiser.stop() else advertiser.start(id, displayName(), session.integrationId)
+    }
+
     private fun ensureNodeId() {
+        val legacyUrl = prefs.getString(LEGACY_NODE_URL, null)
+        if (legacyUrl != null) {
+            val path = prefs.getString(LEGACY_SESSION_PATH, null)?.takeIf { it.isNotBlank() } ?: OaaPaths.NODES_SESSION
+            prefs.edit()
+                .putString(PREF_NODE_URLS, encodeCandidates(listOf(NodeUrl(legacyUrl.trimEnd('/'), path))))
+                .remove(LEGACY_NODE_URL)
+                .remove(LEGACY_SESSION_PATH)
+                .apply()
+        }
         if (!nodeId.isNullOrBlank()) return
         val androidId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
             ?: UUID.randomUUID().toString()
@@ -209,17 +299,21 @@ class HubClient(
             return
         }
         val token = prefs.getString(PREF_TOKEN, null) ?: return
-        val nodeUrl = nodeBaseUrl() ?: return
+        val candidates = nodeCandidates()
+        if (candidates.isEmpty()) return
         if (wsRef.get() != null) return
         val app = appInfo ?: buildAppInfo().also { appInfo = it }
 
-        val wsUrl = nodeUrl.replace(Regex("^http"), "ws") +
-            (prefs.getString(PREF_SESSION_PATH, null)?.takeIf { it.isNotBlank() } ?: OaaPaths.NODES_SESSION) +
+        val index = nodeIndex % candidates.size
+        val node = candidates[index]
+        val wsUrl = node.url.replace(Regex("^http"), "ws") + node.sessionPath +
             "?token=" + URLEncoder.encode(token, Charsets.UTF_8.name())
-        val ws = wsClient.newWebSocket(Request.Builder().url(wsUrl).build(), Listener(token, nodeUrl, app))
+        val listener = Listener(token, node.url, app)
+        val ws = wsClient.newWebSocket(Request.Builder().url(wsUrl).build(), listener)
         wsRef.set(ws)
         // Hold this loop iteration while the socket lives; onClosed/onFailure clear the ref.
         while (wsRef.get() === ws) delay(2_000)
+        if (!listener.opened && nodeIndex == index) nodeIndex = (index + 1) % candidates.size
     }
 
     private inner class Listener(
@@ -227,7 +321,10 @@ class HubClient(
         private val nodeUrl: String,
         private val app: JSONObject,
     ) : WebSocketListener() {
+        @Volatile var opened = false
+
         override fun onOpen(webSocket: WebSocket, response: Response) {
+            opened = true
             online = true
             setError(null)
             LogRingBuffer.append("Hub session connected")
@@ -240,8 +337,8 @@ class HubClient(
             webSocket.send(OaaFrames.frame(OaaFrames.HELLO, hello))
             eventsJob?.cancel()
             eventsJob = scope.launch {
-                uiEvents(session, dvrRef, telemetrySampleMs = 1_000).collect { msg ->
-                    webSocket.send("""{"type":"${OaaFrames.EVENT}","payload":${gson.toJson(msg)}}""")
+                uiEvents(session, dvrRef).collect { msg ->
+                    webSocket.send(OaaFrames.eventFrame(gson.toJson(msg)))
                 }
             }
         }
@@ -327,7 +424,7 @@ class HubClient(
         val target = if (req.target.startsWith("/")) req.target else "/${req.target}"
         val request = Request.Builder()
             .url("http://127.0.0.1:$localPort$target")
-            .header(OaaHeaders.VIA_HUB, "1")
+            .header(OaaHeaders.INTERNAL_RPC, auth.internalSecret)
             .method(method, body)
             .build()
         return http.newCall(request).execute().use { resp ->
@@ -367,8 +464,23 @@ class HubClient(
         ed.apply()
     }
 
-    private fun nodeBaseUrl(): String? =
-        prefs.getString(PREF_NODE_URL, null)?.trim()?.trimEnd('/')?.takeIf { it.isNotEmpty() }
+    private data class NodeUrl(val url: String, val sessionPath: String)
+
+    /** Node-face URLs to dial, in preference order; the session rotates past ones that never open. */
+    private fun nodeCandidates(): List<NodeUrl> {
+        val raw = prefs.getString(PREF_NODE_URLS, null) ?: return emptyList()
+        return runCatching {
+            val arr = JSONArray(raw)
+            (0 until arr.length()).mapNotNull { i ->
+                val o = arr.optJSONObject(i) ?: return@mapNotNull null
+                val url = o.optString("url").trim().trimEnd('/')
+                if (url.isEmpty()) null else NodeUrl(url, o.optString("sessionPath").ifBlank { OaaPaths.NODES_SESSION })
+            }
+        }.getOrDefault(emptyList())
+    }
+
+    private fun encodeCandidates(list: List<NodeUrl>): String =
+        JSONArray(list.map { JSONObject().put("url", it.url).put("sessionPath", it.sessionPath) }).toString()
 
     /** Running build, reported in `hello`; the hub treats the APK hash as the installed version. */
     private fun buildAppInfo(): JSONObject {
@@ -387,13 +499,16 @@ class HubClient(
     companion object {
         const val PREF_ENABLED = "hub_enabled"
         const val PREF_HUB_URL = "hub_url"
-        /** Public node-face URL (HA Cloud / tunnel) used for the dial-out session. */
-        const val PREF_NODE_URL = "hub_node_url"
-        const val PREF_SESSION_PATH = "hub_session_path"
+        /** JSON list of `{url, sessionPath}` node-face endpoints for the dial-out session. */
+        const val PREF_NODE_URLS = "hub_node_urls"
+        const val PREF_HUB_ID = "hub_id"
+        const val PREF_HUB_NAME = "hub_name"
         const val PREF_NODE_ID = "hub_node_id"
         const val PREF_TOKEN = "hub_token"
         const val PREF_NAME = "hub_display_name"
         private const val PREF_LAST_ERROR = "hub_last_error"
+        private const val LEGACY_NODE_URL = "hub_node_url"
+        private const val LEGACY_SESSION_PATH = "hub_session_path"
         private const val TAG = "OaaHubClient"
         private const val LOG_BACKLOG = 200
         private val JSON = "application/json; charset=utf-8".toMediaType()

@@ -6,6 +6,8 @@ import cc.opencar.assistant.server.HubConfig
 import cc.opencar.assistant.server.NodeRegistry
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
 import java.util.UUID
@@ -133,6 +135,18 @@ class OtaRollouts(
             .put("versionName", artifact.versionName)
             .put("versionCode", artifact.versionCode)
             .put("path", "${HubConfig.artifactsPath}/${artifact.sha256}")
+        val installed = registry.get(nodeId)?.app?.apkSha256?.lowercase()
+        val delta = installed?.let { withContext(Dispatchers.IO) { artifacts.delta(it, artifact.sha256) } }
+        if (delta != null) {
+            payload.put(
+                "delta",
+                JSONObject()
+                    .put("from", delta.from)
+                    .put("sha256", delta.sha256)
+                    .put("size", delta.size)
+                    .put("path", "${HubConfig.artifactsPath}/${delta.sha256}"),
+            )
+        }
         if (node.send(OaaFrames.frame(OaaFrames.OTA_OFFER, payload))) {
             val current = synchronized(this) { rollout.targets[nodeId]?.state }
             if (current == OaaOta.STATE_PENDING) update(rollout, nodeId, OaaOta.STATE_OFFERED)

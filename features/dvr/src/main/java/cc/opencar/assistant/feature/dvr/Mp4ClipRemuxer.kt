@@ -75,7 +75,11 @@ object Mp4ClipRemuxer {
                         info.offset = 0
                         info.size = size
                         info.presentationTimeUs = ptsOffsetUs + (pts - startPts)
-                        info.flags = extractor.sampleFlags
+                        info.flags = if (extractor.sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC != 0) {
+                            MediaCodec.BUFFER_FLAG_KEY_FRAME
+                        } else {
+                            0
+                        }
                         muxer!!.writeSampleData(outTrack, buffer, info)
                         rangeLast = pts
                         lastOutPtsUs = info.presentationTimeUs

@@ -46,3 +46,6 @@ out/
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# Web UI (features/web/ui)
+node_modules/

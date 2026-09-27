@@ -1,0 +1,87 @@
+/*
+ * Home Assistant core color scales mapped one-to-one onto Web Awesome's 05..95 tints.
+ * Brand is the HA/Music Assistant light blue; HA's orange is the warning variant.
+ */
+:root {
+  --ha-primary: #03a9f4;
+  --ha-orange: #ff9800;
+
+  --wa-color-blue-05: #001721;
+  --wa-color-blue-10: #002e3e;
+  --wa-color-blue-20: #004156;
+  --wa-color-blue-30: #006787;
+  --wa-color-blue-40: #009ac7;
+  --wa-color-blue-50: #18bcf2;
+  --wa-color-blue-60: #37c8fd;
+  --wa-color-blue-70: #7bd4fb;
+  --wa-color-blue-80: #b9e6fc;
+  --wa-color-blue-90: #dff3fc;
+  --wa-color-blue-95: #eff9fe;
+  --wa-color-blue: var(--ha-primary);
+  --wa-color-blue-key: 50;
+
+  --wa-color-gray-05: #141414;
+  --wa-color-gray-10: #202020;
+  --wa-color-gray-20: #363636;
+  --wa-color-gray-30: #4a4a4a;
+  --wa-color-gray-40: #5e5e5e;
+  --wa-color-gray-50: #7a7a7a;
+  --wa-color-gray-60: #989898;
+  --wa-color-gray-70: #b1b1b1;
+  --wa-color-gray-80: #cccccc;
+  --wa-color-gray-90: #e6e6e6;
+  --wa-color-gray-95: #f3f3f3;
+  --wa-color-gray: var(--wa-color-gray-50);
+
+  --wa-color-orange-05: #280700;
+  --wa-color-orange-10: #3b0f00;
+  --wa-color-orange-20: #5e1c00;
+  --wa-color-orange-30: #7e2900;
+  --wa-color-orange-40: #9d3800;
+  --wa-color-orange-50: #c94e00;
+  --wa-color-orange-60: #f36d00;
+  --wa-color-orange-70: #ff9342;
+  --wa-color-orange-80: #ffbb89;
+  --wa-color-orange-90: #ffe0c8;
+  --wa-color-orange-95: #fff0e4;
+  --wa-color-orange: var(--ha-orange);
+
+  --wa-color-red-05: #2a040b;
+  --wa-color-red-10: #3e0913;
+  --wa-color-red-20: #631323;
+  --wa-color-red-30: #8a132c;
+  --wa-color-red-40: #b30532;
+  --wa-color-red-50: #dc3146;
+  --wa-color-red-60: #f3676c;
+  --wa-color-red-70: #fd8f90;
+  --wa-color-red-80: #ffb8b6;
+  --wa-color-red-90: #ffdedc;
+  --wa-color-red-95: #fff0ef;
+  --wa-color-red: var(--wa-color-red-50);
+
+  --wa-color-green-05: #031608;
+  --wa-color-green-10: #052310;
+  --wa-color-green-20: #0a3a1d;
+  --wa-color-green-30: #0a5027;
+  --wa-color-green-40: #036730;
+  --wa-color-green-50: #00883c;
+  --wa-color-green-60: #00ac49;
+  --wa-color-green-70: #5dc36f;
+  --wa-color-green-80: #93da98;
+  --wa-color-green-90: #c2f2c1;
+  --wa-color-green-95: #e3f9e3;
+  --wa-color-green: var(--wa-color-green-50);
+
+  --wa-color-warning-05: var(--wa-color-orange-05);
+  --wa-color-warning-10: var(--wa-color-orange-10);
+  --wa-color-warning-20: var(--wa-color-orange-20);
+  --wa-color-warning-30: var(--wa-color-orange-30);
+  --wa-color-warning-40: var(--wa-color-orange-40);
+  --wa-color-warning-50: var(--wa-color-orange-50);
+  --wa-color-warning-60: var(--wa-color-orange-60);
+  --wa-color-warning-70: var(--wa-color-orange-70);
+  --wa-color-warning-80: var(--wa-color-orange-80);
+  --wa-color-warning-90: var(--wa-color-orange-90);
+  --wa-color-warning-95: var(--wa-color-orange-95);
+  --wa-color-warning: var(--wa-color-orange);
+}

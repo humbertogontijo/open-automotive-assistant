@@ -2,4 +2,8 @@
 <resources>
     <string name="app_name">Open Automotive Assistant</string>
     <string name="service_notification">Open Automotive Assistant is running</string>
+    <string name="pair_channel">Pairing requests</string>
+    <string name="pair_title_device">%1$s wants to pair</string>
+    <string name="pair_title_hub">Hub %1$s wants to pair</string>
+    <string name="pair_code">Code %1$s — type it on the other device</string>
 </resources>

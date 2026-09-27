@@ -5,6 +5,7 @@ import android.util.Log
 import cc.opencar.assistant.api.Capability
 import cc.opencar.assistant.api.IntegrationRegistry
 import cc.opencar.assistant.api.PendingWake
+import cc.opencar.assistant.api.ScreenState
 import cc.opencar.assistant.api.ServiceLoaderIntegrationRegistry
 import cc.opencar.assistant.api.VehicleIntegration
 import cc.opencar.assistant.api.VehicleSession
@@ -21,8 +22,8 @@ import cc.opencar.assistant.feature.history.EntityHistoryRecorder
 import cc.opencar.assistant.feature.install.ApkInstaller
 import cc.opencar.assistant.feature.memory.SettingsMemoryController
 import cc.opencar.assistant.feature.shortcuts.ShortcutsController
-import cc.opencar.assistant.feature.telemetry.TelemetryRepository
 import cc.opencar.assistant.feature.web.AndroidSettingsController
+import cc.opencar.assistant.feature.web.CarAuth
 import cc.opencar.assistant.feature.web.ControlCatalog
 import cc.opencar.assistant.feature.web.HubClient
 import cc.opencar.assistant.feature.web.LocationTrackerController
@@ -36,17 +37,23 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.plus
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.atomic.AtomicReference
 
 class AssistantRuntime(private val app: OaaApp) {
+    /** Parent of every runtime component's coroutines; components add their own dispatcher. */
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val ioScope = scope + Dispatchers.IO
     private val startMutex = Mutex()
     private val registry: IntegrationRegistry = ServiceLoaderIntegrationRegistry(app.classLoader)
     val plugins: PluginRegistry = ServiceLoaderPluginRegistry(app.classLoader)
 
     val debug = ContributorDebugState(app)
+
+    /** Car HTTP access control; the per-launch head unit key lives here. */
+    val auth: CarAuth by lazy { CarAuth(app) }
     private val _ready = MutableStateFlow(false)
     val ready: StateFlow<Boolean> = _ready.asStateFlow()
 
@@ -58,8 +65,6 @@ class AssistantRuntime(private val app: OaaApp) {
         private set
 
     var memory: SettingsMemoryController? = null
-        private set
-    var telemetry: TelemetryRepository? = null
         private set
     var web: OaaWebServer? = null
         private set
@@ -126,7 +131,6 @@ class AssistantRuntime(private val app: OaaApp) {
         capabilities = matched.capabilities(variant)
         app.log.i(TAG, "Variant=${variant.id} caps=$capabilities")
 
-        telemetry = TelemetryRepository(sess)
         installer = ApkInstaller(app)
         dvr = DvrController(app, sess)
         probe = CatalogProbe(app, sess)
@@ -140,7 +144,7 @@ class AssistantRuntime(private val app: OaaApp) {
             app,
             OaaPrefs.ui(app),
         )
-        history = EntityHistoryRecorder(app, sess).also { it.start() }
+        history = EntityHistoryRecorder(app, sess, scope = ioScope).also { it.start() }
 
         val applyControl: suspend (String, String) -> Result<Unit> = { id, value ->
             when {
@@ -166,13 +170,14 @@ class AssistantRuntime(private val app: OaaApp) {
                 applyControl = applyControl,
                 readControl = readControl,
                 extraPinIds = androidSettings?.allIds.orEmpty(),
+                scope = ioScope,
             ).also { it.start() }
         }
 
         val pluginHost = object : PluginHost {
             override val context: Context = app
             override val session: VehicleSession = sess
-            override val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            override val scope: CoroutineScope = ioScope
         }
         for (plugin in plugins.all()) {
             runCatching { plugin.start(pluginHost) }
@@ -196,6 +201,7 @@ class AssistantRuntime(private val app: OaaApp) {
             readGear = {
                 sess.telemetry().first().gear
             },
+            parentScope = scope,
         ).also { it.start() }
         // Session Boot may already have been consumed by memory — deliver explicitly.
         shortcuts?.onBoot()
@@ -214,6 +220,7 @@ class AssistantRuntime(private val app: OaaApp) {
             session = sess,
             prefs = OaaPrefs.ui(app),
             debug = debug,
+            auth = auth,
             installer = installer!!,
             dvr = dvr,
         )
@@ -239,8 +246,10 @@ class AssistantRuntime(private val app: OaaApp) {
             getIntegrationOverride = { integrationOverride() },
             setIntegrationOverride = { setIntegrationOverride(it) },
             hub = hubClient,
+            auth = auth,
         ).also { it.start() }
         hubClient.start()
+        PairNotifier(app, auth).start(scope)
 
         // Warm probe in background (non-blocking for UI)
         scope.launch(Dispatchers.IO) {
@@ -255,6 +264,7 @@ class AssistantRuntime(private val app: OaaApp) {
 
     fun notifyScreenOn(source: String = "runtime") {
         Log.i(TAG, "notifyScreenOn shortcuts=${shortcuts != null} source=$source")
+        ScreenState.set(true)
         val s = shortcuts
         if (s != null) {
             s.onScreenOn(source)
@@ -269,6 +279,7 @@ class AssistantRuntime(private val app: OaaApp) {
 
     fun notifyScreenOff(source: String = "runtime") {
         Log.i(TAG, "notifyScreenOff shortcuts=${shortcuts != null} source=$source")
+        ScreenState.set(false)
         val s = shortcuts
         if (s != null) {
             s.onScreenOff(source)

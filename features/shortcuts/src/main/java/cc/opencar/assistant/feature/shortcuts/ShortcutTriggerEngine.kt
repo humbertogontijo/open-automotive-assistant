@@ -27,8 +27,8 @@ class ShortcutTriggerEngine(
     private val readEntity: (suspend (String) -> String?)? = null,
     private val readWifiSsid: (() -> String?)? = null,
     private val readGear: (suspend () -> Int?)? = null,
+    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var job: Job? = null
     private val screenMutex = Mutex()
 

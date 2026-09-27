@@ -1,9 +1,10 @@
 .git
-.gradle
+**/.gradle
 **/build
-.kotlin
+**/.kotlin
 .idea
 .vscode
+.local
 local.properties
 *.apk
 apks/

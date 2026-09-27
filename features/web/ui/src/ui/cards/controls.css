@@ -1,0 +1,192 @@
+/* Shared Web Awesome control primitives: segment toggle, choice select, stepper, pin states. */
+
+/* —— Card surface (wa-card) —— */
+:is(oaa-control-card, oaa-climate-card, oaa-light-card, oaa-cover-card, oaa-media-player-card,
+  oaa-camera-card, oaa-composite-card, oaa-sensor-card, oaa-slider) { display: contents; }
+wa-card.ctrl-card { --spacing: 0; }
+wa-card.ctrl-card::part(body) {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column;
+}
+
+/* —— Header icon buttons (hide / pin) —— */
+.icon-btn {
+  --wa-form-control-height: var(--icon-btn);
+  font-size: 1.15rem;
+  color: var(--text-muted);
+}
+.icon-btn::part(button) {
+  width: var(--icon-btn); padding: 0;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+.icon-btn.active::part(button) {
+  color: var(--pin);
+  background: var(--pin-soft);
+  border-color: color-mix(in srgb, var(--pin) 55%, transparent);
+}
+.hide-btn.restore::part(button) { color: var(--accent); }
+
+/* —— Segment toggle (wa-radio-group of button radios, ≤4 options) —— */
+wa-radio-group.toggle-group { width: 100%; }
+wa-radio-group.toggle-group::part(form-control-input) { flex-wrap: nowrap; width: 100%; }
+wa-radio.toggle-seg {
+  flex: 1 1 0; min-width: 0;
+  --wa-form-control-height: var(--ctrl-touch);
+  justify-content: center; text-align: center;
+  font-size: 1.05rem; font-weight: 650; line-height: 1.2;
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border-color: var(--border);
+  hyphens: auto;
+}
+wa-radio.toggle-seg:state(checked) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+/* Pinned reboot value: outlined when live is elsewhere, pin-colored when they match. */
+wa-radio.toggle-seg.pin-mark { color: var(--pin); background: var(--pin-soft); border-color: var(--pin); }
+wa-radio.toggle-seg.pin-mark:state(checked) { background: var(--pin); color: var(--pin-contrast); }
+wa-radio-group.toggle-group[data-count="4"] wa-radio.toggle-seg {
+  font-size: 0.95rem;
+  --wa-form-control-padding-inline: 0.35rem;
+}
+wa-radio-group.toggle-group.unset wa-radio.toggle-seg { opacity: 0.85; }
+
+/* —— Momentary command buttons —— */
+.command-group { display: flex; width: 100%; }
+.command-group::part(base) { width: 100%; }
+.command-group > wa-button { flex: 1 1 0; --wa-form-control-height: var(--ctrl-touch); }
+.command-note { opacity: 0.9; }
+
+/* —— Choice select (>4 options) —— */
+oaa-choice-select { display: flex; flex-direction: column; gap: 0.35rem; width: 100%; }
+oaa-choice-select wa-select,
+oaa-choice-select wa-dropdown,
+oaa-choice-select .choice-trigger { width: 100%; }
+oaa-choice-select wa-select {
+  --wa-form-control-height: var(--ctrl-touch);
+  font-size: 1.05rem;
+}
+oaa-choice-select wa-select::part(combobox) { background: var(--surface-2); border-color: var(--border); }
+oaa-choice-select .choice-trigger {
+  --wa-form-control-height: var(--ctrl-touch);
+  font-size: 1.05rem;
+}
+oaa-choice-select .choice-trigger::part(button) {
+  justify-content: space-between;
+  background: var(--surface-2); border-color: var(--border); color: var(--text); font-weight: 400;
+}
+oaa-choice-select .choice-trigger::part(label) { overflow: hidden; text-overflow: ellipsis; }
+oaa-choice-select.unset wa-select::part(display-input),
+oaa-choice-select.unset .choice-trigger { color: var(--text-muted); }
+oaa-choice-select.pin-match wa-select::part(combobox),
+oaa-choice-select.pin-match .choice-trigger::part(button) { border-color: var(--pin); color: var(--pin); }
+wa-option.pin-mark { color: var(--pin); }
+.choice-search { margin: 0.25rem 0.25rem 0.35rem; }
+.choice-empty { margin: 0.4rem 0.75rem 0.55rem; }
+
+/* —— Slider row (oaa-slider) —— */
+.slider-row {
+  position: relative;
+  display: grid; grid-template-columns: auto 1fr; gap: 0.75rem; align-items: center;
+  width: 100%; min-height: var(--ctrl-touch); padding: 0.35rem 0.85rem;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+}
+.slider-row.has-lead { grid-template-columns: auto auto 1fr; }
+.slider-readout {
+  font-weight: 650; font-size: 1.15rem; min-width: 3.25rem; text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.slider-readout .unit { font-size: 0.85rem; font-weight: 550; color: var(--text-muted); margin-left: 0.1rem; }
+.slider-row wa-slider { --track-size: 0.55rem; --thumb-width: 1.55rem; --thumb-height: 1.55rem; }
+/* The readout shows the value; the label stays for screen readers only. */
+.slider-row wa-slider::part(label) {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+
+/* —— Toggle buttons (oaa-toggle-button: A/C, ESC, …) — "on" reads like a selected segment —— */
+.toggle-grid { display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); gap: 0.45rem; }
+.toggle-grid[data-cols="1"] { --cols: 1; }
+.toggle-grid[data-cols="3"] { --cols: 3; }
+.toggle-grid[data-cols="3"] .toggle-btn { font-size: 0.85rem; padding-inline: 0.3rem; }
+oaa-toggle-button { display: flex; min-width: 0; }
+.toggle-btn {
+  flex: 1; min-width: 0; min-height: var(--ctrl-touch);
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+  padding: 0.25rem 0.55rem;
+  font: inherit; font-size: 0.95rem; font-weight: 650; line-height: 1.15; text-align: center; white-space: normal;
+  color: var(--text-muted); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.toggle-btn wa-icon { font-size: 1.3rem; flex-shrink: 0; }
+.toggle-btn-label { min-width: 0; overflow-wrap: break-word; hyphens: auto; }
+.toggle-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-contrast); }
+.toggle-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.toggle-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+@media (hover: hover) {
+  .toggle-btn:not(:disabled, [aria-pressed="true"]):hover { color: var(--text); border-color: var(--border-strong); }
+}
+oaa-toggle-button:has(> .icon-only) { flex: 0 0 auto; }
+.toggle-btn.icon-only { width: var(--ctrl-touch); padding: 0; }
+.toggle-btn.icon-only wa-icon { font-size: 1.45rem; }
+
+/* —— Dense cards: segment labels may wrap to two lines inside the fixed row height —— */
+.dense wa-radio.toggle-seg {
+  font-size: 0.92rem; line-height: 1.1;
+  --wa-form-control-padding-inline: 0.4rem;
+  --wa-form-control-padding-block: 0.2rem;
+}
+.dense wa-radio-group.toggle-group[data-count="4"] wa-radio.toggle-seg {
+  font-size: 0.85rem; --wa-form-control-padding-inline: 0.25rem;
+}
+.dense oaa-choice-select wa-select,
+.dense oaa-choice-select .choice-trigger { font-size: 0.95rem; --wa-form-control-padding-inline: 0.7rem; }
+.dense .slider-row { padding: 0.25rem 0.75rem; gap: 0.6rem; }
+.dense .slider-readout { font-size: 1.05rem; min-width: 2.75rem; }
+.dense .stepper .val { font-size: 1.35rem; }
+
+/* —— Stepper —— */
+.stepper {
+  display: flex; align-items: center; flex-wrap: wrap; width: 100%;
+  min-height: var(--ctrl-touch);
+  background: var(--surface-2); border-radius: var(--radius-sm);
+  border: 1px solid var(--border); overflow: hidden;
+}
+.stepper > wa-button {
+  --wa-form-control-height: var(--ctrl-touch);
+  font-size: 1.4rem;
+}
+.stepper > wa-button::part(button) {
+  width: var(--ctrl-touch); padding: 0; border-radius: 0;
+  background: transparent; color: var(--text);
+}
+.stepper .val {
+  flex: 1; text-align: center; font-weight: 650; font-size: 1.45rem;
+  padding: 0 0.5rem;
+}
+.stepper .val.unset { color: var(--text-muted); font-weight: 550; }
+.stepper .unit { font-size: 0.9rem; color: var(--text-muted); font-weight: 550; margin-left: 0.15rem; }
+.stepper.pin-match { border-color: var(--pin); }
+.stepper.pin-match .val { color: var(--pin); }
+
+/* —— Text input —— */
+.text-input { display: flex; flex-direction: column; gap: 0.35rem; width: 100%; }
+.text-input wa-input { --wa-form-control-height: var(--ctrl-touch); }
+.text-input.pin-match wa-input::part(base) { border-color: var(--pin); }
+
+/* —— Pin chip (wa-tag) —— */
+wa-tag.pin-chip {
+  align-self: stretch;
+  gap: 0.35rem;
+  color: var(--pin);
+  background: var(--pin-soft);
+  border-color: color-mix(in srgb, var(--pin) 35%, transparent);
+  font-weight: 600;
+}
+.stepper > wa-tag.pin-chip { flex-basis: 100%; border-radius: 0; border-width: 1px 0 0; }
+wa-tag.pin-chip wa-icon { font-size: 0.9rem; flex-shrink: 0; }

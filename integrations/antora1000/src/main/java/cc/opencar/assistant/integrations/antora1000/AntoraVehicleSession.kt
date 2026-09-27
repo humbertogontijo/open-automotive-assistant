@@ -1,257 +1,100 @@
 package cc.opencar.assistant.integrations.antora1000
 
 import android.content.Context
-import android.hardware.camera2.CameraManager
 import android.util.Log
-import cc.opencar.assistant.api.CameraSource
 import cc.opencar.assistant.api.CatalogEntry
 import cc.opencar.assistant.api.PlatformVariant
 import cc.opencar.assistant.api.PropertyValue
-import cc.opencar.assistant.api.ReadOutcome
 import cc.opencar.assistant.api.TelemetrySnapshot
 import cc.opencar.assistant.api.VehicleEvent
 import cc.opencar.assistant.api.VehicleProperty
-import cc.opencar.assistant.api.VehicleSession
+import cc.opencar.assistant.integrations.aaos.AaosSessionBase
 import cc.opencar.assistant.integrations.aaos.AospVehicleIds
 import cc.opencar.assistant.integrations.aaos.PlatformConfig
 import cc.opencar.assistant.integrations.aaos.PropertyAccessMode
 import cc.opencar.assistant.integrations.aaos.PropertyUpdate
-import cc.opencar.assistant.integrations.aaos.SessionEventFanout
-import cc.opencar.assistant.integrations.aaos.VehiclePropertyBackend
-import cc.opencar.assistant.integrations.aaos.entityByProp
 import cc.opencar.assistant.integrations.aaos.toPropertyValue
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.coroutines.coroutineContext
 
-@OptIn(kotlinx.coroutines.FlowPreview::class)
 class AntoraVehicleSession(
-    private val context: Context,
+    context: Context,
     initialVariant: PlatformVariant,
-) : VehicleSession {
-    private val backend: VehiclePropertyBackend = AntoraBackendFactory.create(context)
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+) : AaosSessionBase(context, AntoraBackendFactory.create(context), initialVariant, TAG) {
     private val basePlatform: PlatformConfig = AntoraCatalog.platformConfig(context)
-    private var platform: PlatformConfig = basePlatform.forSelection(
-        initialVariant.skuId,
-        initialVariant.id,
-    )
-    private val catalogEntries: List<CatalogEntry> = basePlatform.catalogEntries()
-    private val allowlist = basePlatform.writableAllowlist
+    override var platform: PlatformConfig = basePlatform.forSelection(initialVariant.skuId, initialVariant.id)
+        private set
+    override val catalogEntries: List<CatalogEntry> = basePlatform.catalogEntries()
+    override val allowlist: Set<Int> = basePlatform.writableAllowlist
+    override val integrationId: String = Antora1000Integration.ID
 
-    private val _variant = MutableStateFlow(initialVariant)
-    override val variant: StateFlow<PlatformVariant> = _variant.asStateFlow()
-
-    private val _telemetry = MutableStateFlow(TelemetrySnapshot())
-    private val _events = MutableSharedFlow<VehicleEvent>(extraBufferCapacity = 64)
-    private val fanout = SessionEventFanout(_telemetry, _events)
-
-    private var telemetryJob: Job? = null
-    private var entityObserveJob: Job? = null
-    private var wheelJob: Job? = null
-
-    /** propId → entityId for EntityValueChanged fan-out (follows active model). */
-    private val entityByProp: Map<Int, String>
-        get() = platform.entityByProp()
-
-    private val bindings: Map<VehicleProperty, Pair<Int, Int>>
-        get() = platform.propertyBindings()
+    private val propsByKey: Map<String, PlatformConfig.PropertyDef> = basePlatform.properties.associateBy { it.key }
 
     /** SWC hard keys from platform.json (`WHEEL_HARD_KEY_*`). */
-    private val wheelHardKeys: Map<String, Int> by lazy {
-        basePlatform.properties
-            .asSequence()
-            .filter { it.key.startsWith("WHEEL_HARD_KEY_") }
-            .associate { p ->
-                p.key.removePrefix("WHEEL_HARD_KEY_").lowercase() to p.id
-            }
-    }
-
-    /** Props that affect [readSnapshot] — ignore unrelated Venus stream noise. */
-    private val telemetryPropIds: Set<Int>
-        get() = buildSet {
-            platform.bindings.values.forEach { add(it.nativeId) }
-            for (key in EXTRA_TELEMETRY_KEYS) {
-                catalogNativeId(key)?.let { add(it) }
-            }
-        }
-
-    private fun catalogNativeId(key: String): Int? =
-        platform.bindings[key]?.nativeId
-            ?: basePlatform.properties.firstOrNull { it.key == key }?.id
-
-    private fun catalogArea(key: String): Int =
-        platform.bindings[key]?.areaId
-            ?: basePlatform.properties.firstOrNull { it.key == key }?.areas?.firstOrNull()
-            ?: 0
-
-    private fun readCatalog(key: String): PropertyValue? {
-        val id = catalogNativeId(key) ?: return null
-        return toPropertyValue(backend.read(id, catalogArea(key)))
-    }
-
-    override val integrationId: String = Antora1000Integration.ID
+    private val wheelHardKeys: Map<String, Int> = basePlatform.properties
+        .filter { it.key.startsWith("WHEEL_HARD_KEY_") }
+        .associate { p -> p.key.removePrefix("WHEEL_HARD_KEY_").lowercase() to p.id }
 
     val accessMode: PropertyAccessMode get() = backend.mode
 
     init {
-        scope.launch { _events.emit(VehicleEvent.Boot) }
         val propIds = platform.bindings.values.map { it.nativeId }.distinct().toIntArray()
-        val observe = when (backend.mode) {
-            PropertyAccessMode.GRPC -> backend.observe(null)
-            PropertyAccessMode.CAR_PROPERTY ->
-                backend.observe(propIds.takeIf { it.isNotEmpty() })
-        }
-        if (observe != null) {
-            Log.i(TAG, "telemetry: observe (push) mode — no continuous poll")
-            // One-shot seed from cache / CarProperty so UI + edge detectors have a baseline
-            // before the first stream delta. Continuous refresh is observe-only.
-            telemetryJob = scope.launch {
-                try {
-                    fanout.publishTelemetry(readSnapshot())
-                    fanout.emitBoundSnapshots(platform.bindings) { id, area ->
-                        backend.read(id, area)
-                    }
-                } catch (_: Throwable) { /* best-effort */ }
-                observe
-                    .filter { it.propId in telemetryPropIds }
-                    .debounce(150)
-                    .collect {
-                        try {
-                            fanout.publishTelemetry(readSnapshot())
-                        } catch (_: Throwable) { /* best-effort */ }
-                    }
-            }
-            entityObserveJob = scope.launch {
-                observe.collect { update -> fanout.onPropertyUpdate(update, entityByProp) }
-            }
-            wheelJob = scope.launch { observeWheelKeys(observe) }
-        } else {
-            Log.i(TAG, "telemetry: poll mode (1s) — observe unavailable")
-            telemetryJob = scope.launch {
-                while (isActive) {
-                    try {
-                        fanout.publishTelemetry(readSnapshot())
-                        fanout.emitBoundSnapshots(platform.bindings) { id, area ->
-                            backend.read(id, area)
-                        }
-                    } catch (_: Throwable) { /* best-effort */ }
-                    delay(POLL_MS)
-                }
-            }
-            wheelJob = scope.launch { pollWheelKeys() }
-        }
-    }
-
-    override fun telemetry(): Flow<TelemetrySnapshot> = _telemetry
-
-    override fun events(): Flow<VehicleEvent> = _events.asSharedFlow()
-
-    override suspend fun get(property: VehicleProperty): PropertyValue? {
-        val (propId, areaId) = resolve(property) ?: return null
-        val raw = backend.read(propId, areaId)
-        val value = toPropertyValue(raw)
-        if (property.key == "INFO_VIN" && value is PropertyValue.StringVal) {
-            return PropertyValue.StringVal(redactVin(value.value))
-        }
-        return value
-    }
-
-    override suspend fun diagnose(property: VehicleProperty, areaId: Int?): ReadOutcome {
-        val resolved = resolve(property) ?: return ReadOutcome.Unavailable(areaId ?: 0)
-        val propId = resolved.first
-        val areas = if (areaId != null) listOf(areaId) else {
-            val fromCatalog = catalogEntries.firstOrNull {
-                it.property.key == property.key || it.name == property.key ||
-                    it.property.nativeId == property.nativeId
-            }?.areaIds
-            (fromCatalog ?: listOf(resolved.second)).distinct()
-        }
-        var last: ReadOutcome = ReadOutcome.Unavailable(areas.firstOrNull() ?: 0)
-        for (a in areas) {
-            when (val d = backend.readDetailed(propId, a)) {
-                is VehiclePropertyBackend.DetailedRead.Ok -> {
-                    var value = toPropertyValue(d.value)
-                    if (property.key == "INFO_VIN" && value is PropertyValue.StringVal) {
-                        value = PropertyValue.StringVal(redactVin(value.value))
-                    }
-                    return ReadOutcome.Ok(value, a)
-                }
-                is VehiclePropertyBackend.DetailedRead.Denied ->
-                    last = ReadOutcome.Denied(d.permission, a, d.message)
-                is VehiclePropertyBackend.DetailedRead.Failed ->
-                    last = ReadOutcome.Failed(d.message, a)
-                is VehiclePropertyBackend.DetailedRead.Empty ->
-                    last = ReadOutcome.Unavailable(a)
-                is VehiclePropertyBackend.DetailedRead.Unavailable ->
-                    last = ReadOutcome.Unavailable(a)
-            }
-        }
-        return last
-    }
-
-    override suspend fun set(property: VehicleProperty, value: PropertyValue): Result<Unit> {
-        val (propId, areaId) = resolve(property)
-            ?: return Result.failure(IllegalArgumentException("Unknown property ${property.qualifiedName}"))
-        if (propId !in allowlist) {
-            return Result.failure(SecurityException("Property not on writable allowlist"))
-        }
-        val ok = when (value) {
-            is PropertyValue.IntVal -> backend.writeInt(propId, areaId, value.value)
-            is PropertyValue.FloatVal -> backend.writeFloat(propId, areaId, value.value)
-            is PropertyValue.BoolVal -> backend.writeBoolean(propId, areaId, value.value)
-            is PropertyValue.LongVal -> backend.writeInt(propId, areaId, value.value.toInt())
-            else -> false
-        }
-        return if (ok) Result.success(Unit) else Result.failure(IllegalStateException("VHAL write failed"))
-    }
-
-    override fun catalog(): List<CatalogEntry> = catalogEntries
-
-    override fun entityBindings(): Map<Long, String> =
-        platform.bindings.entries.associate { (entityId, b) ->
-            b.nativeId.toLong() to entityId
-        }
-
-    override fun hasBinding(property: VehicleProperty): Boolean = resolve(property) != null
-
-    override fun cameras(): List<CameraSource> {
-        return try {
-            val cm = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-            platform.resolveCameras(cm.cameraIdList.toList())
-        } catch (t: Throwable) {
-            Log.w(TAG, "camera enum failed: ${t.message}")
-            emptyList()
-        }
-    }
-
-    override fun androidVolumeGroups() = platform.androidVolumeGroups()
-
-    override fun close() {
-        telemetryJob?.cancel()
-        entityObserveJob?.cancel()
-        wheelJob?.cancel()
-        scope.cancel()
-        backend.close()
+        start(
+            when (backend.mode) {
+                PropertyAccessMode.GRPC -> backend.observe(null)
+                PropertyAccessMode.CAR_PROPERTY -> backend.observe(propIds.takeIf { it.isNotEmpty() })
+            },
+        )
     }
 
     fun updateVariant(variant: PlatformVariant) {
         platform = basePlatform.forSelection(variant.skuId, variant.id)
-        _variant.value = variant
+        refreshLookups()
+        setVariant(variant)
+    }
+
+    override fun extraTelemetryPropIds(): Collection<Int> = EXTRA_TELEMETRY_KEYS.mapNotNull { catalogNativeId(it) }
+
+    override fun diagnoseAreas(property: VehicleProperty, boundArea: Int, areaId: Int?): List<Int> {
+        if (areaId != null) return listOf(areaId)
+        val fromCatalog = catalogEntries.firstOrNull {
+            it.property.key == property.key || it.name == property.key ||
+                it.property.nativeId == property.nativeId
+        }?.areaIds
+        return (fromCatalog ?: listOf(boundArea)).distinct()
+    }
+
+    override fun resolveUnbound(property: VehicleProperty): Pair<Int, Int>? {
+        property.nativeId?.toInt()?.let { return it to property.defaultAreaId }
+        val fromCatalog = catalogEntries.firstOrNull {
+            it.property.key == property.key || it.name == property.key
+        } ?: return null
+        val id = fromCatalog.property.nativeId?.toInt() ?: return null
+        val preferred = property.defaultAreaId
+        return id to if (preferred != 0) preferred else fromCatalog.areaIds.firstOrNull() ?: 0
+    }
+
+    override fun onObserve(observe: Flow<PropertyUpdate>) {
+        scope.launch { observeWheelKeys(observe) }
+    }
+
+    override fun onPollMode() {
+        scope.launch { pollWheelKeys() }
+    }
+
+    private fun catalogNativeId(key: String): Int? = platform.bindings[key]?.nativeId ?: propsByKey[key]?.id
+
+    private fun catalogArea(key: String): Int =
+        platform.bindings[key]?.areaId ?: propsByKey[key]?.areas?.firstOrNull() ?: 0
+
+    private fun readCatalog(key: String): PropertyValue? {
+        val id = catalogNativeId(key) ?: return null
+        return toPropertyValue(backend.read(id, catalogArea(key)))
     }
 
     /**
@@ -261,69 +104,60 @@ class AntoraVehicleSession(
      */
     private suspend fun observeWheelKeys(observe: Flow<PropertyUpdate>) {
         val propToKey = wheelHardKeys.entries.associate { (k, id) -> id to k }
-        val last = mutableMapOf<String, Int?>()
-        val longFired = mutableSetOf<String>()
-        val longJobs = mutableMapOf<String, Job>()
+        val edges = WheelEdges()
         Log.i(TAG, "wheel keys: observe (push) mode props=${propToKey.size}")
         for ((key, propId) in wheelHardKeys) {
-            last[key] = wheelLevel(backend.read(propId, 0))
+            edges.last[key] = wheelLevel(backend.read(propId, 0))
         }
         observe.filter { it.propId in propToKey }.collect { update ->
             val key = propToKey[update.propId] ?: return@collect
             val value = wheelLevel(update.value) ?: return@collect
-            applyWheelEdge(key, value, last, longFired, longJobs)
+            edges.apply(key, value)
         }
     }
 
-    /**
-     * Poll SWC hard-key VHAL props when observe is unavailable (CarProperty fallback).
-     */
+    /** Poll SWC hard-key VHAL props when observe is unavailable (CarProperty fallback). */
     private suspend fun pollWheelKeys() {
-        val last = mutableMapOf<String, Int?>()
-        val longFired = mutableSetOf<String>()
-        val longJobs = mutableMapOf<String, Job>()
+        val edges = WheelEdges()
         Log.i(TAG, "wheel keys: poll mode (${WHEEL_POLL_MS}ms)")
         while (coroutineContext.isActive) {
             for ((key, propId) in wheelHardKeys) {
-                val value = wheelLevel(backend.read(propId, 0))
-                if (value != null) {
-                    applyWheelEdge(key, value, last, longFired, longJobs)
-                }
+                wheelLevel(backend.read(propId, 0))?.let { edges.apply(key, it) }
             }
-            delay(WHEEL_POLL_MS)
+            pollDelay(WHEEL_POLL_MS)
         }
     }
 
-    private fun applyWheelEdge(
-        key: String,
-        value: Int,
-        last: MutableMap<String, Int?>,
-        longFired: MutableSet<String>,
-        longJobs: MutableMap<String, Job>,
-    ) {
-        val prev = last[key]
-        if (value != 0) {
-            if (prev == null || prev == 0) {
-                longFired.remove(key)
-                longJobs.remove(key)?.cancel()
-                longJobs[key] = scope.launch {
-                    delay(WHEEL_LONG_PRESS_MS)
-                    if (key !in longFired) {
-                        longFired.add(key)
-                        Log.i(TAG, "wheel long-press key=$key")
-                        _events.tryEmit(VehicleEvent.WheelKeyLongPressed(key))
+    private inner class WheelEdges {
+        val last = mutableMapOf<String, Int?>()
+        private val longFired = mutableSetOf<String>()
+        private val longJobs = mutableMapOf<String, Job>()
+
+        fun apply(key: String, value: Int) {
+            val prev = last[key]
+            if (value != 0) {
+                if (prev == null || prev == 0) {
+                    longFired.remove(key)
+                    longJobs.remove(key)?.cancel()
+                    longJobs[key] = scope.launch {
+                        delay(WHEEL_LONG_PRESS_MS)
+                        if (key !in longFired) {
+                            longFired.add(key)
+                            Log.i(TAG, "wheel long-press key=$key")
+                            eventFlow.tryEmit(VehicleEvent.WheelKeyLongPressed(key))
+                        }
                     }
                 }
+            } else if (prev != null && prev != 0) {
+                longJobs.remove(key)?.cancel()
+                if (key !in longFired) {
+                    Log.i(TAG, "wheel press key=$key")
+                    eventFlow.tryEmit(VehicleEvent.WheelKeyPressed(key))
+                }
+                longFired.remove(key)
             }
-        } else if (prev != null && prev != 0) {
-            longJobs.remove(key)?.cancel()
-            if (key !in longFired) {
-                Log.i(TAG, "wheel press key=$key")
-                _events.tryEmit(VehicleEvent.WheelKeyPressed(key))
-            }
-            longFired.remove(key)
+            last[key] = value
         }
-        last[key] = value
     }
 
     private fun wheelLevel(raw: Any?): Int? = when (raw) {
@@ -332,27 +166,7 @@ class AntoraVehicleSession(
         else -> null
     }
 
-    private fun resolve(property: VehicleProperty): Pair<Int, Int>? {
-        bindings[property]?.let { (id, area) ->
-            val preferred = property.defaultAreaId
-            return id to if (preferred != 0) preferred else area
-        }
-        bindings.entries.firstOrNull { it.key.key == property.key }?.value?.let { (id, area) ->
-            val preferred = property.defaultAreaId
-            return id to if (preferred != 0) preferred else area
-        }
-        val native = property.nativeId?.toInt()
-        if (native != null) return native to property.defaultAreaId
-        val fromCatalog = catalogEntries.firstOrNull {
-            it.property.key == property.key || it.name == property.key
-        }
-        val id = fromCatalog?.property?.nativeId?.toInt() ?: return null
-        val preferred = property.defaultAreaId
-        val catalogArea = fromCatalog.areaIds.firstOrNull() ?: 0
-        return id to if (preferred != 0) preferred else catalogArea
-    }
-
-    private fun readSnapshot(): TelemetrySnapshot {
+    override fun readSnapshot(): TelemetrySnapshot {
         fun intProp(key: String): Int? {
             val b = platform.bindings[key] ?: return null
             return toPropertyValue(backend.read(b.nativeId, b.areaId))?.asInt()
@@ -378,25 +192,6 @@ class AntoraVehicleSession(
         val hybridSoc = floatProp("HYBRID_FUNC_BATTERY_SOC")
         val evPercent = evPercentDirect ?: evPercentFromWh ?: hybridSoc
         val rangeM = floatProp("RANGE_REMAINING")
-        val rangeEv = floatProp("SENSOR_TYPE_ENDURANCE_MILEAGE_EV")
-        val rangeFuel = floatProp("SENSOR_TYPE_ENDURANCE_MILEAGE_FUEL")
-        val fuelPercent = floatProp("TYPE_FUEL_PERCENTAGE")
-        val odometer = floatProp("PERF_ODOMETER")
-        val tempAmbient = floatProp("SENSOR_TYPE_TEMPERATURE_AMBIENT")
-        val tempIndoor = floatProp("SENSOR_TYPE_TEMPERATURE_INDOOR")
-        val batteryTemp = floatProp("SENSOR_TYPE_EV_BATTERY_TEMP")
-        val chargeEta = floatProp("CHARGE_FUNC_CHARGING_ESTIMATED_TIME")
-        val chargeEnergy = floatProp("CHARGE_FUNC_CHARGING_ENERGY")
-        val chargeWorkA = floatProp("CHARGE_FUNC_CHARGING_WORK_CURRENT")
-        val chargeWorkV = floatProp("CHARGE_FUNC_CHARGING_WORK_VOLTAGE")
-        val dischargeSoc = floatProp("CHARGE_FUNC_DISCHARGING_SOC")
-        val avgEnergy = floatProp("TRIP_DI_AVG_ELC_CONSUMPTION")
-        val avgFuel = floatProp("TRIP_DI_AVG_FUEL_CONSUMPTION")
-        val flowDriving = floatProp("TRIP_ED_DRIVING_ENERGY_FLOW")
-        val flowBattery = floatProp("TRIP_ED_BATTERY_ENERGY_FLOW")
-        val flowClimate = floatProp("TRIP_ED_CLIMATE_ENERGY_FLOW")
-        val maintKm = floatProp("TYPE_MAINTENANCE_MILEAGE")
-        val sinceMaintKm = floatProp("TYPE_SINCE_MAINTENANCE_TOTAL_MILEAGE")
         val driveModeRaw = intProp("DM_FUNC_DRIVE_MODE_SELECT")
         val pure = readCatalog("DRIVE_MODE_SELECTION_PURE")?.asInt()
         val hybrid = readCatalog("DRIVE_MODE_SELECTION_HYBRID")?.asInt()
@@ -411,8 +206,7 @@ class AntoraVehicleSession(
         val plug = intProp("CHARGE_FUNC_CHARGING_PLUG_STATE")
         val hvacPower = readCatalog("HVAC_POWER_ON")?.asInt()?.let { it != 0 }
         val model = readCatalog("INFO_MODEL")?.display()
-        val parkingBrake = readCatalog("PARKING_BRAKE_ON")
-        val parkingLabel = when (parkingBrake) {
+        val parkingLabel = when (val parkingBrake = readCatalog("PARKING_BRAKE_ON")) {
             is PropertyValue.BoolVal -> if (parkingBrake.value) "on" else "off"
             is PropertyValue.IntVal -> if (parkingBrake.value != 0) "on" else "off"
             else -> parkingBrake?.display()
@@ -428,32 +222,32 @@ class AntoraVehicleSession(
             speedKmh = speedKmh,
             evBatteryPercent = evPercent,
             fuelCapacityMl = floatProp("INFO_FUEL_CAPACITY"),
-            fuelPercent = fuelPercent,
+            fuelPercent = floatProp("TYPE_FUEL_PERCENTAGE"),
             rangeKm = rangeKm,
-            rangeEvKm = rangeEv,
-            rangeFuelKm = rangeFuel,
-            odometerKm = odometer,
+            rangeEvKm = floatProp("SENSOR_TYPE_ENDURANCE_MILEAGE_EV"),
+            rangeFuelKm = floatProp("SENSOR_TYPE_ENDURANCE_MILEAGE_FUEL"),
+            odometerKm = floatProp("PERF_ODOMETER"),
             hvacPower = hvacPower,
             hvacTempC = floatProp("HVAC_TEMPERATURE_SET"),
             hvacFan = intProp("HVAC_FAN_SPEED"),
-            tempAmbientC = tempAmbient,
-            tempIndoorC = tempIndoor,
-            batteryTempC = batteryTemp,
+            tempAmbientC = floatProp("SENSOR_TYPE_TEMPERATURE_AMBIENT"),
+            tempIndoorC = floatProp("SENSOR_TYPE_TEMPERATURE_INDOOR"),
+            batteryTempC = floatProp("SENSOR_TYPE_EV_BATTERY_TEMP"),
             hybridSocPercent = hybridSoc,
             chargeCurrentA = floatProp("CHARGE_FUNC_CHARGING_CURRENT"),
             chargePlugConnected = plug?.let { it != 0 },
-            chargeEstimatedTimeMin = chargeEta?.takeIf { it >= 0f },
-            chargeEnergyKwh = chargeEnergy?.takeIf { it >= 0f },
-            chargeWorkCurrentA = chargeWorkA?.takeIf { it >= 0f },
-            chargeWorkVoltageV = chargeWorkV?.takeIf { it >= 0f },
-            dischargeSocPercent = dischargeSoc,
-            avgEnergyKwh100km = avgEnergy,
-            avgFuelL100km = avgFuel,
-            energyFlowDriving = flowDriving,
-            energyFlowBattery = flowBattery,
-            energyFlowClimate = flowClimate,
-            maintenanceMileageKm = maintKm,
-            sinceMaintenanceKm = sinceMaintKm,
+            chargeEstimatedTimeMin = floatProp("CHARGE_FUNC_CHARGING_ESTIMATED_TIME")?.takeIf { it >= 0f },
+            chargeEnergyKwh = floatProp("CHARGE_FUNC_CHARGING_ENERGY")?.takeIf { it >= 0f },
+            chargeWorkCurrentA = floatProp("CHARGE_FUNC_CHARGING_WORK_CURRENT")?.takeIf { it >= 0f },
+            chargeWorkVoltageV = floatProp("CHARGE_FUNC_CHARGING_WORK_VOLTAGE")?.takeIf { it >= 0f },
+            dischargeSocPercent = floatProp("CHARGE_FUNC_DISCHARGING_SOC"),
+            avgEnergyKwh100km = floatProp("TRIP_DI_AVG_ELC_CONSUMPTION"),
+            avgFuelL100km = floatProp("TRIP_DI_AVG_FUEL_CONSUMPTION"),
+            energyFlowDriving = floatProp("TRIP_ED_DRIVING_ENERGY_FLOW"),
+            energyFlowBattery = floatProp("TRIP_ED_BATTERY_ENERGY_FLOW"),
+            energyFlowClimate = floatProp("TRIP_ED_CLIMATE_ENERGY_FLOW"),
+            maintenanceMileageKm = floatProp("TYPE_MAINTENANCE_MILEAGE"),
+            sinceMaintenanceKm = floatProp("TYPE_SINCE_MAINTENANCE_TOTAL_MILEAGE"),
             driveMode = driveLabel,
             regenLevel = intProp("SETTING_FUNC_ENERGY_REGENERATION"),
             ignitionState = intProp("IGNITION_STATE"),
@@ -475,7 +269,6 @@ class AntoraVehicleSession(
 
     companion object {
         private const val TAG = "AntoraSession"
-        private const val POLL_MS = 1000L
         private const val WHEEL_POLL_MS = 100L
         private const val WHEEL_LONG_PRESS_MS = 700L
 
@@ -489,8 +282,5 @@ class AntoraVehicleSession(
             "INFO_MODEL",
             "PARKING_BRAKE_ON",
         )
-
-        fun redactVin(vin: String): String =
-            if (vin.length < 8) "[redacted]" else vin.take(3) + "****" + vin.takeLast(4)
     }
 }

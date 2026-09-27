@@ -5,11 +5,6 @@ plugins {
 group = "cc.opencar.assistant"
 version = providers.gradleProperty("oaa.version").get()
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
-}
-
 kotlin {
     jvmToolchain(17)
 }
@@ -43,10 +38,10 @@ sourceSets["main"].kotlin.srcDir(generateOaaBuild)
 
 dependencies {
     // org.json ships with Android; the hub adds it as a runtime dependency.
-    compileOnly("org.json:json:20240303")
-    testImplementation("org.json:json:20240303")
+    compileOnly(libs.org.json)
+    testImplementation(libs.org.json)
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
-    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
+    testImplementation(libs.junit.jupiter)
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

@@ -1,7 +1,6 @@
 package cc.opencar.assistant.server
 
 import com.google.gson.Gson
-import com.google.gson.GsonBuilder
 import com.google.gson.annotations.SerializedName
 import org.mindrot.jbcrypt.BCrypt
 import java.io.File
@@ -40,11 +39,14 @@ private data class AuthSnapshot(
  * Hub human auth: local username/password, Home Assistant identities (OAuth or
  * Ingress). HA identities are matched by HA user id only, never by username.
  */
-class AuthStore(private val dataDir: File) {
-    private val gson: Gson = GsonBuilder().setPrettyPrinting().create()
+class AuthStore(dataDir: File) {
+    private val gson = Gson()
     private val storeFile = File(dataDir, "auth.json")
     private val users = ConcurrentHashMap<String, HubUser>()
     private val sessions = ConcurrentHashMap<String, HubSession>()
+    private val writer = JsonFileWriter(storeFile) {
+        gson.toJson(AuthSnapshot(users.values.toList(), sessions.values.toList()))
+    }
 
     init {
         load()
@@ -157,9 +159,7 @@ class AuthStore(private val dataDir: File) {
         snap.sessions.forEach { sessions[it.token] = it }
     }
 
-    @Synchronized
-    private fun persist() {
-        dataDir.mkdirs()
-        storeFile.writeText(gson.toJson(AuthSnapshot(users.values.toList(), sessions.values.toList())))
-    }
+    private fun persist() = writer.schedule()
+
+    fun flush() = writer.flush()
 }

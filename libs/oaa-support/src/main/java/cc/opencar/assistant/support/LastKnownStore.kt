@@ -10,11 +10,14 @@ class LastKnownStore(context: Context) {
 
     fun get(id: String): String? = prefs.getString(id, null)
 
+    /** Catalog builds call this for every value on every read; only real changes reach disk. */
     fun put(id: String, value: String) {
+        if (prefs.getString(id, null) == value) return
         prefs.edit().putString(id, value).apply()
     }
 
     fun clear(id: String) {
+        if (!prefs.contains(id)) return
         prefs.edit().remove(id).apply()
     }
 }

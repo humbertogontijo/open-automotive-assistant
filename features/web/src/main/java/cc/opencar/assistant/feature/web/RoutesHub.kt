@@ -1,7 +1,6 @@
 package cc.opencar.assistant.feature.web
 
 import cc.opencar.assistant.protocol.OaaPaths
-import cc.opencar.assistant.protocol.OaaRoles
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.request.receiveText
@@ -13,11 +12,6 @@ import io.ktor.server.routing.post
 import org.json.JSONObject
 
 internal fun Routing.registerHubRoutes(deps: OaaWebDeps) {
-    // The car UI has no login; hub-auth.js reads this to skip the hub sign-in overlay.
-    get(OaaPaths.AUTH_STATUS) {
-        call.respond(mapOf("role" to OaaRoles.LOCAL, "authenticated" to true, "setupRequired" to false))
-    }
-
     val hub = deps.hub ?: return
 
     get(OaaPaths.HUB_JOIN) {

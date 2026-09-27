@@ -11,7 +11,9 @@ Self-hosted **OAA hub** as a Home Assistant OS app (add-on). Same Music Assistan
 
 ## Pair cars
 
-Fleet → Generate pairing code → on the car: Settings → Hub → hub URL + code.
+Fleet → **Nearby cars** → Add. The car's screen shows a 6-digit code; type it on the hub. Cars that are not on the same network can use **Add by address** (the car's IP) or the manual flow: Fleet → Generate pairing code → on the car: Settings → Hub → hub URL + code.
+
+The app runs with host networking so it can see the cars' mDNS announcements.
 
 ## Remote Cameras (WebRTC)
 

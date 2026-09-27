@@ -4,39 +4,80 @@ plugins {
 }
 android {
     namespace = "cc.opencar.assistant.feature.web"
-    compileSdk = 35
-    defaultConfig { minSdk = 30 }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-    kotlinOptions { jvmTarget = "17" }
-    packaging {
-        resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
-        resources.excludes += "/META-INF/INDEX.LIST"
-        resources.excludes += "/META-INF/io.netty.versions.properties"
-        resources.excludes += "/META-INF/*.kotlin_module"
+    lint { baseline = file("lint-baseline.xml") }
+}
+
+/** Copies a produced directory into a variant source set (assets, jniLibs). */
+abstract class SyncGenerated : DefaultTask() {
+    @get:InputFiles
+    abstract val source: ConfigurableFileCollection
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    /** Android's asset merger strips a trailing `.gz`, so gzip variants are renamed to this. */
+    @get:Input
+    @get:Optional
+    abstract val gzipSuffix: Property<String>
+
+    @get:Inject
+    abstract val fs: FileSystemOperations
+
+    @TaskAction
+    fun run() {
+        val gz = gzipSuffix.orNull
+        fs.sync {
+            from(source)
+            into(outputDir)
+            if (gz != null) rename("(.*)\\.gz$", "$1$gz")
+        }
     }
 }
+
+val oaartcBinding = project(":oaartc").layout.buildDirectory.dir("binding")
+
+val oaartcJni = tasks.register<SyncGenerated>("oaartcJni") {
+    source.from(oaartcBinding.map { it.dir("jni") })
+    source.builtBy(":oaartc:unpackBinding")
+    outputDir.set(layout.buildDirectory.dir("generated/oaartc/jni"))
+}
+
+// The SPA is built by :webui (features/web/ui) and served from assets/web/.
+val webAssets = tasks.register<SyncGenerated>("webAssets") {
+    source.from(project(":webui").layout.buildDirectory.dir("dist"))
+    source.builtBy(":webui:buildWeb")
+    gzipSuffix.set(".gzip")
+    outputDir.set(layout.buildDirectory.dir("generated/webui/assets"))
+}
+
+androidComponents {
+    onVariants { variant ->
+        variant.sources.jniLibs?.addGeneratedSourceDirectory(oaartcJni, SyncGenerated::outputDir)
+        variant.sources.assets?.addGeneratedSourceDirectory(webAssets, SyncGenerated::outputDir)
+    }
+}
+
 dependencies {
     implementation(project(":protocol"))
+    implementation(project(":apk-delta"))
     api(project(":integration-api"))
     api(project(":oaa-support"))
     api(project(":feature-debug"))
     api(project(":feature-install"))
-    api(project(":feature-telemetry"))
     api(project(":feature-memory"))
     api(project(":feature-dvr"))
     api(project(":feature-history"))
     api(project(":feature-shortcuts"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
-    implementation("androidx.core:core-ktx:1.15.0")
-    implementation("io.ktor:ktor-server-cio:2.3.12")
-    implementation("io.ktor:ktor-server-content-negotiation:2.3.12")
-    implementation("io.ktor:ktor-serialization-gson:2.3.12")
-    implementation("io.ktor:ktor-server-websockets:2.3.12")
-    implementation("io.ktor:ktor-server-status-pages:2.3.12")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    // Standard libwebrtc (SDP/ICE/DTLS) for the ADR-0003 media plane; no vendor signaling.
-    implementation("io.getstream:stream-webrtc-android:1.3.10")
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.ktor.server.cio)
+    implementation(libs.ktor.server.content.negotiation)
+    implementation(libs.ktor.serialization.gson)
+    implementation(libs.ktor.server.websockets)
+    implementation(libs.ktor.server.status.pages)
+    implementation(libs.okhttp)
+    // ADR-0003 media plane: Pion (pure Go) via gomobile, built by :oaartc. Not libwebrtc,
+    // whose org.webrtc classes clash with the ones GeckoView embeds.
+    implementation(files(oaartcBinding.map { it.file("classes.jar") }).builtBy(":oaartc:unpackBinding"))
+    testImplementation(libs.junit)
 }

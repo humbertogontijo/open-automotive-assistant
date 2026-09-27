@@ -20,7 +20,7 @@ Bare JVM jars and other packagers are fine for development; they are not a suppo
 | Human | `8787` (`OAA_PORT`) | SPA, fleet, control APIs | Hub session (local / HA OAuth / Ingress) |
 | Node | `8788` (`OAA_NODE_PORT`) | Car pair, WebSocket session, OTA downloads | Pairing code → node bearer token |
 
-mDNS: `_oaa-hub._tcp` advertises both ports.
+mDNS: `_oaa-hub._tcp` advertises both ports and the hub id; the hub browses `_oaa-car._tcp` for unpaired cars.
 
 ## Install
 
@@ -53,9 +53,30 @@ There is no password recovery — wipe `/data/auth.json` (or the volume) to re-r
 
 ## Pair a car
 
-1. Hub UI → Fleet → **Generate pairing code** (note Cloud/public node URL when shown).
-2. Car UI → Settings → Hub → enter the hub's **node** URL shown on Fleet (`http://HUB_IP:8788`, or the tunnel / HA Cloud node URL such as `https://….ui.nabu.casa/api/oaa_node`) and the code.
-3. Car stores the node token and keeps its session on that node URL (or the `OAA_PUBLIC_NODE_URL` the hub publishes).
+The hub adds cars; the car confirms with a code on its own screen ([adr/0004-car-auth.md](adr/0004-car-auth.md)).
+
+1. Hub UI → Fleet → **Nearby cars** lists unpaired cars announcing `_oaa-car._tcp` on the LAN (needs host networking for the hub). Or use **Add by address** with the car's IP.
+2. **Add** → the car shows a 6-digit code (dialog and notification) → type it on the hub.
+3. The hub registers the car and hands it a node token; the car dials the node face at the hub's LAN address (port 8788) first, then `OAA_PUBLIC_NODE_URL` when set, and stops announcing itself.
+
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/api/nodes/discovered` | Admin. Unpaired cars seen by mDNS |
+| POST | `/api/nodes/invite` | Admin. `{"nodeId": …}` or `{"host": "192.168.1.50", "port": 8787}` → `inviteId` |
+| POST | `/api/nodes/invite/{id}/confirm` | Admin. `{"code": "123456"}` → paired node |
+| DELETE | `/api/nodes/invite/{id}` | Admin. Forget an open invite |
+
+**Manual pairing** (car not on the hub's network):
+
+1. Hub UI → Fleet → Manual pairing → **Generate pairing code** (note Cloud/public node URL when shown).
+2. Car UI → Settings → Hub → *Pair manually with a hub code* → enter the hub's **node** URL shown on Fleet (`http://HUB_IP:8788`, or the tunnel / HA Cloud node URL such as `https://….ui.nabu.casa/api/oaa_node`) and the code.
+3. Car stores the node token and keeps its session on the `OAA_PUBLIC_NODE_URL` the hub publishes, falling back to the typed URL. The hub also appears under the car's trusted devices.
+
+Removing the hub from the car's trusted devices, or Settings → Hub → Leave, drops the link; the car announces itself again.
+
+## Talking to the car directly
+
+The car's own `:8787` API answers only paired callers. Open `http://CAR_IP:8787` in a browser to pair it (the car shows the code). Scripts use `./tools/oaa-setup -H CAR_IP pair`, which mints a token over adb, then `Authorization: Bearer <token>`.
 
 ## Remote control and debug
 
@@ -73,6 +94,8 @@ Admins upload a signed APK and roll it out; cars download it from the node face 
 | GET | `/api/ota/artifacts` | Stored artifacts (newest first, last 5 kept) |
 | POST | `/api/ota/rollouts` | `{"artifact": sha256, "nodes": [...]}` or `{"artifact": sha256, "all": true}` |
 | GET | `/api/ota/rollouts[/{id}]` | Per-car state: pending → offered → downloading → verifying → installing (→ pending_user) → installed / failed |
+
+**Delta updates.** When a car's `hello` hash matches a stored artifact, the offer also carries `delta` (`from`, `sha256`, `size`, `path`): an OADP patch built by [`libs/apk-delta`](../libs/apk-delta/) that copies unchanged zip entries from the installed APK. The car downloads the patch, rebuilds the APK, checks it against the artifact hash and installs it. On any failure it downloads the full APK instead. Patches are built on first offer, cached under `artifacts/deltas/`, served from the same artifacts path by their own hash (so the HA Cloud proxy needs no changes), and skipped when larger than 70% of the APK. Keep the car's current build among the last 5 artifacts to get deltas.
 
 Fleet shows each car's app version and latest OTA state. From a dev checkout, `./tools/oaa-setup hub-deploy` does build → sign → upload → rollout → wait (see [contributor-debug.md](contributor-debug.md)).
 

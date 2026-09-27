@@ -57,14 +57,17 @@ object ControlCatalog {
         }
     }
 
-    suspend fun entities(
+    /** `/api/controls` rows and the full `/api/entities` list, from one snapshot. */
+    class Built(val controls: List<Map<String, Any?>>, val entities: List<Map<String, Any?>>)
+
+    suspend fun build(
         session: VehicleSession,
         context: Context? = null,
         memory: SettingsMemoryController? = null,
         android: AndroidSettingsController? = null,
         location: LocationTrackerController? = null,
         dvr: DvrController? = null,
-    ): List<Map<String, Any?>> {
+    ): Built {
         val controls = snapshot(session, context, memory)
         val t = session.telemetry().first()
         val i18n = context?.let { i18n(it, session) }
@@ -247,7 +250,7 @@ object ControlCatalog {
         // Prefer registry-bound sensors (declarative pack) over telemetry-only duplicates.
         val controlIds = controls.mapNotNull { it["id"] as? String }.toSet()
         val telemetrySensors = sensors.filter { (it["id"] as? String) !in controlIds }
-        return telemetrySensors + controls + androidEntities + locationEntities + cameraEntities
+        return Built(controls, telemetrySensors + controls + androidEntities + locationEntities + cameraEntities)
     }
 
     private fun cameraEntityMaps(dvr: DvrController?): List<Map<String, Any?>> {

@@ -5,14 +5,18 @@ Thanks for helping improve Open Automotive Assistant. Doc map: [docs/README.md](
 ## Prerequisites
 
 - JDK 17
-- Android SDK (API 28+ platform + build-tools); set `ANDROID_HOME` or `sdk.dir` in a local `local.properties` (never commit it)
+- Android SDK with platform 36 and the NDK pinned by `oaa.ndkVersion` in `gradle.properties` (`sdkmanager "platforms;android-36" "ndk;27.0.12077973"`); set `ANDROID_HOME` or `sdk.dir` in a local `local.properties` (never commit it)
+- Nothing else: Gradle downloads the pinned Go toolchain (WebRTC binding in `libs/oaartc`) and Node.js (web UI in `features/web/ui`)
 - Optional: `adb` on `PATH` for head-unit install
 
 ## Build without a head unit
 
 ```bash
 ./gradlew :app:assembleDebug
+./gradlew check   # unit tests, Android lint, web typecheck + eslint + tests (same as CI)
 ```
+
+For a faster web-only loop: `cd features/web/ui && npm ci && npm run check`.
 
 Compiles against `libs/car-stubs`. For a fake vehicle without hardware, use Lab → **Integration override** → `demo` (see [docs/contributor-debug.md](docs/contributor-debug.md)).
 
@@ -48,8 +52,8 @@ Shell features under `features/` are **curated**. Follow [docs/adding-a-feature.
 - Keep changes focused; prefer small PRs.
 - Match existing Kotlin / JS style; no drive-by refactors.
 - Do not commit: APKs, OEM platform keys, `local.properties`, `build/` outputs, or personal LAN IPs.
-- Web static assets use `Cache-Control: no-store` (no cache-bust query params required).
-- Run `./gradlew :app:assembleDebug` before opening a PR.
+- Web bundles are content-hashed and served `immutable`; `index.html` is `no-store`, so no cache-bust query params are needed.
+- Run `./gradlew check` before opening a PR. Lint baselines (`lint-baseline.xml`) cover known findings only; fix new ones rather than regenerating.
 - By participating, you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License

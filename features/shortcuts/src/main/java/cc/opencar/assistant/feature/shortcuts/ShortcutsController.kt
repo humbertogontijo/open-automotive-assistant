@@ -16,6 +16,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.plus
 import java.util.UUID
 
 /**
@@ -31,7 +32,9 @@ class ShortcutsController(
     triggerSources: List<ShortcutTriggerSource> = emptyList(),
     private val readEntity: (suspend (String) -> String?)? = null,
     private val readGear: (suspend () -> Int?)? = null,
+    parentScope: CoroutineScope = CoroutineScope(SupervisorJob()),
 ) {
+    private val ioScope = parentScope + Dispatchers.IO
     val store = ShortcutStore.get(context)
     val sceneStore = SceneStore.get(context)
     val launcher = AppLauncher(context)
@@ -74,7 +77,7 @@ class ShortcutsController(
     val engine: ShortcutTriggerEngine
 
     init {
-        val monitor = WifiSsidMonitor(context, onChanged = { ssid -> engine.onWifiSsid(ssid) })
+        val monitor = WifiSsidMonitor(context, store, onChanged = { ssid -> engine.onWifiSsid(ssid) }, scope = ioScope)
         wifiMonitor = monitor
         engine = ShortcutTriggerEngine(
             session = session,
@@ -84,6 +87,7 @@ class ShortcutsController(
             readEntity = readEntity,
             readWifiSsid = { monitor.currentSsid() },
             readGear = readGear,
+            scope = ioScope,
         )
         if (readEntity != null) {
             entityWatcher = EntityValueWatcher(
@@ -91,11 +95,12 @@ class ShortcutsController(
                 readEntity = readEntity,
                 onChanged = { id, value -> engine.onEntityChanged(id, value) },
                 events = session.events(),
+                scope = ioScope,
             )
         }
     }
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val scope = parentScope + Dispatchers.Main.immediate
     private val entry: QuickEntry = quickEntry ?: FloatChipQuickEntry()
     private var menu: QuickEntryMenu? = null
     private var entryStarted = false
@@ -160,6 +165,7 @@ class ShortcutsController(
             onOpenOaa = { section -> sendActivity(hostContext, QuickEntryMenu.ACTION_OPEN_SECTION, section) },
             onExitOaa = { sendActivity(hostContext, QuickEntryMenu.ACTION_EXIT, null) },
             onBackgroundOaa = { sendActivity(hostContext, QuickEntryMenu.ACTION_BACKGROUND, null) },
+            scope = scope,
         )
         menu = m
         m.start()
@@ -358,12 +364,6 @@ class ShortcutsController(
         } else {
             mapOf("ok" to ok)
         }
-    }
-
-    suspend fun resetScene(id: String): Map<String, Any?> {
-        val saved = sceneStore.resetBuiltin(id)
-            ?: return mapOf("ok" to false, "error" to "not a builtin")
-        return mapOf("ok" to true, "scene" to saved.toMap(active = sceneStore.isActive(id)))
     }
 
     suspend fun setSceneActive(id: String, active: Boolean): Map<String, Any?> =

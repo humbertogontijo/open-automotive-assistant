@@ -1,0 +1,65 @@
+/* Pref / sensor cards: no pin column */
+.pref-card .ctrl-head,
+.sensor-card .ctrl-head {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+.pref-card .ctrl-icon,
+.sensor-card .ctrl-icon {
+  grid-row: 1;
+}
+.pref-card .ctrl-meta,
+.sensor-card .ctrl-meta {
+  grid-row: 1;
+}
+
+/* Cards holding a form grow with their content instead of the 3:2 tile */
+wa-card.form-card { aspect-ratio: auto; }
+wa-card.form-card .ctrl-body {
+  overflow: visible;
+  justify-content: flex-start;
+  align-items: stretch;
+  text-align: left;
+}
+
+/* Form fields and button rows inside a pref card body */
+.pref-card .ctrl-body > wa-input,
+.pref-card .ctrl-body > wa-select,
+.pref-card .ctrl-body wa-details > wa-input {
+  width: 100%;
+  margin-bottom: 0.6rem;
+}
+.pref-card .ctrl-body > wa-details {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+.trusted-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+.trusted-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.trusted-row .hint {
+  margin: 0.15rem 0 0;
+}
+.plugin-field {
+  display: block;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+.plugin-field > .hint {
+  margin: 0 0 0.5rem;
+}
+.pref-actions {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+}
+.pref-actions > wa-button {
+  flex: 1;
+}

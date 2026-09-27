@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.coroutines.coroutineContext
@@ -34,10 +35,7 @@ class EntityValueWatcher(
         if (job != null) return
         job = scope.launch {
             launch {
-                while (coroutineContext.isActive) {
-                    watched = loadWatchedIds()
-                    delay(2_000)
-                }
+                combine(store.shortcuts, store.routines, ::watchedIds).collect { watched = it }
             }
             val eventsFlow = events
             // Baseline so the first edge is a real change, not a boot false-positive.
@@ -64,7 +62,7 @@ class EntityValueWatcher(
     }
 
     private suspend fun pollOnce() {
-        val ids = loadWatchedIds()
+        val ids = watchedIds(store.list(), store.listRoutines())
         watched = ids
         for (id in ids) {
             val value = runCatching { readEntity(id) }.getOrNull()
@@ -103,9 +101,9 @@ class EntityValueWatcher(
         }
     }
 
-    private suspend fun loadWatchedIds(): Set<String> {
+    private fun watchedIds(shortcuts: List<Shortcut>, routines: List<Routine>): Set<String> {
         val ids = linkedSetOf<String>()
-        for (s in store.list().filter { it.enabled }) {
+        for (s in shortcuts.filter { it.enabled }) {
             for (t in s.triggers) {
                 if (t is ShortcutTrigger.EntityState) ids += t.entityId
             }
@@ -113,7 +111,7 @@ class EntityValueWatcher(
                 if (c is ShortcutCondition.EntityEquals) ids += c.entityId
             }
         }
-        for (r in store.listRoutines().filter { it.enabled }) {
+        for (r in routines.filter { it.enabled }) {
             for (c in r.conditions) {
                 if (c is ShortcutCondition.EntityEquals) ids += c.entityId
             }

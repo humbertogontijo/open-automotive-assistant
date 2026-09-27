@@ -2,33 +2,26 @@ package cc.opencar.assistant.feature.web
 
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
-import io.ktor.server.request.receiveChannel
-import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Routing
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
-import io.ktor.utils.io.core.isEmpty
-import io.ktor.utils.io.core.readBytes
-import io.ktor.utils.io.readRemaining
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
+private const val MAX_APK_BYTES = 1L shl 30
+
 internal fun Routing.registerStoreRoutes(deps: OaaWebDeps) {
     post("/api/install/binary") {
         val expected = call.request.headers["X-Sha256"]
-        val channel = call.receiveChannel()
-        val dir = deps.installer.installDir()
-        val file = File(dir, "upload-${System.currentTimeMillis()}.apk")
-        file.outputStream().use { out ->
-            while (!channel.isClosedForRead) {
-                val packet = channel.readRemaining(limit = 8192)
-                if (packet.isEmpty) break
-                out.write(packet.readBytes())
-            }
+        val file = File(deps.installer.installDir(), "upload-${System.currentTimeMillis()}.apk")
+        if (!file.outputStream().use { call.receiveCapped(it, MAX_APK_BYTES) }) {
+            file.delete()
+            call.respond(HttpStatusCode.PayloadTooLarge, mapOf("ok" to false, "message" to "APK too large"))
+            return@post
         }
-        val result = deps.installer.install(file, expected)
+        val result = withContext(Dispatchers.IO) { deps.installer.install(file, expected) }
         call.respond(mapOf("ok" to result.ok, "message" to result.message, "sha256" to result.sha256))
     }
     get("/api/store/search") {
@@ -63,11 +56,11 @@ internal fun Routing.registerStoreRoutes(deps: OaaWebDeps) {
         call.respond(detail)
     }
     post("/api/store/install") {
-        val params = call.receiveParameters()
+        val params = call.params()
         val pkg = params["packageName"]
             ?: call.request.queryParameters["packageName"]
             ?: ""
-        val vc = (params["versionCode"] ?: call.request.queryParameters["versionCode"])
+        val vc = (params["versionCode"])
             ?.toLongOrNull()
         if (pkg.isBlank()) {
             call.respond(HttpStatusCode.BadRequest, mapOf("ok" to false, "message" to "packageName required"))

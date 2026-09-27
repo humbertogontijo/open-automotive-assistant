@@ -8,18 +8,20 @@ North-star decisions: [adr/0001-architecture-north-star.md](adr/0001-architectur
 
 | Module | Path | Role |
 |--------|------|------|
-| `:app` | `app/` | WebView host → `http://127.0.0.1:8787`, `AssistantRuntime`, FGS, boot |
+| `:app` | `app/` | GeckoView host (embedded engine, not the system WebView) → `http://127.0.0.1:8787`, `AssistantRuntime`, FGS, boot |
 | `:integration-api` | `libs/api/` | SPI, entity contract, `EntityPackLoader`, ServiceLoader registries |
 | `:oaa-support` | `libs/oaa-support/` | i18n packs, `LastKnownStore` |
 | `:car-stubs` | `libs/car-stubs/` | Compile-only `android.car` (never packaged) |
 | `:signing` | `libs/signing/` | Community testkey + re-sign CLI |
+| `:oaartc` | `libs/oaartc/` | Car-side WebRTC (Pion via gomobile) for the hub media plane |
 | `:integrations:platform:aaos` | `integrations/platform/aaos/` | AAOS plumbing + parent `platform/aaos/platform.json` |
 | `:integrations:platform:flyme` | `integrations/platform/flyme/` | Flyme/ECARX family helpers only |
 | `:integrations:demo` | `integrations/demo/` | In-memory fake vehicle (CI / no HU) |
 | `:integrations:antora1000` | `integrations/antora1000/` | Antora/SE1000 — gRPC + CarProperty fallback |
 | `:integrations:ihu629g` | `integrations/ihu629g/` | IHU629G — CarProperty only (thin reference) |
-| `:feature-web` | `features/web/` | Product UI (lit-html) + Ktor + `/debug` |
-| `:feature-*` | `features/<id>/` | memory, telemetry, install, DVR, debug, history, shortcuts |
+| `:feature-web` | `features/web/` | Ktor car server + `/debug`; packages the `:webui` bundle |
+| `:webui` | `features/web/ui/` | Product UI (Lit + Web Awesome, npm/esbuild), shared by car and hub |
+| `:feature-*` | `features/<id>/` | memory, install, DVR, debug, history, shortcuts |
 | `:plugin-homeassistant` | `plugins/homeassistant/` | Inbound HA bridge (car → HA) |
 | `:server` | `server/` | Self-hosted **hub** (JVM/Ktor, dual faces 8787/8788, multi-car) |
 | `:protocol` | `libs/protocol/` | Shared wire constants (headers, paths, event types) |
@@ -89,9 +91,26 @@ Portable product surface: HA-shaped `domain.object_id`. See [`EntityContract`](.
 
 Outbound MQTT/HA discovery is deferred for the HU. **Self-hosted hub** (Docker / HAOS app) and a HACS custom component expose car entities into Home Assistant — see [hub.md](hub.md), and [adr/0003-hub.md](adr/0003-hub.md). Remote camera media (live, playback, download) uses a WebRTC media plane next to the JSON control plane — see [webrtc.md](webrtc.md). Inbound HA remains `:plugin-homeassistant` on the car.
 
-## Web UI (sketch)
+## Web UI
 
-`:feature-web` — vendored lit-html, reactive `store.js`, pages under `web/js/pages/`. Bootstrap via HTTP; live via WebSocket `telemetry` / `entity` / `catalog`. i18n client-side (`GET /api/i18n`). Assets `Cache-Control: no-store`. Cards by domain; nav `group` is section id (`home`, `controls`, …).
+`:webui` (`features/web/ui/`) is one npm project built by esbuild through Gradle (node is downloaded by the build, no global install needed). Output lands in `build/dist/web/`; `:feature-web` packs it into the APK assets and `:server` into the hub jar.
+
+- **Stack:** Lit custom elements rendering into light DOM (`OaaElement` = `SignalWatcher(LitElement)`), Web Awesome 3 controls (`src/wa.js` registers only the components in use), `@lit-labs/router`, and signal store slices in `src/store.js` (`session`, `catalog`, `prefs`, `camera`, `shortcuts`, …). Each page is an `<oaa-page-*>` element; heavy pages (cameras, history, shortcuts, lab, store) are lazy chunks. Toasts and `confirmDialog` replace `alert()` / `confirm()`.
+- **Themes:** `css/palette-ha.css` + `css/themes.css` set flat Home Assistant–style Web Awesome tokens per `data-theme` (dark, light, contrast). Short names such as `--accent` and `--surface` are aliases of those tokens.
+- **Types and checks:** JSDoc with `checkJs`, API types generated from the OpenAPI spec (`npm run gen:api`), eslint and `node --test`. `npm run check` runs all three; `./gradlew :webui:checkWeb` runs them in CI.
+- **Payload:** minified, code-split bundles with hashed names under `assets/`, one CSS entry, and `.br` / `.gz` variants. `OaaStatic` serves hashed assets `immutable` and everything else (the SPA shell) `no-store`, picking the precompressed variant from `Accept-Encoding`. `npm run size` prints the size report.
+- **Runtime:** bootstrap via HTTP; live via WebSocket `telemetry` / `entity` / `catalog`. i18n is client-side (`GET /api/i18n`). Cards by domain; nav `group` is the section id (`home`, `controls`, …).
+
+### Developing the UI without a car
+
+Run the hub against the live build output with a demo car attached:
+
+```bash
+cd features/web/ui && npm run dev        # esbuild watch → build/dist/web
+OAA_WEB_DIR=$PWD/features/web/ui/build/dist/web OAA_DEMO_NODE=1 ./gradlew :server:runHub
+```
+
+`OAA_WEB_DIR` makes the hub serve files from disk instead of the jar, so a browser reload picks up each rebuild. `OAA_DEMO_NODE=1` attaches an in-process demo car (`DemoNodeTransport`) that serves the demo entity catalog plus a fake DVR timeline, entity history, and in-memory shortcuts / routines / scenes, so every page renders without a head unit.
 
 ## Feature highlights (pointers)
 

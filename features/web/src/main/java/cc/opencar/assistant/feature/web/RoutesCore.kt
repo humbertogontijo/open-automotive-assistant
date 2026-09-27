@@ -10,7 +10,6 @@ import cc.opencar.assistant.support.I18nBundle
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.request.header
-import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Routing
 import io.ktor.server.routing.get
@@ -29,8 +28,6 @@ internal fun Routing.registerCoreRoutes(deps: OaaWebDeps) {
 
     get(OaaPaths.STATUS) {
         val snap = session.telemetry().first()
-        val host = call.request.local.remoteHost
-        val viaHub = call.request.header(OaaHeaders.VIA_HUB) != null
         val i18n = I18nBundle.load(context, session.integrationId)
         call.respond(
             mapOf(
@@ -42,7 +39,7 @@ internal fun Routing.registerCoreRoutes(deps: OaaWebDeps) {
                 "capabilities" to capabilities,
                 "locale" to i18n.locale,
                 "locales" to I18nBundle.SUPPORTED,
-                "remote" to (viaHub || (host != "127.0.0.1" && host != "localhost" && host != "::1")),
+                "remote" to (call.caller?.remote ?: true),
                 "telemetry" to telemetryPayload(snap),
                 "setup" to SetupStatus.snapshot(context, session, prefs),
                 "plugins" to deps.pluginDetailMaps(),
@@ -71,8 +68,8 @@ internal fun Routing.registerCoreRoutes(deps: OaaWebDeps) {
         )
     }
     post("/api/locale") {
-        val params = call.receiveParameters()
-        val raw = params["locale"] ?: call.request.queryParameters["locale"]
+        val params = call.params()
+        val raw = params["locale"]
         val loc = I18nBundle.normalize(raw)
         prefs.edit().putString(I18nBundle.PREF_LOCALE, loc).apply()
         I18nBundle.invalidateCache()
@@ -86,63 +83,53 @@ internal fun Routing.registerCoreRoutes(deps: OaaWebDeps) {
             ),
         )
     }
-    get("/api/controls") {
+    /** Enriched rows with the `hidden` flag, built once per cache window for every catalog route. */
+    suspend fun catalog(): ControlCatalog.Built = CatalogResponseCache.get {
         val hidden = deps.entityVisibility.hiddenIds()
-        val includeHidden = call.request.queryParameters["includeHidden"] == "1"
-        val all = CatalogResponseCache.controls {
-            val virtual = deps.shortcuts?.virtualEntityMaps().orEmpty()
-            (ControlCatalog.snapshot(session, context, memory) + virtual).map { row ->
-                val id = row["id"] as? String
-                EntityContract.enrich(row) + ("hidden" to (id != null && id in hidden))
-            }
+        val virtual = deps.shortcuts?.virtualEntityMaps().orEmpty()
+        fun rows(list: List<Map<String, Any?>>) = (list + virtual).map { row ->
+            val id = row["id"] as? String
+            EntityContract.enrich(row) + ("hidden" to (id != null && id in hidden))
         }
+        val built = ControlCatalog.build(session, context, memory, deps.androidSettings, deps.locationTracker, deps.dvr)
+        ControlCatalog.Built(rows(built.controls), rows(built.entities))
+    }
+
+    get("/api/controls") {
+        val all = catalog().controls
+        val includeHidden = call.request.queryParameters["includeHidden"] == "1"
         call.respond(if (includeHidden) all else all.filter { it["hidden"] != true })
     }
     get("/api/entities") {
-        val hidden = deps.entityVisibility.hiddenIds()
+        val all = catalog().entities
         val includeHidden = call.request.queryParameters["includeHidden"] == "1"
-        val all = CatalogResponseCache.entities {
-            val virtual = deps.shortcuts?.virtualEntityMaps().orEmpty()
-            (ControlCatalog.entities(session, context, memory, deps.androidSettings, deps.locationTracker, deps.dvr) + virtual).map { row ->
-                val id = row["id"] as? String
-                EntityContract.enrich(row) + ("hidden" to (id != null && id in hidden))
-            }
-        }
         call.respond(if (includeHidden) all else all.filter { it["hidden"] != true })
     }
     get("/api/entities/hidden") {
-        val hidden = deps.entityVisibility.hiddenIds()
-        val virtual = deps.shortcuts?.virtualEntityMaps().orEmpty()
-        val all = ControlCatalog.entities(session, context, memory, deps.androidSettings, deps.locationTracker, deps.dvr) + virtual
+        val hidden = catalog().entities.filter { it["hidden"] == true }
         call.respond(
             mapOf(
-                "ids" to hidden.toList().sorted(),
-                "entities" to all.filter { (it["id"] as? String) in hidden }.map {
-                    EntityContract.enrich(it) + ("hidden" to true)
-                },
+                "ids" to deps.entityVisibility.hiddenIds().toList().sorted(),
+                "entities" to hidden,
             ),
         )
     }
     get("/api/entities/{id}") {
         val id = call.parameters["id"] ?: return@get call.respond(HttpStatusCode.BadRequest, mapOf("ok" to false))
-        val hidden = deps.entityVisibility.hiddenIds()
-        val virtual = deps.shortcuts?.virtualEntityMaps().orEmpty()
-        val row = (ControlCatalog.entities(session, context, memory, deps.androidSettings, deps.locationTracker, deps.dvr) + virtual)
-            .firstOrNull { it["id"] == id }
+        val row = catalog().entities.firstOrNull { it["id"] == id }
             ?: return@get call.respond(HttpStatusCode.NotFound, mapOf("ok" to false, "error" to "not found"))
-        call.respond(EntityContract.enrich(row) + ("hidden" to (id in hidden)))
+        call.respond(row)
     }
     post("/api/entities/{id}/visibility") {
         val id = call.parameters["id"] ?: return@post call.respond(HttpStatusCode.BadRequest, mapOf("ok" to false))
-        val params = call.receiveParameters()
-        val raw = params["hidden"] ?: call.request.queryParameters["hidden"]
+        val params = call.params()
+        val raw = params["hidden"]
         val hide = when (raw?.lowercase()) {
             "1", "true", "yes", "hide" -> true
             "0", "false", "no", "unhide", "show" -> false
             else -> return@post call.respond(HttpStatusCode.BadRequest, mapOf("ok" to false, "error" to "hidden required"))
         }
         deps.entityVisibility.setHidden(id, hide)
-        CatalogResponseCache.invalidate()
         WebEventHub.emitCatalog("visibility")
         call.respond(mapOf("ok" to true, "id" to id, "hidden" to hide, "ids" to deps.entityVisibility.hiddenIds().toList().sorted()))
     }
@@ -150,7 +137,7 @@ internal fun Routing.registerCoreRoutes(deps: OaaWebDeps) {
         call.respond(SetupStatus.snapshot(context, session, prefs))
     }
     post("/api/setup") {
-        val params = call.receiveParameters()
+        val params = call.params()
         val edit = prefs.edit()
         if (params["dismiss"] == "1" || params["dismiss"] == "true") {
             edit.putBoolean("setup_dismissed", true)
@@ -168,77 +155,6 @@ internal fun Routing.registerCoreRoutes(deps: OaaWebDeps) {
     post("/api/system/open-android-settings") {
         SetupActionBus.requestOpenAndroidSettings()
         call.respond(mapOf("ok" to true, "message" to "Opening Android Settings"))
-    }
-    get("/api/android") {
-        val android = deps.androidSettings
-        if (android == null) {
-            call.respond(HttpStatusCode.NotFound, mapOf("error" to "android settings unavailable"))
-            return@get
-        }
-        call.respond(android.status())
-    }
-    post("/api/android/{id}") {
-        val android = deps.androidSettings
-        if (android == null) {
-            call.respond(HttpStatusCode.NotFound, mapOf("error" to "android settings unavailable"))
-            return@post
-        }
-        val id = call.parameters["id"] ?: return@post
-        val params = call.receiveParameters()
-        val value = params["value"] ?: call.request.queryParameters["value"]
-        if (value == null) {
-            call.respond(HttpStatusCode.BadRequest, mapOf("error" to "value required"))
-            return@post
-        }
-        val result = when (id) {
-            AndroidSettingsController.ID_WIFI,
-            AndroidSettingsController.ID_BT,
-            -> {
-                val on = value == "1" || value.equals("true", true) || value.equals("on", true)
-                if (id == AndroidSettingsController.ID_WIFI) {
-                    android.setWifi(on)
-                } else {
-                    android.setBluetooth(on)
-                }
-            }
-            AndroidSettingsController.ID_BRIGHTNESS -> {
-                val n = value.toIntOrNull()
-                if (n == null) mapOf("ok" to false, "error" to "integer value required")
-                else android.setBrightness(n)
-            }
-            AndroidSettingsController.ID_MEDIA_PLAYER -> {
-                val ok = android.apply(id, value)
-                mapOf("ok" to ok, "error" to if (ok) null else "apply failed", "status" to android.status())
-            }
-            else -> mapOf("ok" to false, "error" to "unknown id")
-        }
-        call.respond(result)
-    }
-    post("/api/android/media-listener/enable") {
-        val android = deps.androidSettings
-        if (android == null) {
-            call.respond(HttpStatusCode.NotFound, mapOf("error" to "android settings unavailable"))
-            return@post
-        }
-        val enabled = android.tryEnableMediaListener()
-        if (!enabled) {
-            android.openMediaListenerSettings()
-        }
-        call.respond(
-            mapOf(
-                "ok" to enabled,
-                "mediaListenerEnabled" to (android.status()["mediaListenerEnabled"] == true),
-                "openedSettings" to !enabled,
-            ),
-        )
-    }
-    post("/api/android/write-settings/open") {
-        val android = deps.androidSettings
-        if (android == null) {
-            call.respond(HttpStatusCode.NotFound, mapOf("error" to "android settings unavailable"))
-            return@post
-        }
-        call.respond(android.openWriteSettings())
     }
     get("/api/history") {
         val history = deps.history
@@ -260,10 +176,7 @@ internal fun Routing.registerCoreRoutes(deps: OaaWebDeps) {
         val start = call.request.queryParameters["start"]?.toLongOrNull()
             ?: (end - 24L * 60 * 60 * 1000)
         val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 2000
-        val virtual = deps.shortcuts?.virtualEntityMaps().orEmpty()
-        val entityMeta = (ControlCatalog.entities(session, context, memory, deps.androidSettings, deps.locationTracker, deps.dvr) + virtual)
-            .firstOrNull { it["id"] == entityId }
-            ?.let { EntityContract.enrich(it) }
+        val entityMeta = catalog().entities.firstOrNull { it["id"] == entityId }
         call.respond(
             mapOf(
                 "entityId" to entityId,
@@ -276,8 +189,8 @@ internal fun Routing.registerCoreRoutes(deps: OaaWebDeps) {
     }
     post("/api/controls/{id}") {
         val id = call.parameters["id"] ?: return@post
-        val params = call.receiveParameters()
-        val value = params["value"] ?: call.request.queryParameters["value"]
+        val params = call.params()
+        val value = params["value"]
         if (value == null) {
             call.respond(HttpStatusCode.BadRequest, mapOf("error" to "value required"))
             return@post
@@ -286,7 +199,6 @@ internal fun Routing.registerCoreRoutes(deps: OaaWebDeps) {
         if (android != null && id in android.writableIds) {
             val ok = android.apply(id, value)
             if (ok) {
-                CatalogResponseCache.invalidate()
                 WebEventHub.emitCatalog("android_write")
                 deps.shortcuts?.onControlWritten(id)
             }
@@ -295,7 +207,6 @@ internal fun Routing.registerCoreRoutes(deps: OaaWebDeps) {
         }
         val virtual = deps.shortcuts?.handleVirtualWrite(id, value)
         if (virtual != null) {
-            CatalogResponseCache.invalidate()
             WebEventHub.emitCatalog("virtual_write")
             call.respond(
                 mapOf(
@@ -307,7 +218,6 @@ internal fun Routing.registerCoreRoutes(deps: OaaWebDeps) {
         }
         val result = ControlCatalog.set(session, id, value, context)
         if (result.isSuccess) {
-            CatalogResponseCache.invalidate()
             WebEventHub.emitCatalog("control_write")
             // Composites refresh via catalog only — never patch product value with
             // structured write tokens (temperature:22) or attr-raw.
@@ -330,15 +240,9 @@ internal fun Routing.registerCoreRoutes(deps: OaaWebDeps) {
             call.respond(HttpStatusCode.NotFound, mapOf("error" to "memory unavailable"))
             return@post
         }
-        val params = call.receiveParameters()
-        val enabledRaw = params["enabled"] ?: call.request.queryParameters["enabled"]
-        val enabled = when (enabledRaw) {
-            null -> null
-            "1", "true", "on" -> true
-            "0", "false", "off" -> false
-            else -> null
-        }
-        val value = params["value"] ?: call.request.queryParameters["value"]
+        val params = call.params()
+        val enabled = parseBool(params["enabled"])
+        val value = params["value"]
         call.respond(memory.setPersist(id, enabled, value))
     }
     get("/api/prefs") {
@@ -357,7 +261,7 @@ internal fun Routing.registerCoreRoutes(deps: OaaWebDeps) {
         )
     }
     post("/api/prefs") {
-        val params = call.receiveParameters()
+        val params = call.params()
         val edit = prefs.edit()
         val theme = params["theme"]
         if (theme != null && theme in setOf("dark", "light", "contrast")) {
@@ -417,7 +321,6 @@ internal fun Routing.registerCoreRoutes(deps: OaaWebDeps) {
         }
         edit.apply()
         if (homeChanged) {
-            CatalogResponseCache.invalidate()
             WebEventHub.emitCatalog("home")
         }
         val home = loc?.homeSnapshot() ?: emptyMap()
@@ -440,45 +343,20 @@ internal fun Routing.registerCoreRoutes(deps: OaaWebDeps) {
             return@post
         }
         val result = loc.setHomeHere()
-        CatalogResponseCache.invalidate()
         WebEventHub.emitCatalog("home")
         call.respond(result)
-    }
-    get("/api/location/home") {
-        val loc = deps.locationTracker
-        if (loc == null) {
-            call.respond(HttpStatusCode.NotFound, mapOf("ok" to false, "error" to "location unavailable"))
-            return@get
-        }
-        call.respond(mapOf("ok" to true) + loc.homeSnapshot())
-    }
-    post("/api/memory/capture") {
-        if (memory == null) {
-            call.respond(HttpStatusCode.NotFound, mapOf("error" to "memory unavailable"))
-            return@post
-        }
-        val captured = memory.captureFromVehicle()
-        call.respond(mapOf("ok" to true, "prefs" to captured))
-    }
-    post("/api/memory/reapply") {
-        memory?.reapply()
-        call.respond(mapOf("ok" to true))
     }
     get("/api/adb") {
         call.respond(WirelessAdbController(context, debug).status())
     }
     post("/api/adb") {
-        val params = call.receiveParameters()
-        val enabled = when (params["enabled"] ?: call.request.queryParameters["enabled"]) {
-            "1", "true", "on" -> true
-            "0", "false", "off" -> false
-            else -> null
-        }
+        val params = call.params()
+        val enabled = parseBool(params["enabled"])
         if (enabled == null) {
             call.respond(HttpStatusCode.BadRequest, mapOf("error" to "enabled=1|0 required"))
             return@post
         }
-        val adbPort = (params["port"] ?: call.request.queryParameters["port"])?.toIntOrNull() ?: 5566
+        val adbPort = (params["port"])?.toIntOrNull() ?: 5566
         call.respond(
             WirelessAdbController(context, debug).setEnabled(enabled, adbPort),
         )

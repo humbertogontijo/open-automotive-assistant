@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStoreFile
+import cc.opencar.assistant.support.JsonMaps
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -106,19 +107,6 @@ class SceneStore private constructor(context: Context) {
             prefs[KEY_SNAPSHOTS] = JsonMaps.serializeNestedStringMap(snaps)
         }
         return removed
-    }
-
-    suspend fun resetBuiltin(id: String): Scene? {
-        if (id != Scene.SENTINEL_ID) return null
-        val factory = Scene.sentinel()
-        store.edit { prefs ->
-            val current = parseList(prefs[KEY_LIST]).toMutableList()
-            val idx = current.indexOfFirst { it.id == id }
-            if (idx >= 0) current[idx] = factory else current.add(0, factory)
-            prefs[KEY_LIST] = serialize(current)
-            prefs[KEY_SEEDED] = true
-        }
-        return get(id)
     }
 
     suspend fun markActive(id: String, active: Boolean, snapshot: Map<String, String>?) {

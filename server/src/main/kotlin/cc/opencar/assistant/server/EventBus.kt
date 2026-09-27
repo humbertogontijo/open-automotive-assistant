@@ -1,46 +1,53 @@
 package cc.opencar.assistant.server
 
-import cc.opencar.assistant.protocol.OaaUiEvents
 import io.ktor.websocket.Frame
 import io.ktor.websocket.WebSocketSession
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import org.json.JSONObject
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CopyOnWriteArraySet
 
 /** Node → hub UI fan-out of `/api/events` messages; one car per client. */
 class EventBus {
-    class UiClient(val nodeId: String?, private val session: WebSocketSession) {
-        private val mutex = Mutex()
+    /** A UI socket with its own bounded queue, so one slow viewer never stalls the others. */
+    class UiClient(val nodeId: String?, session: WebSocketSession) {
+        private val queue = Channel<String>(QUEUE_CAPACITY, BufferOverflow.DROP_OLDEST)
 
-        suspend fun send(text: String) {
-            runCatching { mutex.withLock { session.send(Frame.Text(text)) } }
+        init {
+            session.launch {
+                for (text in queue) runCatching { session.send(Frame.Text(text)) }
+            }
+        }
+
+        fun offer(text: String) {
+            queue.trySend(text)
+        }
+
+        internal fun close() {
+            queue.close()
         }
     }
 
-    private val clients = CopyOnWriteArrayList<UiClient>()
-    /** Last telemetry per node so a new viewer paints immediately. */
-    private val lastTelemetry = ConcurrentHashMap<String, String>()
+    private val clientsByNode = ConcurrentHashMap<String, MutableSet<UiClient>>()
 
     fun attach(client: UiClient) {
-        clients.add(client)
+        val id = client.nodeId ?: return
+        clientsByNode.computeIfAbsent(id) { CopyOnWriteArraySet() }.add(client)
     }
 
     fun detach(client: UiClient) {
-        clients.remove(client)
-    }
-
-    suspend fun publish(nodeId: String, message: JSONObject) {
-        val text = message.toString()
-        if (message.optString("t") == OaaUiEvents.TELEMETRY) lastTelemetry[nodeId] = text
-        for (c in clients) {
-            if (c.nodeId == nodeId) c.send(text)
-        }
-    }
-
-    suspend fun replay(client: UiClient) {
+        client.close()
         val id = client.nodeId ?: return
-        lastTelemetry[id]?.let { client.send(it) }
+        clientsByNode[id]?.remove(client)
+    }
+
+    /** [message] is a serialized event object, forwarded verbatim. */
+    fun publish(nodeId: String, message: String) {
+        clientsByNode[nodeId]?.forEach { it.offer(message) }
+    }
+
+    private companion object {
+        const val QUEUE_CAPACITY = 64
     }
 }

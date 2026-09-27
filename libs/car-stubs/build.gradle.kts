@@ -5,18 +5,4 @@ plugins {
 
 android {
     namespace = "android.car"
-    compileSdk = 35
-
-    defaultConfig {
-        minSdk = 30
-    }
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = "17"
-    }
 }

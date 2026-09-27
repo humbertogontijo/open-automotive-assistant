@@ -47,6 +47,7 @@ class OaaWebServer(
     private val getIntegrationOverride: () -> String? = { null },
     private val setIntegrationOverride: (String?) -> Unit = {},
     private val hub: HubClient? = null,
+    private val auth: CarAuth,
 ) {
     private val engine = AtomicReference<ApplicationEngine?>(null)
 
@@ -76,12 +77,15 @@ class OaaWebServer(
             getIntegrationOverride = getIntegrationOverride,
             setIntegrationOverride = setIntegrationOverride,
             hub = hub,
+            auth = auth,
         )
         val server = embeddedServer(CIO, port = port, host = "0.0.0.0") {
             install(ContentNegotiation) { gson() }
             install(WebSockets)
+            installCarAuth(auth)
             routing {
                 registerStaticRoutes(deps)
+                registerAuthRoutes(deps)
                 registerCoreRoutes(deps)
                 registerEventRoutes(deps)
                 registerStoreRoutes(deps)

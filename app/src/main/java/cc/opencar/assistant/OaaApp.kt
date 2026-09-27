@@ -1,12 +1,15 @@
 package cc.opencar.assistant
 
 import android.app.Application
+import android.content.pm.ApplicationInfo
 import android.os.Build
 import android.os.UserManager
 import android.util.Log
 import cc.opencar.assistant.api.DeviceFingerprint
 import cc.opencar.assistant.feature.debug.LogRingBuffer
 import cc.opencar.assistant.feature.debug.OaaLog
+import org.mozilla.geckoview.GeckoRuntime
+import org.mozilla.geckoview.GeckoRuntimeSettings
 
 class OaaApp : Application() {
     lateinit var runtime: AssistantRuntime
@@ -14,11 +17,26 @@ class OaaApp : Application() {
 
     val log = OaaLog()
 
+    /** Gecko allows exactly one runtime per process. */
+    val geckoRuntime: GeckoRuntime by lazy {
+        val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        val settings = GeckoRuntimeSettings.Builder()
+            .remoteDebuggingEnabled(debuggable)
+            .consoleOutput(debuggable)
+            .automaticFontSizeAdjustment(false)
+            .fontSizeFactor(1f)
+            .build()
+        GeckoRuntime.create(this, settings)
+    }
+
     override fun onCreate() {
         super.onCreate()
         instance = this
-        LogRingBuffer.append("OaaApp onCreate fingerprint=${Build.FINGERPRINT}")
         runtime = AssistantRuntime(this)
+        // GeckoView child processes (tab, gpu, …) run this Application too; they must not
+        // start a second web server, DVR or hub link.
+        if (getProcessName() != packageName) return
+        LogRingBuffer.append("OaaApp onCreate fingerprint=${Build.FINGERPRINT}")
         val unlocked = runCatching {
             getSystemService(UserManager::class.java)?.isUserUnlocked == true
         }.getOrDefault(true)

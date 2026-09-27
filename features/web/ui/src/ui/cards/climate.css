@@ -1,0 +1,19 @@
+/* climate.css — cabin HVAC card */
+.climate-card.is-on .ctrl-icon {
+  color: var(--accent);
+}
+
+/* Airflow direction select, then the A/C and recirculation icon toggles. */
+.climate-air-row {
+  display: flex;
+  gap: 0.45rem;
+  align-items: stretch;
+}
+.climate-air-row oaa-choice-select {
+  flex: 1;
+  min-width: 0;
+}
+.climate-body .slider-row > wa-icon {
+  font-size: 1.5rem;
+  color: var(--text-muted);
+}

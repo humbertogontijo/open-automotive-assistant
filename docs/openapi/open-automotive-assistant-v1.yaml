@@ -10,6 +10,11 @@ info:
     forwards `/api/*` (any signed-in user) and `/debug/*` (admins) to that car
     as `rpc` frames; bodies are binary-safe and capped at 2.5 MiB each way (413).
 
+    Car access (ADR-0004): on `role=local`, every `/api/*` and `/debug/*` call
+    needs a caller (head unit session, or a browser / hub / tool paired with a
+    code shown on the head unit) and answers 401 otherwise. Open: `/api/health`,
+    `/api/i18n` and `/api/auth/status|local|pair/request|pair/confirm`.
+
     Hub dual faces (ADR-0003): human UI/API on port 8787 (hub session required);
     node dial-in on port 8788 (`/api/nodes/pair`, `/api/nodes/session`,
     `/api/nodes/artifacts/{sha256}` only). Away cars may reach the node face via
@@ -30,7 +35,7 @@ info:
   version: 0.1.0
 servers:
   - url: http://127.0.0.1:8787
-    description: HU WebView / localhost (role=local)
+    description: HU GeckoView / localhost (role=local)
   - url: http://{carHost}:8787
     description: Same-LAN browser against a car
     variables:
@@ -49,6 +54,7 @@ servers:
 security:
   - {}
   - hubSession: []
+  - carSession: []
   - bearer: []
 paths:
   /api/status:
@@ -147,6 +153,242 @@ paths:
                 $ref: "#/components/schemas/PairResponse"
         "400":
           description: Invalid or expired code
+  /api/nodes/discovered:
+    get:
+      summary: Unpaired cars announcing `_oaa-car._tcp` (hub only, admin)
+      operationId: listDiscoveredCars
+      responses:
+        "200":
+          description: Cars seen by mDNS that are not paired to this hub
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cars:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DiscoveredCar"
+  /api/nodes/invite:
+    post:
+      summary: Ask a car for a pairing code (hub only, admin)
+      description: |
+        The hub calls the car's `/api/auth/pair/request` with `kind=hub`. The car
+        shows a 6-digit code on its head unit; the admin types it into
+        `/api/nodes/invite/{id}/confirm`.
+      operationId: inviteCar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CarInviteRequest"
+      responses:
+        "200":
+          description: Invite open on the car
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarInvite"
+        "429":
+          description: The car already has an open request from this hub
+        "502":
+          description: Car unreachable
+  /api/nodes/invite/{inviteId}/confirm:
+    post:
+      summary: Send the code shown on the car (hub only, admin)
+      description: |
+        The hub pre-registers a node token and sends it with the code in the
+        car's `/api/auth/pair/confirm` (`hub` object). On success the car dials
+        the node face; the hub keeps the car-issued token and LAN URL.
+      operationId: confirmCarInvite
+      parameters:
+        - name: inviteId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+      responses:
+        "200":
+          description: Paired
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  node:
+                    $ref: "#/components/schemas/NodeSummary"
+        "403":
+          description: Wrong code
+        "404":
+          description: Invite or car request expired
+  /api/nodes/invite/{inviteId}:
+    delete:
+      summary: Forget an open invite (hub only, admin)
+      operationId: cancelCarInvite
+      parameters:
+        - name: inviteId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Removed
+  /api/auth/status:
+    get:
+      summary: Caller identity (car and hub)
+      description: |
+        On a car (`role=local`): whether this caller is trusted, its kind and
+        whether it is the head unit. Hubs answer their session state.
+      operationId: authStatus
+      responses:
+        "200":
+          description: Auth state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarAuthStatus"
+  /api/auth/local:
+    post:
+      summary: Check the head unit session (local only)
+      operationId: authLocal
+      responses:
+        "200":
+          description: The caller is the head unit
+        "401":
+          description: Not the head unit
+  /api/auth/pair/request:
+    post:
+      summary: Ask the car to show a pairing code (local only)
+      description: |
+        6-digit code, 3-minute TTL, 5 attempts, one open request per source
+        address, at most 5 open. The code is shown only on the head unit
+        (dialog + notification).
+      operationId: carPairRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CarPairRequest"
+      responses:
+        "200":
+          description: Request open
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CarPairRequestResponse"
+        "429":
+          description: Too many open requests, or one already open from this address
+  /api/auth/pair/confirm:
+    post:
+      summary: Confirm with the code shown on the car (local only)
+      description: |
+        Must come from the address that asked. Browsers receive the `oaa_car`
+        cookie; hubs and tools receive `token` in the body. `kind=hub` requests
+        must carry `hub`, which the car stores as its hub link.
+      operationId: carPairConfirm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CarPairConfirm"
+      responses:
+        "200":
+          description: Paired
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  token:
+                    type: string
+                    description: Car-issued bearer token (hub and tool only)
+                  clientId:
+                    type: string
+                  nodeId:
+                    type: string
+        "403":
+          description: Wrong code, or confirm from another address
+        "404":
+          description: Unknown or expired request
+  /api/auth/pair/pending:
+    get:
+      summary: Open pairing requests with their codes (head unit only)
+      operationId: carPairPending
+      responses:
+        "200":
+          description: Open requests
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pending:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/CarPairPending"
+  /api/auth/pair/pending/{id}:
+    delete:
+      summary: Decline a pairing request (head unit only)
+      operationId: carPairDecline
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Declined
+  /api/auth/clients:
+    get:
+      summary: Trusted devices (head unit only)
+      operationId: carClients
+      responses:
+        "200":
+          description: Paired browsers, hubs and tools
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  clients:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/CarClient"
+  /api/auth/clients/{id}:
+    delete:
+      summary: Revoke a trusted device (head unit only)
+      description: Revoking a hub also drops the car's hub link.
+      operationId: carClientRevoke
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Revoked
+        "404":
+          description: Unknown client
   /api/nodes/{nodeId}:
     delete:
       summary: Disconnect / forget a node (hub only)
@@ -188,15 +430,21 @@ paths:
         Served on the node face only, with `Authorization: Bearer <nodeToken>`
         (or `?token=`). Supports `Range` so cars resume interrupted downloads.
         The `ota_offer` frame carries the path to use, which may be the
-        HA Cloud bridge (`/api/oaa_node/artifacts/{sha256}`).
+        HA Cloud bridge (`/api/oaa_node/artifacts/{sha256}`). The same path
+        serves delta patches (`ota_offer.delta.path`), addressed by the
+        patch's own SHA-256.
       operationId: downloadArtifact
       parameters:
         - $ref: "#/components/parameters/Sha256Path"
       responses:
         "200":
-          description: APK bytes
+          description: APK bytes, or an OADP patch for a delta
           content:
             application/vnd.android.package-archive:
+              schema:
+                type: string
+                format: binary
+            application/vnd.oaa.apk-delta:
               schema:
                 type: string
                 format: binary
@@ -453,11 +701,18 @@ components:
       type: apiKey
       in: cookie
       name: oaa_session
-      description: Hub login session (human face). Cars on their own LAN need no auth.
+      description: Hub login session (human face)
+    carSession:
+      type: apiKey
+      in: cookie
+      name: oaa_car
+      description: Car session (head unit) or paired-browser token (ADR-0004)
     bearer:
       type: http
       scheme: bearer
-      description: Hub session / system token on the human face, or node token on the node face
+      description: |
+        Hub session / system token on the human face, node token on the node
+        face, or a car-issued hub / tool token on a car
   parameters:
     OaaNodeHeader:
       name: X-Oaa-Node
@@ -489,7 +744,7 @@ components:
           $ref: "#/components/schemas/Fleet"
         remote:
           type: boolean
-          description: True when the HTTP client is not localhost
+          description: False only for the head unit UI (local session); true for paired devices and the hub
         webPort:
           type: integer
         integration:
@@ -587,6 +842,172 @@ components:
         sessionPath:
           type: string
           description: Session path on publicNodeUrl (default `/api/nodes/session`)
+        hubId:
+          type: string
+          description: Stable hub id; the car lists the hub under trusted devices
+        hubName:
+          type: string
+    DiscoveredCar:
+      type: object
+      required: [id, host, port]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        integration:
+          type: string
+          nullable: true
+        version:
+          type: string
+          nullable: true
+        host:
+          type: string
+        port:
+          type: integer
+        seenAtMs:
+          type: integer
+          format: int64
+    CarInviteRequest:
+      type: object
+      description: A discovered `nodeId`, or a `host` (optionally `host:port`)
+      properties:
+        nodeId:
+          type: string
+        host:
+          type: string
+        port:
+          type: integer
+          default: 8787
+    CarInvite:
+      type: object
+      required: [ok, inviteId, nodeId]
+      properties:
+        ok:
+          type: boolean
+        inviteId:
+          type: string
+        nodeId:
+          type: string
+        name:
+          type: string
+        expiresAtMs:
+          type: integer
+          format: int64
+    CarAuthStatus:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [local, hub]
+        authenticated:
+          type: boolean
+        kind:
+          type: string
+          nullable: true
+          enum: [hu, browser, hub, tool, internal, null]
+        headUnit:
+          type: boolean
+        loopback:
+          type: boolean
+        setupRequired:
+          type: boolean
+    CarPairRequest:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum: [browser, hub, tool]
+          default: browser
+        name:
+          type: string
+          description: Shown on the head unit next to the code
+        hubId:
+          type: string
+          description: Stable hub id (`kind=hub`)
+    CarPairRequestResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        requestId:
+          type: string
+        expiresAtMs:
+          type: integer
+          format: int64
+        nodeId:
+          type: string
+          nullable: true
+        name:
+          type: string
+          nullable: true
+        integration:
+          type: string
+    CarPairConfirm:
+      type: object
+      required: [requestId, code]
+      properties:
+        requestId:
+          type: string
+        code:
+          type: string
+        hub:
+          type: object
+          description: Hub link (`kind=hub` only)
+          properties:
+            hubId:
+              type: string
+            hubName:
+              type: string
+            nodeToken:
+              type: string
+              description: Node token the hub pre-registered for this car
+            nodePort:
+              type: integer
+              description: Node face port; the car dials the hub's source address on it first
+            nodeUrls:
+              type: array
+              items:
+                type: string
+              description: Published node-face URLs (tunnel / HA Cloud), tried next
+            sessionPath:
+              type: string
+    CarPairPending:
+      type: object
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+        name:
+          type: string
+        code:
+          type: string
+        source:
+          type: string
+        expiresAtMs:
+          type: integer
+          format: int64
+    CarClient:
+      type: object
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum: [browser, hub, tool]
+        name:
+          type: string
+        createdAtMs:
+          type: integer
+          format: int64
+        lastSeenMs:
+          type: integer
+          format: int64
+          nullable: true
+        hubId:
+          type: string
+          nullable: true
     HubJoinConfig:
       type: object
       properties:
@@ -594,6 +1015,12 @@ components:
           type: boolean
         hubUrl:
           type: string
+        hubId:
+          type: string
+          nullable: true
+        hubName:
+          type: string
+          nullable: true
         nodeUrl:
           type: string
           nullable: true
@@ -673,10 +1100,12 @@ components:
       properties:
         t:
           type: string
-          enum: [hello, ping, telemetry, entity, catalog]
+          enum: [hello, ping, telemetry, entity, catalog, dvr]
           description: |
             `entity` — atomic value patch (`id`, `value`, `status`);
             `catalog` — reload /api/entities; `telemetry` — session telemetry snapshot
+            (at most once per second); `dvr` — DVR summary (mode, storage, usage), sent
+            only when it changes
     NodeFrame:
       type: object
       required: [type]
@@ -807,6 +1236,27 @@ components:
         path:
           type: string
           description: Download path relative to the car's node URL
+        delta:
+          type: object
+          description: |
+            Present when the car's reported APK (`hello.app.apkSha256`) is a stored
+            artifact. The car rebuilds the target from its installed APK plus this
+            OADP patch, checks the result against `sha256`, and falls back to `path`
+            on any failure.
+          required: [from, sha256, size, path]
+          properties:
+            from:
+              type: string
+              description: SHA-256 of the installed APK the patch applies to
+            sha256:
+              type: string
+              description: SHA-256 of the patch file
+            size:
+              type: integer
+              format: int64
+            path:
+              type: string
+              description: Patch download path relative to the car's node URL
     OtaStatus:
       type: object
       required: [v, rolloutId, state]

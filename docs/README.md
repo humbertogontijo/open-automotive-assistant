@@ -9,6 +9,7 @@ Start here. Prefer the how-to for your task; use architecture only for the modul
 | Build / install / contribute | [../README.md](../README.md), [../CONTRIBUTING.md](../CONTRIBUTING.md) |
 | Understand modules & SPI | [architecture.md](architecture.md), [adr/0001-architecture-north-star.md](adr/0001-architecture-north-star.md) |
 | Hub / multi-car / self-host | [adr/0003-hub.md](adr/0003-hub.md), [hub.md](hub.md), [webrtc.md](webrtc.md) |
+| Car access control / pairing | [adr/0004-car-auth.md](adr/0004-car-auth.md) |
 | Add a vehicle platform | [adding-an-integration.md](adding-an-integration.md) — start from **`demo`** or **`ihu629g`** |
 | Add an external bridge | [plugins.md](plugins.md) |
 | Add a shell feature | [adding-a-feature.md](adding-a-feature.md) |

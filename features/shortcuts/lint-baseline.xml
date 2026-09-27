@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 8.13.2" type="baseline" client="gradle" dependencies="false" name="AGP (8.13.2)" variant="all" version="8.13.2">
+
+    <issue
+        id="MissingPermission"
+        message="Missing permissions required by ConnectivityManager.registerNetworkCallback: android.permission.ACCESS_NETWORK_STATE"
+        errorLine1="        runCatching { connectivity?.registerNetworkCallback(request, cb) }"
+        errorLine2="                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/cc/opencar/assistant/feature/shortcuts/WifiSsidMonitor.kt"
+            line="78"
+            column="23"/>
+    </issue>
+
+    <issue
+        id="InternalInsetResource"
+        message="Using internal inset dimension resource `status_bar_height` is not supported"
+        errorLine1="        val resId = ctx.resources.getIdentifier(&quot;status_bar_height&quot;, &quot;dimen&quot;, &quot;android&quot;)"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/cc/opencar/assistant/feature/shortcuts/FloatChipQuickEntry.kt"
+            line="160"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="InternalInsetResource"
+        message="Using internal inset dimension resource `status_bar_height` is not supported"
+        errorLine1="        val resId = appContext.resources.getIdentifier(&quot;status_bar_height&quot;, &quot;dimen&quot;, &quot;android&quot;)"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/cc/opencar/assistant/feature/shortcuts/QuickEntryMenu.kt"
+            line="162"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="QueryPermissionsNeeded"
+        message="Consider adding a `&lt;queries>` declaration to your manifest when calling this method; see https://g.co/dev/packagevisibility for details"
+        errorLine1="            pm.queryIntentActivities("
+        errorLine2="               ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/cc/opencar/assistant/feature/shortcuts/AppLauncher.kt"
+            line="24"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="QueryPermissionsNeeded"
+        message="Consider adding a `&lt;queries>` declaration to your manifest when calling this method; see https://g.co/dev/packagevisibility for details"
+        errorLine1="            pm.queryIntentActivities(intent, 0)"
+        errorLine2="               ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/cc/opencar/assistant/feature/shortcuts/AppLauncher.kt"
+            line="29"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="QueryPermissionsNeeded"
+        message="Consider adding a `&lt;queries>` declaration to your manifest when calling this method; see https://g.co/dev/packagevisibility for details"
+        errorLine1="            if (intent.resolveActivity(context.packageManager) == null) {"
+        errorLine2="                       ~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/cc/opencar/assistant/feature/shortcuts/AppLauncher.kt"
+            line="54"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="DiscouragedApi"
+        message="Use of this function is discouraged because resource reflection makes it harder to perform build optimizations and compile-time verification of code. It is much more efficient to retrieve resources by identifier (e.g. `R.foo.bar`) than by name (e.g. `getIdentifier(&quot;bar&quot;, &quot;foo&quot;, null)`)."
+        errorLine1="        val resId = ctx.resources.getIdentifier(&quot;status_bar_height&quot;, &quot;dimen&quot;, &quot;android&quot;)"
+        errorLine2="                                  ~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/cc/opencar/assistant/feature/shortcuts/FloatChipQuickEntry.kt"
+            line="160"
+            column="35"/>
+    </issue>
+
+    <issue
+        id="DiscouragedApi"
+        message="Use of this function is discouraged because resource reflection makes it harder to perform build optimizations and compile-time verification of code. It is much more efficient to retrieve resources by identifier (e.g. `R.foo.bar`) than by name (e.g. `getIdentifier(&quot;bar&quot;, &quot;foo&quot;, null)`)."
+        errorLine1="        val resId = appContext.resources.getIdentifier(&quot;status_bar_height&quot;, &quot;dimen&quot;, &quot;android&quot;)"
+        errorLine2="                                         ~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/cc/opencar/assistant/feature/shortcuts/QuickEntryMenu.kt"
+            line="162"
+            column="42"/>
+    </issue>
+
+    <issue
+        id="DrawAllocation"
+        message="Avoid object allocations during draw/layout operations (preallocate and reuse instead)"
+        errorLine1="            canvas.drawRoundRect(RectF(0f, 0f, size.toFloat(), size.toFloat()), corner, corner, bg)"
+        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/cc/opencar/assistant/feature/shortcuts/FloatChipQuickEntry.kt"
+            line="183"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 30"
+        errorLine1="        val type = if (Build.VERSION.SDK_INT >= 26) {"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/cc/opencar/assistant/feature/shortcuts/FloatChipQuickEntry.kt"
+            line="69"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 30"
+        errorLine1="        val type = if (Build.VERSION.SDK_INT >= 26) {"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/cc/opencar/assistant/feature/shortcuts/QuickEntryMenu.kt"
+            line="132"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="`onTouch` lambda should call `View#performClick` when a click is detected"
+        errorLine1="        chip.setOnTouchListener { _, event ->"
+        errorLine2="                                ^">
+        <location
+            file="src/main/java/cc/opencar/assistant/feature/shortcuts/FloatChipQuickEntry.kt"
+            line="116"
+            column="33"/>
+    </issue>
+
+</issues>

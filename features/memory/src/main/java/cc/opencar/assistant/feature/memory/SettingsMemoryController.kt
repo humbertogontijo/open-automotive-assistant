@@ -39,8 +39,8 @@ class SettingsMemoryController(
     private val readControl: suspend (id: String) -> String?,
     /** Extra pin ids not in [EntityRegistry] (`switch.wifi`, `number.vol_*`, …). */
     extraPinIds: Collection<String> = emptyList(),
+    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val store = memoryStore(context)
     @Volatile private var lastReapplyMs: Long = 0L
 
@@ -106,20 +106,6 @@ class SettingsMemoryController(
             "enabled" to isPinned(id),
             "value" to pinnedValue(id),
         )
-    }
-
-    /** Bulk: pin all tracked with current live values. */
-    suspend fun captureFromVehicle(): Map<String, String?> {
-        val captured = mutableMapOf<String, String?>()
-        store.edit { e ->
-            for (id in pinIds) {
-                val live = readControl(id) ?: continue
-                e[booleanPreferencesKey(pinKey(id))] = true
-                e[stringPreferencesKey(valueKey(id))] = live
-                captured[id] = live
-            }
-        }
-        return captured
     }
 
     /**

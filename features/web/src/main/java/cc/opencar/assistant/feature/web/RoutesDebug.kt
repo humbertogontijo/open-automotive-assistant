@@ -8,7 +8,6 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
-import io.ktor.server.request.receiveParameters
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondBytes
@@ -37,16 +36,7 @@ internal fun Routing.registerDebugRoutes(deps: OaaWebDeps) {
         call.respondText(htmlDebug(debug), ContentType.Text.Html)
     }
     get("/debug/probe") {
-        if (!debug.checkToken(call.request.queryParameters["token"]) &&
-            call.request.queryParameters["token"] != null &&
-            !debug.contributorMode
-        ) {
-            // allow without token only when contributor off for summary? Prefer require token when contributor
-        }
-        if (debug.contributorMode && !debug.checkToken(call.request.queryParameters["token"])) {
-            call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "token required"))
-            return@get
-        }
+        if (debug.contributorMode && !call.requireToken(debug)) return@get
         val force = call.request.queryParameters["force"] == "1"
         val report = withContext(Dispatchers.IO) { probe.run(force) }
         call.respond(
@@ -72,10 +62,7 @@ internal fun Routing.registerDebugRoutes(deps: OaaWebDeps) {
         )
     }
     get("/debug/obd2") {
-        if (debug.contributorMode && !debug.checkToken(call.request.queryParameters["token"])) {
-            call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "token required"))
-            return@get
-        }
+        if (debug.contributorMode && !call.requireToken(debug)) return@get
         val force = call.request.queryParameters["force"] == "1"
         val o = obd2
         if (o == null) {
@@ -110,18 +97,12 @@ internal fun Routing.registerDebugRoutes(deps: OaaWebDeps) {
         )
     }
     get("/debug/probe/full") {
-        if (!debug.checkToken(call.request.queryParameters["token"])) {
-            call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "token required"))
-            return@get
-        }
+        if (!call.requireToken(debug)) return@get
         val report = withContext(Dispatchers.IO) { probe.run(false) }
         call.respondText(report.toJsonArray().toString(), ContentType.Application.Json)
     }
     get("/debug/logs") {
-        if (!debug.checkToken(call.request.queryParameters["token"])) {
-            call.respond(HttpStatusCode.Unauthorized, "token required")
-            return@get
-        }
+        if (!call.requireToken(debug)) return@get
         call.respondText(LogRingBuffer.snapshot().joinToString("\n"))
     }
     get("/debug/integration") {
@@ -146,10 +127,7 @@ internal fun Routing.registerDebugRoutes(deps: OaaWebDeps) {
         )
     }
     get("/debug/props") {
-        if (!debug.checkToken(call.request.queryParameters["token"])) {
-            call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "token required"))
-            return@get
-        }
+        if (!call.requireToken(debug)) return@get
         val q = call.request.queryParameters["q"].orEmpty()
         val family = call.request.queryParameters["family"].orEmpty()
         val entries = session.catalog().filter {
@@ -180,10 +158,7 @@ internal fun Routing.registerDebugRoutes(deps: OaaWebDeps) {
         )
     }
     get("/debug/props/{key}") {
-        if (!debug.checkToken(call.request.queryParameters["token"])) {
-            call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "token required"))
-            return@get
-        }
+        if (!call.requireToken(debug)) return@get
         val key = call.parameters["key"] ?: return@get
         val entry = session.catalog().firstOrNull { it.name == key || it.property.key == key }
         if (entry == null) {
@@ -201,18 +176,15 @@ internal fun Routing.registerDebugRoutes(deps: OaaWebDeps) {
         )
     }
     post("/debug/props/{key}") {
-        if (!debug.checkToken(call.request.queryParameters["token"])) {
-            call.respond(HttpStatusCode.Unauthorized, mapOf("error" to "token required"))
-            return@post
-        }
+        if (!call.requireToken(debug)) return@post
         val key = call.parameters["key"] ?: return@post
         val entry = session.catalog().firstOrNull { it.name == key || it.property.key == key }
         if (entry == null || !entry.writable) {
             call.respond(HttpStatusCode.Forbidden, mapOf("error" to "not writable / not found"))
             return@post
         }
-        val params = call.receiveParameters()
-        val raw = params["value"] ?: call.request.queryParameters["value"]
+        val params = call.params()
+        val raw = params["value"]
         if (raw == null) {
             call.respond(HttpStatusCode.BadRequest, mapOf("error" to "value required"))
             return@post
@@ -227,10 +199,7 @@ internal fun Routing.registerDebugRoutes(deps: OaaWebDeps) {
         call.respond(mapOf("ok" to result.isSuccess, "error" to result.exceptionOrNull()?.message))
     }
     get("/debug/export") {
-        if (!debug.checkToken(call.request.queryParameters["token"])) {
-            call.respond(HttpStatusCode.Unauthorized, "token required")
-            return@get
-        }
+        if (!call.requireToken(debug)) return@get
         val snap = session.telemetry().first()
         val report = withContext(Dispatchers.IO) { probe.run(false) }
         val baos = java.io.ByteArrayOutputStream()
@@ -266,19 +235,18 @@ internal fun Routing.registerDebugRoutes(deps: OaaWebDeps) {
         call.respond(labSnapshot(deps))
     }
     post("/api/lab/contributor") {
-        val params = call.receiveParameters()
-        val raw = params["enabled"] ?: call.request.queryParameters["enabled"]
+        val params = call.params()
+        val raw = params["enabled"]
         if (raw == null) {
             call.respond(HttpStatusCode.BadRequest, mapOf("error" to "enabled required"))
             return@post
         }
-        val enabled = raw == "1" || raw.equals("true", ignoreCase = true)
-        debug.contributorMode = enabled
+        debug.contributorMode = parseBool(raw) == true
         call.respond(labSnapshot(deps) + ("ok" to true))
     }
     post("/api/lab/integration-override") {
-        val params = call.receiveParameters()
-        val raw = params["id"] ?: call.request.queryParameters["id"]
+        val params = call.params()
+        val raw = params["id"]
         val id = raw?.trim()?.takeIf { it.isNotEmpty() }
         if (id != null && id !in deps.integrationIds) {
             call.respond(
@@ -325,7 +293,7 @@ internal fun labSnapshot(deps: OaaWebDeps): Map<String, Any?> {
 
 internal fun htmlDebug(debug: ContributorDebugState): String = """
     <!doctype html><html data-theme="dark"><head><meta charset=utf-8><title>Open Automotive Assistant Debug</title>
-    <link rel="stylesheet" href="/static/app.css"></head><body style="padding:24px">
+    <style>body{padding:24px;font-family:system-ui,sans-serif;background:#111;color:#e1e1e1}a{color:#03a9f4}code{color:#9b9b9b}</style></head><body>
     <h1>Contributor debug</h1>
     <p>Token: <code>${if (debug.contributorMode) debug.token else "(disabled)"}</code></p>
     <p>ADB: <code>${debug.adbHint()}</code></p>

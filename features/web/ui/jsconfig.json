@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "lib": [
+      "es2023",
+      "dom",
+      "dom.iterable"
+    ],
+    "checkJs": true,
+    "allowJs": true,
+    "noEmit": true,
+    "strict": false,
+    "noImplicitThis": true,
+    "strictBindCallApply": true,
+    "useUnknownInCatchVariables": false,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "experimentalDecorators": false,
+    "useDefineForClassFields": false,
+    "types": [],
+    "paths": {
+      "hls.js/light": [
+        "./node_modules/hls.js/dist/hls.d.mts"
+      ]
+    }
+  },
+  "include": [
+    "src/**/*.js",
+    "types/**/*.d.ts"
+  ]
+}

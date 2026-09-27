@@ -16,6 +16,8 @@ export OAA_HUB_USER=admin            # or OAA_HUB_TOKEN=<admin session / system 
 
 The password is prompted once (or read from `OAA_HUB_PASSWORD`); the session token is cached in `~/.config/oaa/hub-token` (mode 600). With exactly one paired car, `--node` is optional.
 
+Both loops send only what changed. `hub-deploy` offers the car a delta patch when its installed build is still among the hub's last 5 artifacts (see [hub.md](hub.md#app-updates-ota)). Over adb, `./tools/oaa-setup -H CAR_IP setup` (or `install`) keeps each installed APK in `~/.cache/oaa/apks`. On the next run it builds a patch against the car's installed build with `:apk-delta:diff`, pushes the patch, rebuilds the APK on the HU with `dd`, checks its hash and then runs `pm install`. `--full` (or `OAA_FULL=1`) forces a whole-APK push. Head-unit builds also skip the emulator's x86_64 libraries (`-Poaa.arm64Only`).
+
 Then open the hub UI, pick the car in Fleet and use **Lab**: re-probe, OBD2, **Export zip** and **Live logs** all go through the hub (admin only). adb is still needed for the very first install and for attaching a debugger.
 
 ## 1. Wireless ADB
@@ -33,6 +35,16 @@ adb devices
 Debug and contributor build types ship with `android:debuggable=true`. Release stays non-debuggable.
 
 App debug is app-level and works with package-install rights only.
+
+### Inspecting the in-car UI
+
+The app renders the UI with an embedded GeckoView (Firefox engine), not the system WebView, so `chrome://inspect` does not see it. Debug and contributor builds enable Gecko remote debugging:
+
+1. Keep the adb connection from section 1 open.
+2. In desktop Firefox open `about:debugging` → **Setup** → enable USB devices, then pick the car under **USB** (adb over Wi‑Fi shows up there too).
+3. Choose the `127.0.0.1:8787` tab → **Inspect** for the console, DOM and network panels.
+
+The same UI is usually easier to iterate on through the hub in a desktop browser (`./gradlew :server:runHub`).
 
 ## 2. Contributor mode (Lab)
 
@@ -66,7 +78,7 @@ Prefs key: `oaa_runtime` / `integration_override` (set via Lab or `POST /api/lab
 
 ## 3. HTTP `/debug` API
 
-Base: `http://CAR_IP:8787`
+Base: `http://CAR_IP:8787`. Every route needs a paired caller ([adr/0004-car-auth.md](adr/0004-car-auth.md)): pair the browser with the code the car shows, or run `./tools/oaa-setup -H CAR_IP pair` and send `Authorization: Bearer <token>` from scripts. The contributor `token=` is checked on top of that.
 
 | Route | Notes |
 |-------|--------|

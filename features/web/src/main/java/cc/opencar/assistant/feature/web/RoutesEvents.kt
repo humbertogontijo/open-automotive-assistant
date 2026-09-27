@@ -3,6 +3,7 @@ package cc.opencar.assistant.feature.web
 import cc.opencar.assistant.protocol.OaaPaths
 import cc.opencar.assistant.protocol.OaaUiEvents
 import com.google.gson.Gson
+import io.ktor.server.application.call
 import io.ktor.server.routing.Routing
 import io.ktor.server.websocket.webSocket
 import io.ktor.websocket.Frame
@@ -24,6 +25,15 @@ internal fun Routing.registerEventRoutes(deps: OaaWebDeps) {
             val eventsJob = launch {
                 uiEvents(deps.session, deps.dvr).collect { send(Frame.Text(gson.toJson(it))) }
             }
+            val pairJob = if (call.caller?.isHeadUnit == true) {
+                launch {
+                    deps.auth.pending.collect { list ->
+                        send(Frame.Text(gson.toJson(mapOf("t" to OaaUiEvents.PAIR_REQUEST, "pending" to list.map { it.wire() }))))
+                    }
+                }
+            } else {
+                null
+            }
             val pingJob = launch {
                 while (isActive) {
                     delay(25_000)
@@ -35,6 +45,7 @@ internal fun Routing.registerEventRoutes(deps: OaaWebDeps) {
                 incoming.receiveCatching().getOrNull() ?: break
             }
             eventsJob.cancel()
+            pairJob?.cancel()
             pingJob.cancel()
         } catch (_: ClosedSendChannelException) {
             // client gone

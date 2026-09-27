@@ -24,8 +24,7 @@ import org.json.JSONObject
  * - **Profile** (`profiles/<id>.json`) — energy/capability surface (`phev` / `bev`);
  *   owns `detect`, `extraCapabilities`, and label (not property bindings).
  *
- * Call [forSelection] after SKU + profile detection. Legacy `properties[].entity` is still
- * parsed for tests / migration fallbacks.
+ * Call [forSelection] after SKU + profile detection.
  *
  * The aaos parent's `android` block is an **AAOS HU settings transport**
  * (Settings keys + volumeGroups) — not a product entity domain. Product ids use
@@ -37,7 +36,6 @@ data class PlatformConfig(
     val backend: String,
     val match: List<String>,
     val capabilities: Set<Capability>,
-    val variants: List<VariantDef>,
     val properties: List<PropertyDef> = emptyList(),
     val android: AndroidConfig = AndroidConfig(),
     val driveModeEnum: Map<Int, String> = emptyMap(),
@@ -68,15 +66,13 @@ data class PlatformConfig(
      * Energy / capability profile (e.g. `phev`, `bev`).
      *
      * Product property bindings come from the SKU allowlist via [forSelection]
-     * (identity: VHAL key → entity). Optional [bindings] is parsed for legacy
-     * assets but ignored at runtime.
+     * (identity: VHAL key → entity).
      */
     data class ProfileDef(
         val id: String,
         val label: String,
         val extraCapabilities: Set<Capability> = emptySet(),
         val detect: String? = null,
-        val bindings: Map<String, String> = emptyMap(),
     )
 
     data class Binding(val nativeId: Int, val areaId: Int = 0, val functionId: Int? = null)
@@ -88,7 +84,7 @@ data class PlatformConfig(
         val access: String = "r",
         val changeMode: String? = null,
         val areas: List<Int> = listOf(0),
-        /** Product binding key when a profile is applied (or legacy platform.json). */
+        /** Product binding key once a profile is applied. */
         val entity: String? = null,
         val functionId: Int? = null,
     ) {
@@ -122,14 +118,7 @@ data class PlatformConfig(
         val settings: List<AndroidSettingDef> = emptyList(),
     )
 
-    data class VariantDef(
-        val id: String,
-        val label: String,
-        val extraCapabilities: Set<Capability>,
-        val detect: String? = null,
-    )
-
-    /** Product binding key → native binding (from applied profile / legacy entity fields). */
+    /** Product binding key → native binding (from the applied profile). */
     val bindings: Map<String, Binding> by lazy {
         properties.mapNotNull { p ->
             val entity = p.entity ?: return@mapNotNull null
@@ -140,11 +129,6 @@ data class PlatformConfig(
     /** Product write allowlist (derived from [properties] with `access` `w` / `rw`). */
     val writableAllowlist: Set<Int> by lazy {
         properties.filter { it.canWrite }.map { it.id }.toSet()
-    }
-
-    fun bindingFor(prop: VehicleProperty): Pair<Int, Int>? {
-        val b = bindings[prop.key] ?: return null
-        return b.nativeId to b.areaId
     }
 
     /** Binding key → [VehicleProperty] map for session reads/writes. */
@@ -174,18 +158,6 @@ data class PlatformConfig(
 
     fun profileOrNull(id: String): ProfileDef? = profiles.firstOrNull { it.id == id }
 
-    fun skuOrNull(id: String): SkuDef? = skus.firstOrNull { it.id == id }
-
-    fun toPlatformVariant(profileId: String, skuId: String? = null): PlatformVariant {
-        val profile = profiles.firstOrNull { it.id == profileId }
-        val sku = skuId?.let { skuOrNull(it) }
-        if (profile != null) {
-            return selectionVariant(sku, profile)
-        }
-        val v = variants.firstOrNull { it.id == profileId } ?: return PlatformVariant(profileId, profileId, skuId = skuId)
-        return PlatformVariant(v.id, v.label, v.extraCapabilities, skuId = skuId)
-    }
-
     fun selectionVariant(sku: SkuDef?, profile: ProfileDef): PlatformVariant {
         val label = listOfNotNull(
             sku?.label?.takeIf { it.isNotBlank() && it != profile.label },
@@ -208,7 +180,7 @@ data class PlatformConfig(
         val profile = profiles.firstOrNull { it.id == profileId }
             ?: profiles.firstOrNull { it.id == "default" }
             ?: return this
-        val sku = skuId?.let { skuOrNull(it) }
+        val sku = skuId?.let { id -> skus.firstOrNull { it.id == id } }
         val allow = sku?.propertyKeys
         val nextProps = properties.map { p ->
             val inSku = allow == null || p.key in allow || p.key.startsWith("0x")
@@ -304,18 +276,6 @@ data class PlatformConfig(
                     val m = context.assets.open("profiles/$id.json").bufferedReader().use { it.readText() }
                     parseProfile(m)
                 }.getOrNull()
-            }.ifEmpty {
-                // Legacy: models/*.json that still carry bindings
-                skuIds.mapNotNull { id ->
-                    runCatching {
-                        val m = context.assets.open("models/$id.json").bufferedReader().use { it.readText() }
-                        parseProfile(m)
-                    }.getOrNull()
-                }
-            }.ifEmpty {
-                val bindings = cfg.properties.mapNotNull { p -> p.entity?.let { p.key to it } }.toMap()
-                if (bindings.isEmpty()) emptyList()
-                else listOf(ProfileDef(id = "default", label = cfg.displayName, bindings = bindings))
             }
 
             if (skus.isEmpty() && profiles.isEmpty()) return cfg
@@ -325,9 +285,6 @@ data class PlatformConfig(
                     listOf(SkuDef(id = "default", label = cfg.displayName, matchDevice = emptyList()))
                 },
                 profiles = profiles,
-                variants = profiles.map {
-                    VariantDef(it.id, it.label, it.extraCapabilities, it.detect)
-                },
                 properties = cfg.properties.map { it.copy(entity = null) },
             )
             val defaultSku = cleared.skus.firstOrNull()?.id
@@ -355,21 +312,11 @@ data class PlatformConfig(
                 ?.mapNotNull { runCatching { Capability.valueOf(it) }.getOrNull() }
                 ?.toSet()
                 ?: emptySet()
-            val bindings = linkedMapOf<String, String>()
-            val bObj = o.optJSONObject("bindings")
-            if (bObj != null) {
-                val keys = bObj.keys()
-                while (keys.hasNext()) {
-                    val k = keys.next()
-                    bindings[k] = bObj.getString(k)
-                }
-            }
             return ProfileDef(
                 id = o.getString("id"),
                 label = o.optString("label", o.getString("id")),
                 extraCapabilities = extra,
                 detect = if (o.has("detect")) o.optString("detect") else null,
-                bindings = bindings,
             )
         }
 
@@ -429,9 +376,7 @@ data class PlatformConfig(
             return out
         }
 
-        private val META_ARRAY_REPLACE = setOf(
-            "match", "capabilities", "variants", "writableAllowlist",
-        )
+        private val META_ARRAY_REPLACE = setOf("match", "capabilities")
 
         private fun mergeProperties(base: JSONArray, overlay: JSONArray): JSONArray {
             val byId = linkedMapOf<Int, JSONObject>()
@@ -496,33 +441,12 @@ data class PlatformConfig(
                 ?.mapNotNull { runCatching { Capability.valueOf(it) }.getOrNull() }
                 ?.toSet()
                 ?: emptySet()
-            val variants = mutableListOf<VariantDef>()
-            val vArr = root.optJSONArray("variants")
-            if (vArr != null) {
-                for (i in 0 until vArr.length()) {
-                    val o = vArr.getJSONObject(i)
-                    val extra = o.optJSONArray("extraCapabilities")?.toStringList()
-                        ?.mapNotNull { runCatching { Capability.valueOf(it) }.getOrNull() }
-                        ?.toSet()
-                        ?: emptySet()
-                    variants += VariantDef(
-                        id = o.getString("id"),
-                        label = o.optString("label", o.getString("id")),
-                        extraCapabilities = extra,
-                        detect = if (o.has("detect")) o.optString("detect") else null,
-                    )
-                }
-            }
-
             val properties = mutableListOf<PropertyDef>()
             val pArr = root.optJSONArray("properties")
             if (pArr != null) {
                 for (i in 0 until pArr.length()) {
                     properties += parseProperty(pArr.getJSONObject(i))
                 }
-            } else {
-                // Legacy: bindings + writableAllowlist (migration / FALLBACK).
-                properties += parseLegacyBindings(root)
             }
 
             val android = parseAndroid(root.optJSONObject("android"))
@@ -554,7 +478,6 @@ data class PlatformConfig(
                 backend = root.optString("backend", "vhal"),
                 match = match,
                 capabilities = caps,
-                variants = variants,
                 properties = properties,
                 android = android,
                 driveModeEnum = enumMap,
@@ -589,35 +512,6 @@ data class PlatformConfig(
                 entity = o.optString("entity", null)?.takeIf { it.isNotBlank() },
                 functionId = fn,
             )
-        }
-
-        private fun parseLegacyBindings(root: JSONObject): List<PropertyDef> {
-            val allow = mutableSetOf<Int>()
-            val aArr = root.optJSONArray("writableAllowlist")
-            if (aArr != null) {
-                for (i in 0 until aArr.length()) {
-                    allow += parseId(aArr.get(i))
-                }
-            }
-            val out = mutableListOf<PropertyDef>()
-            val bObj = root.optJSONObject("bindings") ?: return out
-            val keys = bObj.keys()
-            while (keys.hasNext()) {
-                val key = keys.next()
-                val o = bObj.getJSONObject(key)
-                val native = parseId(o.opt("nativeId") ?: o.opt("id"))
-                val area = o.optInt("areaId", 0)
-                val fn = if (o.has("functionId")) parseId(o.get("functionId")) else null
-                out += PropertyDef(
-                    id = native,
-                    key = key,
-                    access = if (native in allow) "rw" else "r",
-                    areas = listOf(area),
-                    entity = key,
-                    functionId = fn,
-                )
-            }
-            return out
         }
 
         private fun parseAndroid(obj: JSONObject?): AndroidConfig {

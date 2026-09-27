@@ -53,6 +53,8 @@ internal fun Routing.proxyRoutes(hub: HubContext) = with(hub) {
                 "user" to userPublic(user),
                 "webrtc" to mapOf("v" to OaaFrames.VERSION, "turn" to ice.turnEnabled),
                 "hub" to mapOf(
+                    "id" to identity.id,
+                    "name" to identity.name,
                     "publicNodeUrl" to HubConfig.publicNodeUrl,
                     "publicHumanUrl" to HubConfig.publicHumanUrl,
                     "nodePort" to nodePort,
@@ -104,8 +106,7 @@ internal fun Routing.proxyRoutes(hub: HubContext) = with(hub) {
         val client = EventBus.UiClient(call.nodeIdOrNull(), this)
         eventBus.attach(client)
         try {
-            client.send(JSONObject().put("t", OaaUiEvents.HELLO).put("role", OaaRoles.HUB).toString())
-            eventBus.replay(client)
+            client.offer(JSONObject().put("t", OaaUiEvents.HELLO).put("role", OaaRoles.HUB).toString())
             for (frame in incoming) {
                 if (frame is Frame.Text) answerPing(frame.readText())
             }

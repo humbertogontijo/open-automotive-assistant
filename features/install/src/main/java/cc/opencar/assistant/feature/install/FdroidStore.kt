@@ -5,9 +5,6 @@ import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
-import java.security.MessageDigest
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import java.util.zip.ZipFile
@@ -77,7 +74,7 @@ class FdroidStore(
         val seen = LinkedHashSet<String>()
         val out = ArrayList<SearchHit>(limit)
         for (future in futures) {
-            val hits = runCatching { future.get(TIMEOUT_MS.toLong(), TimeUnit.MILLISECONDS) }
+            val hits = runCatching { future.get(StoreHttp.TIMEOUT_MS.toLong(), TimeUnit.MILLISECONDS) }
                 .getOrElse {
                     Log.w(TAG, "browse future failed: ${it.message}")
                     emptyList()
@@ -93,7 +90,7 @@ class FdroidStore(
 
     private fun searchApi(query: String, limit: Int): List<SearchHit> {
         val url = "$SEARCH_API?q=${encode(query)}"
-        val root = JSONObject(httpGet(url))
+        val root = JSONObject(StoreHttp.get(url))
         val apps = root.optJSONArray("apps") ?: JSONArray()
         val out = ArrayList<SearchHit>(minOf(apps.length(), limit))
         for (i in 0 until apps.length()) {
@@ -126,7 +123,7 @@ class FdroidStore(
     fun detail(packageName: String): PackageDetail? {
         val pkg = packageName.trim()
         if (pkg.isEmpty()) return null
-        val api = JSONObject(httpGet("$PACKAGES_API/$pkg"))
+        val api = JSONObject(StoreHttp.get("$PACKAGES_API/$pkg"))
         val meta = loadIndexApp(pkg)
         val suggested = api.optLong("suggestedVersionCode", -1).takeIf { it >= 0 }
             ?: api.optJSONObject("package")?.optLong("suggestedVersionCode", -1)?.takeIf { it >= 0 }
@@ -222,12 +219,12 @@ class FdroidStore(
         val dir = installer.installDir()
         val raw = File(dir, "fdroid-$packageName-${version.versionCode}.apk")
         return try {
-            httpDownload(url, raw)
+            StoreHttp.download(url, raw)
             val expected = version.hash
             if (!expected.isNullOrBlank() &&
                 (version.hashType.isNullOrBlank() || version.hashType.equals("sha256", true))
             ) {
-                val actual = sha256(raw)
+                val actual = StoreHttp.digestHex(raw)
                 if (!actual.equals(expected, ignoreCase = true)) {
                     raw.delete()
                     return InstallOutcome(false, "SHA-256 mismatch", packageName, actual)
@@ -282,7 +279,7 @@ class FdroidStore(
             if (indexCache != null && now - indexCachedAt < INDEX_TTL_MS) return indexCache
             return try {
                 val jarFile = File(context.cacheDir, "fdroid-index-v1.jar")
-                httpDownload("$REPO_BASE/index-v1.jar", jarFile)
+                StoreHttp.download("$REPO_BASE/index-v1.jar", jarFile)
                 val json = ZipFile(jarFile).use { zip ->
                     val entry = zip.getEntry("index-v1.json")
                         ?: throw IllegalStateException("index-v1.json missing in jar")
@@ -299,63 +296,6 @@ class FdroidStore(
         }
     }
 
-    private fun httpGet(url: String): String {
-        val conn = (URL(url).openConnection() as HttpURLConnection).apply {
-            connectTimeout = TIMEOUT_MS
-            readTimeout = TIMEOUT_MS
-            requestMethod = "GET"
-            setRequestProperty("User-Agent", USER_AGENT)
-            instanceFollowRedirects = true
-        }
-        return try {
-            val code = conn.responseCode
-            val body = (if (code in 200..299) conn.inputStream else conn.errorStream)
-                ?.bufferedReader()?.use { it.readText() }
-                ?: ""
-            if (code !in 200..299) {
-                throw IllegalStateException("HTTP $code for $url: ${body.take(200)}")
-            }
-            body
-        } finally {
-            conn.disconnect()
-        }
-    }
-
-    private fun httpDownload(url: String, dest: File) {
-        dest.parentFile?.mkdirs()
-        val conn = (URL(url).openConnection() as HttpURLConnection).apply {
-            connectTimeout = TIMEOUT_MS
-            readTimeout = DOWNLOAD_TIMEOUT_MS
-            requestMethod = "GET"
-            setRequestProperty("User-Agent", USER_AGENT)
-            instanceFollowRedirects = true
-        }
-        try {
-            val code = conn.responseCode
-            if (code !in 200..299) {
-                throw IllegalStateException("HTTP $code downloading $url")
-            }
-            conn.inputStream.use { input ->
-                dest.outputStream().use { output -> input.copyTo(output) }
-            }
-        } finally {
-            conn.disconnect()
-        }
-    }
-
-    private fun sha256(file: File): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        file.inputStream().use { input ->
-            val buf = ByteArray(8192)
-            while (true) {
-                val n = input.read(buf)
-                if (n <= 0) break
-                digest.update(buf, 0, n)
-            }
-        }
-        return digest.digest().joinToString("") { "%02x".format(it) }
-    }
-
     private fun encode(s: String): String =
         java.net.URLEncoder.encode(s, Charsets.UTF_8.name())
 
@@ -364,9 +304,6 @@ class FdroidStore(
         const val REPO_BASE = "https://f-droid.org/repo"
         const val SEARCH_API = "https://search.f-droid.org/api/search_apps"
         const val PACKAGES_API = "https://f-droid.org/api/v1/packages"
-        private const val USER_AGENT = "OpenAutomotiveAssistant/0.1 (FdroidStore)"
-        private const val TIMEOUT_MS = 20_000
-        private const val DOWNLOAD_TIMEOUT_MS = 120_000
         private val INDEX_TTL_MS = TimeUnit.HOURS.toMillis(6)
 
         /** Thematic queries for the empty-store landing page (search API, not full index). */

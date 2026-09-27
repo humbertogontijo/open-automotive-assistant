@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.content.pm.Signature
 import android.util.Log
+import cc.opencar.assistant.apkdelta.ApkDelta
 import cc.opencar.assistant.feature.debug.LogRingBuffer
 import cc.opencar.assistant.feature.install.ApkInstaller
 import cc.opencar.assistant.feature.install.InstallEvents
@@ -24,6 +25,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 /**
  * Applies a hub `ota_offer`: download the artifact with the node token (resuming
  * with `Range`), verify hash, package and signing certificate, then self-install.
+ * When the offer carries a `delta` from the installed APK, the artifact is rebuilt
+ * from that patch instead, falling back to the full download on any failure.
  * Success is not reported here — the hub confirms it from the next `hello`.
  */
 internal class OtaUpdater(
@@ -64,10 +67,21 @@ internal class OtaUpdater(
             status(rolloutId, OaaOta.STATE_FAILED, error = "package mismatch (${payload.optString("package")})")
             return
         }
+        val base = nodeBaseUrl.trimEnd('/')
+        val delta = payload.optJSONObject("delta")?.let { d ->
+            val from = d.optString("from").lowercase()
+            val patchSha = d.optString("sha256").lowercase()
+            val patchPath = d.optString("path")
+            if (OaaOta.isSha256(from) && OaaOta.isSha256(patchSha) && patchPath.startsWith("/")) {
+                DeltaOffer(from, patchSha, d.optLong("size", -1), base + patchPath)
+            } else {
+                null
+            }
+        }
         if (!busy.compareAndSet(false, true)) return
         scope.launch(Dispatchers.IO) {
             try {
-                apply(rolloutId, sha, payload.optLong("size", -1), nodeBaseUrl.trimEnd('/') + path, token)
+                apply(rolloutId, sha, payload.optLong("size", -1), base + path, token, delta)
             } catch (t: Throwable) {
                 Log.w(TAG, "ota failed", t)
                 status(rolloutId, OaaOta.STATE_FAILED, error = t.message ?: t.javaClass.simpleName)
@@ -77,11 +91,21 @@ internal class OtaUpdater(
         }
     }
 
-    private fun apply(rolloutId: String, sha: String, size: Long, url: String, token: String) {
-        LogRingBuffer.append("OTA $rolloutId: downloading $sha")
+    private class DeltaOffer(val from: String, val sha256: String, val size: Long, val url: String)
+
+    private fun apply(rolloutId: String, sha: String, size: Long, url: String, token: String, delta: DeltaOffer?) {
         val dir = installer.installDir()
         val apk = File(dir, "ota-$sha.apk")
+        if (!apk.exists() && delta != null) {
+            try {
+                applyDelta(rolloutId, sha, delta, apk, token)
+            } catch (e: Exception) {
+                Log.w(TAG, "ota delta failed, downloading the full APK", e)
+                LogRingBuffer.append("OTA $rolloutId: delta failed (${e.message}), downloading the full APK")
+            }
+        }
         if (!apk.exists()) {
+            LogRingBuffer.append("OTA $rolloutId: downloading $sha")
             val part = File(dir, "ota-$sha.apk.part")
             download(rolloutId, url, token, part, size)
             if (!part.renameTo(apk)) throw IOException("rename failed")
@@ -102,6 +126,32 @@ internal class OtaUpdater(
         sessions[sessionId] = rolloutId
         LogRingBuffer.append("OTA $rolloutId: install session $sessionId committed")
         dir.listFiles()?.filter { it.name.startsWith("ota-") && it != apk }?.forEach { it.delete() }
+    }
+
+    /** Rebuild [apk] (target [sha]) from the installed APK and the offered patch. */
+    private fun applyDelta(rolloutId: String, sha: String, delta: DeltaOffer, apk: File, token: String) {
+        val base = File(context.applicationInfo.sourceDir)
+        if (installer.sha256(base) != delta.from) throw IOException("installed APK is not the delta base")
+        val dir = apk.parentFile ?: throw IOException("no install dir")
+        val patch = File(dir, "ota-${delta.sha256}.oadp")
+        val rebuilt = File(dir, "ota-$sha.apk.delta")
+        try {
+            if (!patch.exists()) {
+                LogRingBuffer.append("OTA $rolloutId: downloading delta ${delta.sha256} (${delta.size} bytes)")
+                val part = File(dir, "ota-${delta.sha256}.oadp.part")
+                download(rolloutId, delta.url, token, part, delta.size)
+                if (!part.renameTo(patch)) throw IOException("rename failed")
+            }
+            if (installer.sha256(patch) != delta.sha256) throw IOException("delta sha256 mismatch")
+            status(rolloutId, OaaOta.STATE_VERIFYING)
+            ApkDelta.apply(base, patch, rebuilt)
+            if (installer.sha256(rebuilt) != sha) throw IOException("rebuilt APK sha256 mismatch")
+            if (!rebuilt.renameTo(apk)) throw IOException("rename failed")
+            LogRingBuffer.append("OTA $rolloutId: rebuilt $sha from delta")
+        } finally {
+            patch.delete()
+            rebuilt.delete()
+        }
     }
 
     private fun download(rolloutId: String, url: String, token: String, part: File, size: Long) {

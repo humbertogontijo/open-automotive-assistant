@@ -25,7 +25,10 @@ class HubContext(
     val ice: IceConfig = IceConfig.fromEnv(),
 ) {
     val eventBus = EventBus()
+    val identity = HubIdentity(dataDir)
     val registry = NodeRegistry(dataDir)
+    val discovered = DiscoveredCars()
+    val invites = CarInvites(identity, registry, nodePort)
     val auth = AuthStore(dataDir)
     val signalRelay = WebRtcSignalRelay(registry, ice)
     val logs = LogRelay(registry)
@@ -89,7 +92,7 @@ class HubContext(
 
     /** HA Ingress identity, trusted only from the Supervisor ingress proxy. */
     private fun ApplicationCall.ingressUser(): HubUser? {
-        if (!HubConfig.isAddon || request.local.remoteHost !in HubConfig.ingressProxies) return null
+        if (!HubConfig.isAddon || request.local.remoteAddress !in HubConfig.ingressProxies) return null
         val haId = request.header(OaaHeaders.INGRESS_USER_ID)?.trim()?.takeIf { it.isNotEmpty() } ?: return null
         val name = request.header(OaaHeaders.INGRESS_USER_NAME)?.trim()?.ifBlank { haId } ?: haId
         val display = request.header(OaaHeaders.INGRESS_DISPLAY_NAME)?.trim()?.ifBlank { name } ?: name
@@ -113,11 +116,15 @@ class HubContext(
         respond(status, mapOf("ok" to false, "error" to message))
     }
 
-    /** Selected car: header, then `?node=`, then the `oaa_node` cookie. */
-    fun ApplicationCall.nodeIdOrNull(): String? =
-        request.header(OaaHeaders.NODE)?.trim()?.takeIf { it.isNotEmpty() }
-            ?: request.queryParameters["node"]?.trim()?.takeIf { it.isNotEmpty() }
+    /**
+     * Selected car: header, then `?node=`, then the `oaa_node` cookie. A present-but-blank
+     * header addresses the hub itself, overriding the cookie.
+     */
+    fun ApplicationCall.nodeIdOrNull(): String? {
+        request.header(OaaHeaders.NODE)?.let { return it.trim().takeIf { id -> id.isNotEmpty() } }
+        return request.queryParameters["node"]?.trim()?.takeIf { it.isNotEmpty() }
             ?: request.cookies[OaaCookies.NODE]?.trim()?.takeIf { it.isNotEmpty() }
+    }
 
     fun ApplicationCall.setSessionCookie(token: String) {
         response.cookies.append(

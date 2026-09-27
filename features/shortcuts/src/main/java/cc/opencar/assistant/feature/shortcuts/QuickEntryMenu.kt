@@ -31,8 +31,8 @@ class QuickEntryMenu(
     private val onOpenOaa: (section: String?) -> Unit,
     private val onExitOaa: () -> Unit,
     private val onBackgroundOaa: () -> Unit,
+    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val appContext = context.applicationContext
     private val wm = appContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private var menuRoot: LinearLayout? = null

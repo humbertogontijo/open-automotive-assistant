@@ -3,9 +3,6 @@ package cc.opencar.assistant.feature.install
 import android.content.Context
 import android.util.Log
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
-import java.security.MessageDigest
 
 /**
  * Unified store: curated extras (featured / proprietary) + F-Droid browse/search.
@@ -140,12 +137,12 @@ class AppStore(
             val resolved = extras.resolveLatest(app)
             val dir = installer.installDir()
             val raw = File(dir, "extra-${app.id}-${resolved.versionCode}.apk")
-            httpDownload(resolved.url, raw)
+            StoreHttp.download(resolved.url, raw)
             if (!resolved.hash.isNullOrBlank()) {
                 val type = resolved.hashType?.lowercase().orEmpty()
                 val actual = when {
-                    type.isBlank() || type == "sha256" -> sha256(raw)
-                    type == "md5" -> md5(raw)
+                    type.isBlank() || type == "sha256" -> StoreHttp.digestHex(raw)
+                    type == "md5" -> StoreHttp.digestHex(raw, "MD5")
                     else -> null
                 }
                 if (actual != null && !actual.equals(resolved.hash, ignoreCase = true)) {
@@ -175,43 +172,6 @@ class AppStore(
             Log.e(TAG, "install extra ${app.id}", t)
             FdroidStore.InstallOutcome(false, t.message ?: "install failed", app.packageName)
         }
-    }
-
-    private fun httpDownload(url: String, dest: File) {
-        dest.parentFile?.mkdirs()
-        val conn = (URL(url).openConnection() as HttpURLConnection).apply {
-            connectTimeout = 20_000
-            readTimeout = 180_000
-            requestMethod = "GET"
-            setRequestProperty("User-Agent", "OpenAutomotiveAssistant/0.1")
-            instanceFollowRedirects = true
-        }
-        try {
-            val code = conn.responseCode
-            if (code !in 200..299) throw IllegalStateException("HTTP $code downloading $url")
-            conn.inputStream.use { input ->
-                dest.outputStream().use { output -> input.copyTo(output) }
-            }
-        } finally {
-            conn.disconnect()
-        }
-    }
-
-    private fun sha256(file: File): String = digestHex(file, "SHA-256")
-
-    private fun md5(file: File): String = digestHex(file, "MD5")
-
-    private fun digestHex(file: File, algo: String): String {
-        val digest = MessageDigest.getInstance(algo)
-        file.inputStream().use { input ->
-            val buf = ByteArray(8192)
-            while (true) {
-                val n = input.read(buf)
-                if (n <= 0) break
-                digest.update(buf, 0, n)
-            }
-        }
-        return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
     companion object {

@@ -1,0 +1,20 @@
+/* Single stylesheet entry; esbuild bundles it into assets/app-[hash].css. */
+@import "@awesome.me/webawesome/dist/styles/themes/default.css";
+@import "@awesome.me/webawesome/dist/styles/native.css";
+@import "./palette-ha.css";
+@import "./themes.css";
+@import "./layout.css";
+@import "../ui/cards/shell.css";
+@import "../ui/cards/controls.css";
+@import "../ui/cards/sensor.css";
+@import "../ui/cards/media-player.css";
+@import "../ui/cards/climate.css";
+@import "../ui/cards/composite.css";
+@import "../ui/cards/cover.css";
+@import "../ui/cards/light.css";
+@import "../ui/cards/prefs.css";
+@import "../ui/cards/page-head.css";
+@import "../ui/dashboard.css";
+@import "../pages/shortcuts/shortcuts.css";
+@import "../ui/camera-player.css";
+@import "../ui/setup.css";

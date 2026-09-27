@@ -1,0 +1,16 @@
+/* page-head.css — co-located with page-head.js */
+.page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 0 0.3rem;
+  flex-wrap: wrap;
+}
+.page-head h1 {
+  margin: 0;
+}
+.page-head .hidden-toggle {
+  flex-shrink: 0;
+}
+.page-head .hidden-toggle wa-icon { font-size: 1.1rem; }

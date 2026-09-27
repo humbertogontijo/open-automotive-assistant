@@ -4,8 +4,6 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import android.net.wifi.WifiManager
 import android.provider.Settings
 import android.util.Log
@@ -219,34 +217,6 @@ class AndroidSettingsController(
         "paused" -> KeyEvent.KEYCODE_MEDIA_PAUSE
         "idle", "off" -> KeyEvent.KEYCODE_MEDIA_STOP
         else -> null
-    }
-
-    /** Opens the system notification-listener settings so now-playing can be read. */
-    fun openMediaListenerSettings(): Map<String, Any?> {
-        return try {
-            val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(intent)
-            mapOf("ok" to true)
-        } catch (t: Throwable) {
-            Log.w(TAG, "openMediaListenerSettings: ${t.message}")
-            mapOf("ok" to false, "error" to (t.message ?: "failed"))
-        }
-    }
-
-    /** Opens manage-write-settings for brightness control. */
-    fun openWriteSettings(): Map<String, Any?> {
-        return try {
-            val intent = Intent(
-                Settings.ACTION_MANAGE_WRITE_SETTINGS,
-                Uri.parse("package:${context.packageName}"),
-            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(intent)
-            mapOf("ok" to true)
-        } catch (t: Throwable) {
-            Log.w(TAG, "openWriteSettings: ${t.message}")
-            mapOf("ok" to false, "error" to (t.message ?: "failed"))
-        }
     }
 
     /**

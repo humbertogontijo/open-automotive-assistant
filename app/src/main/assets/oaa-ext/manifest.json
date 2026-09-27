@@ -1,0 +1,17 @@
+{
+  "manifest_version": 2,
+  "name": "OAA bridge",
+  "version": "1.0",
+  "description": "Native navigation bridge between the OAA shell and its local web UI.",
+  "browser_specific_settings": {
+    "gecko": { "id": "bridge@opencar.cc" }
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://127.0.0.1/*"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "permissions": ["nativeMessaging", "nativeMessagingFromContent", "geckoViewAddons"]
+}

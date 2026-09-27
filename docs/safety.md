@@ -9,7 +9,7 @@ Only properties with `access` `w` or `rw` in each integration's `platform.json` 
 - Dual faces (see [adr/0003-hub.md](adr/0003-hub.md)):
   - **Human** (`OAA_PORT` 8787): SPA + control APIs. Requires **hub session** after first-run admin setup (local password, HA OAuth, or HA Ingress `X-Remote-User-*` when addon). Login/setup/static assets may be public; entity writes never are.
   - **Node** (`OAA_NODE_PORT` 8788): `/api/nodes/pair` + `/api/nodes/session` only. Auth is short-lived pairing codes then opaque **node bearer tokens**. No SPA on this face.
-- HU Ktor on the car still binds LAN cleartext for the in-car WebView. **Do not** expose HU ports to the public internet.
+- HU Ktor on the car binds LAN cleartext for the in-car GeckoView UI, but every `/api/…` and `/debug…` call needs a caller ([adr/0004-car-auth.md](adr/0004-car-auth.md)): the head unit UI (per-launch key → HttpOnly session), or a browser, hub or tool paired with a 6-digit code shown **only on the head unit** (3 min, 5 attempts, confirm from the requesting address). Other apps on the head unit get the same pairing gate as LAN devices. Revoke devices from Settings → Trusted devices. **Do not** expose HU ports to the public internet.
 - Away cars: prefer **Home Assistant Cloud** → narrow HA views → hub node face (token-gated). Compose users use Cloudflare Tunnel / Caddy / Tailscale ([deploy/docker/REMOTE.md](../deploy/docker/REMOTE.md)). Never naked WAN bind without TLS.
 - Pairing codes are short-lived; node tokens grant full proxy control of a car — treat hub `/data` like HA secrets.
 - Contributor writes and sensitive debug reads require a token when Contributor mode is on; the token may appear in `/debug` HTML while that mode is enabled.

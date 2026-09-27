@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Reflective bridge to AAOS Car / CarPropertyManager so compile-time stubs are never packaged.
@@ -82,49 +83,48 @@ class CarPropertyBridge(context: Context) : AutoCloseable {
             else -> null
         }
 
+    /** propId → read path that last succeeded ([GET2] or an index into [READ_CLASSES]). */
+    private val readPath = ConcurrentHashMap<Int, Int>()
+
     fun readDetailed(propId: Int, areaId: Int): DetailedRead {
         val mgr = propertyManager ?: return DetailedRead.Unavailable
-        getProperty2?.let { method ->
-            try {
-                val result = method.invoke(mgr, propId, areaId)
-                    ?: return DetailedRead.Empty
-                return DetailedRead.Ok(extractValue(result))
-            } catch (t: Throwable) {
-                val cause = root(t)
-                if (cause is SecurityException || cause.javaClass.simpleName.contains("Security")) {
-                    return DetailedRead.Denied(extractPermission(cause.message), cause.message)
+        readPath[propId]?.let { path ->
+            val r = readVia(mgr, path, propId, areaId)
+            if (r is DetailedRead.Ok) return r
+        }
+        var lastDenied: DetailedRead.Denied? = null
+        var lastFail: String? = null
+        for (path in READ_PATHS) {
+            if ((if (path == GET2) getProperty2 else getProperty3) == null) continue
+            when (val r = readVia(mgr, path, propId, areaId)) {
+                is DetailedRead.Ok -> {
+                    readPath[propId] = path
+                    return r
                 }
-                Log.d(TAG, "get2 0x${propId.toString(16)}: ${unwrap(t)}")
+                is DetailedRead.Denied -> if (path == GET2) return r else lastDenied = r
+                is DetailedRead.Failed -> if (path != GET2) lastFail = r.message
+                DetailedRead.Empty -> if (path == GET2) return r
+                DetailedRead.Unavailable -> Unit
             }
         }
-        val classes = arrayOf(
-            java.lang.Integer::class.java,
-            java.lang.Float::class.java,
-            java.lang.Boolean::class.java,
-            java.lang.Long::class.java,
-            String::class.java,
-        )
-        val method3 = getProperty3
-        if (method3 != null) {
-            var lastDenied: DetailedRead.Denied? = null
-            var lastFail: String? = null
-            for (clazz in classes) {
-                try {
-                    val result = method3.invoke(mgr, clazz, propId, areaId) ?: continue
-                    return DetailedRead.Ok(extractValue(result))
-                } catch (t: Throwable) {
-                    val cause = root(t)
-                    if (cause is SecurityException || cause.javaClass.simpleName.contains("Security")) {
-                        lastDenied = DetailedRead.Denied(extractPermission(cause.message), cause.message)
-                    } else {
-                        lastFail = cause.message
-                    }
-                }
-            }
-            if (lastDenied != null) return lastDenied
-            if (lastFail != null) return DetailedRead.Failed(lastFail)
+        return lastDenied ?: lastFail?.let { DetailedRead.Failed(it) } ?: DetailedRead.Empty
+    }
+
+    private fun readVia(mgr: Any, path: Int, propId: Int, areaId: Int): DetailedRead = try {
+        val result = if (path == GET2) {
+            getProperty2?.invoke(mgr, propId, areaId)
+        } else {
+            getProperty3?.invoke(mgr, READ_CLASSES[path], propId, areaId)
         }
-        return DetailedRead.Empty
+        if (result == null) DetailedRead.Empty else DetailedRead.Ok(extractValue(result))
+    } catch (t: Throwable) {
+        val cause = root(t)
+        if (cause is SecurityException || cause.javaClass.simpleName.contains("Security")) {
+            DetailedRead.Denied(extractPermission(cause.message), cause.message)
+        } else {
+            if (path == GET2) Log.d(TAG, "get2 0x${propId.toString(16)}: ${unwrap(t)}")
+            DetailedRead.Failed(cause.message)
+        }
     }
 
     sealed class DetailedRead {
@@ -213,13 +213,8 @@ class CarPropertyBridge(context: Context) : AutoCloseable {
             ) { _, method, args ->
                 if (method.name == "onChangeEvent" && args != null && args.isNotEmpty()) {
                     val event = args[0] ?: return@newProxyInstance null
-                    val getPropId = event.javaClass.methods.firstOrNull {
-                        it.name == "getPropertyId" && it.parameterTypes.isEmpty()
-                    }
-                    val getValue = event.javaClass.methods.firstOrNull {
-                        it.name == "getValue" && it.parameterTypes.isEmpty()
-                    }
-                    val pid = (getPropId?.invoke(event) as? Number)?.toInt()
+                    val getValue = noArgMethod(event.javaClass, "getValue")
+                    val pid = (noArgMethod(event.javaClass, "getPropertyId")?.invoke(event) as? Number)?.toInt()
                     val value = getValue?.invoke(event)?.let { extractValue(it) }
                         ?: extractValue(event)
                     if (pid != null) onChange(pid, value)
@@ -259,12 +254,15 @@ class CarPropertyBridge(context: Context) : AutoCloseable {
         }
     }
 
-    private fun extractValue(result: Any): Any? {
-        val getValue = result.javaClass.methods.firstOrNull {
-            it.name == "getValue" && it.parameterTypes.isEmpty()
-        }
-        return getValue?.invoke(result) ?: result
-    }
+    private fun extractValue(result: Any): Any? =
+        noArgMethod(result.javaClass, "getValue")?.invoke(result) ?: result
+
+    private val noArgMethods = ConcurrentHashMap<Pair<Class<*>, String>, Any>()
+
+    private fun noArgMethod(cls: Class<*>, name: String): Method? =
+        noArgMethods.getOrPut(cls to name) {
+            cls.methods.firstOrNull { it.name == name && it.parameterTypes.isEmpty() } ?: NO_METHOD
+        } as? Method
 
     private fun root(t: Throwable): Throwable {
         var c: Throwable = if (t is InvocationTargetException) t.targetException ?: t else t
@@ -285,5 +283,15 @@ class CarPropertyBridge(context: Context) : AutoCloseable {
 
     companion object {
         private const val TAG = "OaaCarBridge"
+        private const val GET2 = -1
+        private val READ_CLASSES = arrayOf(
+            java.lang.Integer::class.java,
+            java.lang.Float::class.java,
+            java.lang.Boolean::class.java,
+            java.lang.Long::class.java,
+            String::class.java,
+        )
+        private val READ_PATHS = listOf(GET2) + READ_CLASSES.indices
+        private val NO_METHOD = Any()
     }
 }

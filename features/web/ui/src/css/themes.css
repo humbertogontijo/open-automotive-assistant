@@ -1,0 +1,103 @@
+/*
+ * Flat Home Assistant / Music Assistant surfaces per data-theme, set as Web Awesome tokens.
+ * The short legacy names (--accent, --surface, --text-muted…) are aliases of those tokens.
+ */
+:root {
+  --font: "Segoe UI Variable", "Segoe UI", Roboto, system-ui, -apple-system, sans-serif;
+  --wa-font-family-body: var(--font);
+  --wa-font-family-heading: var(--font);
+
+  /* All lengths in rem — root font-size scales with the screen (see layout.css) */
+  --touch: 2.5rem;
+  --ctrl-touch: 3.5rem;
+  --ctrl-icon: 2.75rem;
+  --icon-btn: 2.5rem;
+  --nav-w: 11rem;
+  --nav-icon: 1.35rem;
+  --nav-label: 0.95rem;
+  --card-min: 19rem;
+  /* Fallback only — live grids size rows as 2/3 of column width. */
+  --card-h: calc(var(--card-min) * 2 / 3);
+  --radius: 0.75rem;
+  --radius-sm: 0.5rem;
+  --wa-border-radius-s: 0.25rem;
+  --wa-border-radius-m: var(--radius-sm);
+  --wa-border-radius-l: var(--radius);
+  --wa-panel-border-radius: var(--radius);
+  --wa-form-control-border-radius: var(--radius-sm);
+  --wa-form-control-height: var(--touch);
+  --wa-form-control-padding-block: 0.5em;
+  --wa-form-control-toggle-size: 1.5rem;
+  --wa-content-spacing: 0.75rem;
+  --wa-shadow-blur-scale: 0;
+
+  --wa-color-brand-fill-loud: var(--ha-primary);
+  --wa-color-brand-on-loud: #fff;
+  --wa-color-warning-fill-loud: var(--ha-orange);
+  --wa-color-warning-on-loud: #1a1000;
+
+  /* Legacy aliases */
+  --bg: var(--wa-color-surface-lowered);
+  --surface: var(--wa-color-surface-default);
+  --surface-solid: var(--wa-color-surface-default);
+  --surface-2: var(--wa-color-surface-raised);
+  --surface-3: var(--wa-color-neutral-fill-normal);
+  --sidebar: var(--wa-color-surface-default);
+  --text: var(--wa-color-text-normal);
+  --text-muted: var(--wa-color-text-quiet);
+  --accent: var(--wa-color-brand-fill-loud);
+  --accent-hover: var(--wa-color-brand-on-normal);
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+  --accent-fill-soft: color-mix(in srgb, var(--accent) 35%, transparent);
+  --accent-contrast: var(--wa-color-brand-on-loud);
+  --warn: var(--wa-color-warning-fill-loud);
+  --ok: var(--wa-color-success-fill-loud);
+  --border: var(--wa-color-surface-border);
+  --border-strong: var(--wa-color-neutral-border-normal);
+  --scrim: var(--wa-color-overlay-modal);
+  --scrim-soft: color-mix(in srgb, black 35%, transparent);
+  /* Transparent rather than none: it is comma-joined with rings (`var(--shadow), 0 0 0 2px …`). */
+  --shadow: 0 0 0 0 transparent;
+  --card-border: transparent;
+
+  /* Pin / reboot-snapshot accent (distinct from the live --accent) */
+  --pin: #e6b84d;
+  --pin-soft: color-mix(in srgb, var(--pin) 16%, transparent);
+  --pin-contrast: #1a1408;
+}
+
+:root,
+[data-theme="dark"] {
+  --wa-color-surface-lowered: #111111;
+  --wa-color-surface-default: #1c1c1c;
+  --wa-color-surface-raised: #282828;
+  --wa-color-surface-border: rgba(225, 225, 225, 0.12);
+  --wa-color-text-normal: #e1e1e1;
+  --wa-color-text-quiet: #9b9b9b;
+  --wa-color-text-link: var(--wa-color-blue-60);
+}
+
+[data-theme="light"] {
+  --wa-color-surface-lowered: #fafafa;
+  --wa-color-surface-default: #ffffff;
+  --wa-color-surface-raised: #e5e5e5;
+  --wa-color-surface-border: rgba(33, 33, 33, 0.12);
+  --wa-color-text-normal: #212121;
+  --wa-color-text-quiet: #727272;
+  --wa-color-text-link: var(--wa-color-blue-40);
+  --scrim-soft: color-mix(in srgb, white 35%, transparent);
+}
+
+[data-theme="contrast"] {
+  --wa-color-surface-lowered: #000000;
+  --wa-color-surface-default: #000000;
+  --wa-color-surface-raised: #141414;
+  --wa-color-surface-border: #ffffff;
+  --wa-color-text-normal: #ffffff;
+  --wa-color-text-quiet: #e1e1e1;
+  --wa-color-text-link: var(--wa-color-blue-70);
+  --wa-color-neutral-border-normal: #ffffff;
+  --wa-color-neutral-border-loud: #ffffff;
+  --wa-form-control-border-color: #ffffff;
+  --card-border: #ffffff;
+}

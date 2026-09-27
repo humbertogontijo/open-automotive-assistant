@@ -501,6 +501,7 @@ class DvrController(
                     activeFile = file
                     segmentBytes.set(0L)
                     segmentJobStartedAt = System.currentTimeMillis()
+                    pipe.requestKeyFrame()
                 }
                 segmentBytes.set(pipe.bytesWritten())
                 val elapsed = System.currentTimeMillis() - segmentJobStartedAt
@@ -512,7 +513,7 @@ class DvrController(
                     // Continuous DVR: open the next file on the next loop iteration.
                 }
                 try {
-                    Thread.sleep(frameIntervalMs())
+                    Thread.sleep(ROTATE_CHECK_MS)
                 } catch (_: InterruptedException) {
                     break
                 }
@@ -736,13 +737,6 @@ class DvrController(
         return canon
     }
 
-    fun deleteRecording(name: String): Boolean {
-        val f = recordingFile(name) ?: return false
-        lockFileFor(f).delete()
-        metaFileFor(f).delete()
-        return f.delete()
-    }
-
     /**
      * Delete closed DVR files (and their meta/locks). Skips the active open file.
      * @return count deleted
@@ -869,13 +863,29 @@ class DvrController(
         }
     }
 
-    fun status(): Map<String, Any?> {
+    /** The fields the UI shows (mode, storage, usage, errors); cheap enough to poll every few seconds. */
+    fun summary(): Map<String, Any?> {
         val targets = storageTargets()
         val selected = targets.firstOrNull { it["id"] == storageId }
         val usage = usageOnCurrentStorage()
         return mapOf(
             "recording" to recording.get(),
             "mode" to mode,
+            "storageId" to storageId,
+            "storages" to targets,
+            "storageNote" to storageNote,
+            "policy" to mapOf("maxTotalMb" to maxTotalMb, "maxAgeDays" to maxAgeDays),
+            "usageBytes" to usage.first,
+            "usageCount" to usage.second,
+            "selectedFreeBytes" to selected?.get("freeBytes"),
+            "selectedTotalBytes" to selected?.get("totalBytes"),
+            "selectedUsableBytes" to selected?.get("usableBytes"),
+            "lastError" to lastError,
+        )
+    }
+
+    fun status(): Map<String, Any?> {
+        return summary() + mapOf(
             "format" to streamFormat,
             "cameraId" to (activeCameraId ?: "merged"),
             "merged" to true,
@@ -883,6 +893,13 @@ class DvrController(
                 "format" to streamFormat,
                 "h264" to h264?.status(),
                 "camera2Probe" to camera2ProbeReport,
+                "size" to "${mosaic.mosaicWidth()}x${mosaic.mosaicHeight()}",
+                "width" to mosaic.mosaicWidth(),
+                "height" to mosaic.mosaicHeight(),
+                "fps" to (h264?.measuredFps() ?: mosaic.sourceFps()),
+                "sourceFps" to mosaic.sourceFps(),
+                "frameIntervalMs" to frameIntervalMs(),
+                "source" to "cameras",
             ),
             "cameras" to cameras().map { src ->
                 val size = singlePreview.previewSize(src.cameraId)
@@ -895,9 +912,6 @@ class DvrController(
                     "height" to size?.second,
                 )
             },
-            "storageId" to storageId,
-            "storages" to targets,
-            "storageNote" to storageNote,
             "outputDir" to outputDir().absolutePath,
             "dvrDir" to dvrDir().absolutePath,
             "activeFile" to activeFile?.absolutePath,
@@ -921,25 +935,6 @@ class DvrController(
             "recordingStartedAt" to recordingStartedAt.takeIf { recording.get() && it > 0 },
             "segmentMaxBytes" to SEGMENT_MAX_BYTES,
             "segmentMaxMs" to SEGMENT_MAX_MS,
-            "policy" to mapOf(
-                "maxTotalMb" to maxTotalMb,
-                "maxAgeDays" to maxAgeDays,
-            ),
-            "stream" to mapOf(
-                "size" to "${mosaic.mosaicWidth()}x${mosaic.mosaicHeight()}",
-                "width" to mosaic.mosaicWidth(),
-                "height" to mosaic.mosaicHeight(),
-                "fps" to (h264?.measuredFps() ?: mosaic.sourceFps()),
-                "sourceFps" to mosaic.sourceFps(),
-                "frameIntervalMs" to frameIntervalMs(),
-                "source" to "cameras",
-            ),
-            "usageBytes" to usage.first,
-            "usageCount" to usage.second,
-            "selectedFreeBytes" to selected?.get("freeBytes"),
-            "selectedTotalBytes" to selected?.get("totalBytes"),
-            "selectedUsableBytes" to selected?.get("usableBytes"),
-            "lastError" to lastError,
             "preview" to previewStatus(),
         )
     }
@@ -1080,6 +1075,7 @@ class DvrController(
         private const val DEFAULT_MAX_AGE_DAYS = 0
         private const val SEGMENT_MAX_BYTES = 100L * 1024L * 1024L
         private const val SEGMENT_MAX_MS = 5L * 60L * 1000L
+        private const val ROTATE_CHECK_MS = 1_000L
         private const val WAKE_SLEEP_DEBOUNCE_MS = 5_000L
     }
 }
