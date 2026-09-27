@@ -45,13 +45,4 @@ internal data class HubEndpoints(val local: NodeUrl?, val public: NodeUrl?) {
         val available = order.filter { this[it] != null }
         return available.firstOrNull { it != lastFailed } ?: available.firstOrNull()
     }
-
-    companion object {
-        /** From the old ordered candidate list: the first LAN-looking entry is local, the first public-looking one public. */
-        fun fromCandidates(list: List<NodeUrl>, published: NodeUrl? = null): HubEndpoints =
-            HubEndpoints(
-                local = list.firstOrNull { it != published && !it.looksPublic },
-                public = published ?: list.firstOrNull { it.looksPublic },
-            )
-    }
 }

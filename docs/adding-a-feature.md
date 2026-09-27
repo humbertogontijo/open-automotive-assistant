@@ -48,7 +48,7 @@ Adding a visible control card usually touches:
 3. Optional pin map in [SettingsMemoryController.kt](../features/memory/src/main/java/cc/opencar/assistant/feature/memory/SettingsMemoryController.kt)
 4. Each platform’s `platform.json` property entry (`entity` binding key + `access`)
 
-For a **composite** (like `climate` or `drivetrain`), add one `EntityDef` with `bindingKey = null` and `attributes` → binding keys; keep `platform.json` entity fields as the atomic keys (`hvac_power`, `drive_mode`, …). Domain selects the card family in the web UI. See [composites.md](composites.md) for the car-native type set and Wave-1 bindings.
+For a **composite** (like `climate.cabin` or `drivetrain.vehicle`), add one `EntityDef` with `bindingKey = null` and `attributes` → binding keys; keep `platform.json` entity fields as the atomic keys (`HVAC_POWER_ON`, `DM_FUNC_DRIVE_MODE_SELECT`, …). Domain selects the card family in the web UI. See [composites.md](composites.md) for the car-native type set and Wave-1 bindings.
 
 **Camera entities** (`camera.front` / `rear` / `left` / `right`) are virtual (Camera2), not VHAL: declare roles in `platform.json` → `cameras[]` (`role` + `cameraId`), register defs in `EntityRegistry`, and let ControlCatalog merge them when DVR is available. Mosaic/live stream stays under `/api/dvr/*` — do not add a mosaic entity.
 

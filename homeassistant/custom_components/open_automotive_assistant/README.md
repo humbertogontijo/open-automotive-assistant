@@ -1,9 +1,10 @@
-# Home Assistant custom component
+# Home Assistant integration
 
-Copy `open_automotive_assistant/` into your HA `config/custom_components/` (or add this repo path as a HACS custom repository of type Integration).
+Exports car entities into Home Assistant and relays away cars to the hub over Home Assistant's public URL (Nabu Casa).
 
-1. Restart Home Assistant
-2. Settings → Devices & services → Add Integration → **Open Automotive Assistant**
-3. Enter hub host (and optional `node_id` when using a multi-car hub)
+1. Copy `open_automotive_assistant/` into your HA `config/custom_components/` (or add this repo path as a HACS custom repository of type Integration).
+2. Restart Home Assistant.
+3. Settings → Devices & services: a hub on the LAN shows up as discovered → **Add**. Otherwise Add Integration → **Open Automotive Assistant** and enter the hub host (`127.0.0.1` for the HAOS app).
+4. Paste the hub token from the hub UI → Settings → **Integration token** (admin). Set `node_id` only when adding a single car of a multi-car hub.
 
-Requires a running OAA hub (`deploy/docker` or HAOS app) or a car on the LAN. See [docs/hub.md](../../docs/hub.md).
+Requires a running OAA hub (`deploy/docker` or HAOS app) or a car on the LAN. See [docs/hub.md](../../../docs/hub.md).

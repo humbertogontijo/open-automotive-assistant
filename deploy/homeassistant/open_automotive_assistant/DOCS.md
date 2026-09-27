@@ -17,14 +17,17 @@ The app runs with host networking so it can see the cars' mDNS announcements.
 
 ## Cars away from home (Nabu Casa)
 
-Cars keep their link to the hub over Home Assistant Cloud:
+Cars keep their link to the hub over Home Assistant's public URL. Nabu Casa only forwards Home Assistant itself, so the **Open Automotive Assistant integration** relays the cars to this app.
 
-1. Enable Nabu Casa **Remote access**.
-2. Install the HACS integration (`homeassistant/custom_components/open_automotive_assistant`) and add the hub with its system token (hub UI as admin → `GET /api/auth/system-token`).
+1. Enable Nabu Casa **Remote access** (Settings → Home Assistant Cloud), then restart this app. At start it reads Home Assistant's Nabu Casa URL (else its external URL) and publishes it to cars. To use another URL (e.g. your own domain in front of Home Assistant), set the `public_node_url` option; it wins over the detected one.
+2. Install the integration:
+   1. Copy the `open_automotive_assistant` folder from [`homeassistant/custom_components`](https://github.com/humbertogontijo/open-automotive-assistant/tree/main/homeassistant/custom_components) in the repository into `/config/custom_components/` (with the Samba share, File editor or SSH app).
+   2. Restart Home Assistant.
+3. Add the hub: Settings → Devices & services shows **Open Automotive Assistant** as discovered → **Add**. When it asks for the token, open this app's UI → Settings → **Integration token** → **Show and copy**, and paste it. (If it is not discovered: Add integration → Open Automotive Assistant, host `127.0.0.1`.)
 
-The integration reports your Nabu Casa URL to the hub, and the hub hands it to every car: at pairing, and each time a car connects, so cars paired before still pick it up. Pair at home as usual; nothing else to configure.
+Cars get the public URL at pairing and each time they connect, so cars paired before still pick it up. Pair at home as usual.
 
-To pin a URL instead (e.g. your own domain in front of Home Assistant), set the `public_node_url` option. It wins over the reported one.
+To check it: Fleet → **Away from home** shows the URL away cars dial (or a warning when there is none), and each online car says whether it is connected over the local network or the public URL.
 
 ## Remote Cameras (WebRTC)
 
@@ -44,6 +47,6 @@ See [docs/webrtc.md](../../../docs/webrtc.md).
 - The app runs the same image as docker compose (`deploy/docker/Dockerfile`), published to GHCR by `publish-hub.yml`.
 - Persist pairing state under `/data`
 - Do not expose port 8787 to the public internet (see [docs/safety.md](../../../docs/safety.md))
-- For entity export into HA automations, install the HACS custom component under `homeassistant/custom_components/open_automotive_assistant`
+- The same integration (see "Cars away from home") exports car entities into HA automations
 
 Full docs: [docs/hub.md](../../../docs/hub.md)

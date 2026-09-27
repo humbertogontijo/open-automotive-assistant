@@ -124,7 +124,7 @@ Modes: `off` / `manual` / `auto` from power+auto (no house HVAC heat/cool/fan_on
 
 **AAOS:** `MIRROR_*` @ `VehicleAreaMirror`
 
-Keep atomics (`switch.mirror_fold`, …) until aim POS/MOVE needs a card; then `mirror.*` — not `cover`.
+Keep atomics (`MIRROR_FOLD`, …) until aim POS/MOVE needs a card; then `mirror.*` — not `cover`.
 
 ### `fan` + `seat`
 

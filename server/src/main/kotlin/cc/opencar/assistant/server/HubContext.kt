@@ -16,7 +16,6 @@ import io.ktor.websocket.Frame
 import io.ktor.websocket.WebSocketSession
 import org.json.JSONObject
 import java.io.File
-import java.util.logging.Logger
 
 /** Hub components plus the per-call helpers every route file shares. */
 class HubContext(
@@ -24,12 +23,12 @@ class HubContext(
     val humanPort: Int = OaaPorts.HUMAN_DEFAULT,
     val nodePort: Int = OaaPorts.NODE_DEFAULT,
     val ice: IceConfig = IceConfig.fromEnv(),
+    val publicNode: PublicNode = PublicNode(),
 ) {
     val eventBus = EventBus()
     val identity = HubIdentity(dataDir)
     val registry = NodeRegistry(dataDir)
     val discovered = DiscoveredCars()
-    val publicNode = PublicNode(dataDir)
     val invites = CarInvites(identity, registry, nodePort, publicNode)
     val auth = AuthStore(dataDir)
     val signalRelay = WebRtcSignalRelay(registry, ice)
@@ -84,16 +83,8 @@ class HubContext(
         "publicNode" to mapOf(
             "url" to publicNode.url,
             "dialUrl" to publicNode.dialUrl,
-            "source" to publicNode.source,
         ),
     )
-
-    /** Tell every connected car where to dial when away; call after [PublicNode.report] changed it. */
-    suspend fun broadcastPublicNode() {
-        val frame = publicNode.frame()
-        val sent = registry.all().count { registry.session(it.id)?.send(frame) == true }
-        log.info("public node URL -> ${publicNode.dialUrl ?: "none"} (${publicNode.source ?: "unset"}), sent to $sent connected car(s)")
-    }
 
     // --- per-call helpers ---
 
@@ -168,10 +159,6 @@ class HubContext(
         "displayName" to u.displayName,
         "role" to u.role.wire,
     )
-
-    private companion object {
-        val log: Logger = Logger.getLogger("oaa.hub")
-    }
 }
 
 /** Answer `{"type":"ping"}` from a viewer socket; true when [text] was a ping. */

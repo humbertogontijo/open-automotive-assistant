@@ -2,7 +2,9 @@ package cc.opencar.assistant.feature.web
 
 import cc.opencar.assistant.feature.web.HubEndpoints.Via
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HubEndpointsTest {
@@ -31,12 +33,10 @@ class HubEndpointsTest {
     }
 
     @Test
-    fun oldCandidateListsSplitIntoLocalAndPublic() {
-        assertEquals(HubEndpoints(lan, cloud), HubEndpoints.fromCandidates(listOf(cloud, lan)))
-        assertEquals(HubEndpoints(lan, null), HubEndpoints.fromCandidates(listOf(lan)))
-        val tunnel = NodeUrl("https://oaa.example.com")
-        assertEquals(HubEndpoints(null, tunnel), HubEndpoints.fromCandidates(listOf(tunnel)))
-        assertEquals(HubEndpoints(lan, cloud), HubEndpoints.fromCandidates(listOf(lan, tunnel), published = cloud))
+    fun bridgedOrTlsUrlsLookPublic() {
+        assertFalse(lan.looksPublic)
+        assertTrue(cloud.looksPublic)
+        assertTrue(NodeUrl("https://oaa.example.com").looksPublic)
     }
 
     @Test

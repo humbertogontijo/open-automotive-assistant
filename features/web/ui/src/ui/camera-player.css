@@ -42,7 +42,7 @@ wa-card.camera-player::part(body) {
   background: #000;
   border-radius: var(--radius);
   overflow: hidden;
-  border: 1px solid var(--border);
+  border: 1px solid var(--wa-color-surface-border);
 }
 .camera-preview-wrap .preview {
   position: absolute;
@@ -63,7 +63,7 @@ wa-card.camera-player::part(body) {
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.45);
-  color: var(--text, #fff);
+  color: var(--wa-color-text-normal);
   font-size: 0.95rem;
   pointer-events: none;
   z-index: 2;
@@ -94,7 +94,7 @@ wa-card.camera-player::part(body) {
   margin-top: 0.3rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.72rem;
-  color: var(--text-muted);
+  color: var(--wa-color-text-quiet);
   font-variant-numeric: tabular-nums;
 }
 .camera-timeline-axis-lab {
@@ -115,7 +115,7 @@ wa-card.camera-player::part(body) {
 .camera-timeline-axis-lab.end {
   transform: translateX(-100%);
   font-weight: 650;
-  color: var(--text);
+  color: var(--wa-color-text-normal);
 }
 .camera-transport {
   display: flex;
@@ -159,7 +159,7 @@ wa-card.camera-player::part(body) {
   opacity: 0.55;
 }
 .camera-timeline-track:focus-visible {
-  box-shadow: 0 0 0 2px var(--accent);
+  box-shadow: 0 0 0 2px var(--wa-color-brand-fill-loud);
   border-radius: 4px;
 }
 .camera-timeline-rail {
@@ -170,8 +170,8 @@ wa-card.camera-player::part(body) {
   height: 1.15rem;
   margin-top: -0.575rem;
   border-radius: 3px;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
+  border: 1px solid var(--wa-color-surface-border);
+  background: var(--wa-color-surface-raised);
   pointer-events: none;
 }
 .camera-timeline-ticks {
@@ -189,14 +189,14 @@ wa-card.camera-player::part(body) {
   top: 0;
   bottom: 0;
   border-radius: 2px;
-  background: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--wa-color-brand-fill-loud) 45%, transparent);
 }
 .camera-timeline-cut-mask {
   position: absolute;
   top: 50%;
   height: 1.15rem;
   margin-top: -0.575rem;
-  background: var(--scrim);
+  background: var(--wa-color-overlay-modal);
   pointer-events: none;
   z-index: 2;
 }
@@ -209,7 +209,7 @@ wa-card.camera-player::part(body) {
   height: 1.55rem;
   margin-top: -0.775rem;
   background: var(--accent-fill-soft);
-  border: 1px solid var(--accent);
+  border: 1px solid var(--wa-color-brand-fill-loud);
   border-radius: 3px;
   box-sizing: border-box;
   cursor: grab;
@@ -228,7 +228,7 @@ wa-card.camera-player::part(body) {
   padding: 0;
   border: 0;
   border-radius: 3px;
-  background: var(--accent);
+  background: var(--wa-color-brand-fill-loud);
   box-shadow: 0 0 0 1px var(--scrim-soft);
   cursor: ew-resize;
   touch-action: none;
@@ -250,7 +250,7 @@ wa-card.camera-player::part(body) {
   width: 2px;
   height: 0.7rem;
   margin: -0.35rem 0 0 -1px;
-  background: var(--scrim);
+  background: var(--wa-color-overlay-modal);
   border-radius: 1px;
 }
 .camera-timeline-track.is-cutting .camera-timeline-playhead {
@@ -264,7 +264,7 @@ wa-card.camera-player::part(body) {
   height: 1.55rem;
   margin-top: -0.775rem;
   margin-left: -1.5px;
-  background: var(--ok, #2f9e44);
+  background: var(--wa-color-success-fill-loud);
   border-radius: 1px;
   pointer-events: none;
   z-index: 2;
@@ -278,8 +278,8 @@ wa-card.camera-player::part(body) {
     -45deg,
     transparent,
     transparent 4px,
-    var(--border-strong) 4px,
-    var(--border-strong) 5px
+    var(--wa-color-neutral-border-normal) 4px,
+    var(--wa-color-neutral-border-normal) 5px
   );
   opacity: 0.7;
   pointer-events: none;
@@ -314,7 +314,7 @@ wa-card.camera-player::part(body) {
 .camera-timeline-axis-lab.live {
   transform: translateX(-50%);
   font-weight: 650;
-  color: var(--ok, #2f9e44);
+  color: var(--wa-color-success-fill-loud);
 }
 .camera-timeline-playhead {
   position: absolute;
@@ -324,7 +324,7 @@ wa-card.camera-player::part(body) {
   height: 2.15rem;
   margin-top: -1.075rem;
   margin-left: -1.5px;
-  background: var(--text);
+  background: var(--wa-color-text-normal);
   border-radius: 1px;
   box-shadow: 0 0 0 1px var(--scrim-soft);
   pointer-events: none;
@@ -337,9 +337,9 @@ wa-card.camera-player::part(body) {
   transform: translate(-50%, -100%);
   padding: 0.2rem 0.45rem;
   border-radius: 4px;
-  background: var(--surface, #1a1a1a);
-  border: 1px solid var(--border);
-  color: var(--text);
+  background: var(--wa-color-surface-default);
+  border: 1px solid var(--wa-color-surface-border);
+  color: var(--wa-color-text-normal);
   font-size: 0.78rem;
   white-space: nowrap;
   pointer-events: none;

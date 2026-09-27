@@ -1,6 +1,6 @@
 /* climate.css — cabin HVAC card */
 .climate-card.is-on .ctrl-icon {
-  color: var(--accent);
+  color: var(--wa-color-brand-fill-loud);
 }
 
 /* Airflow direction select, then the A/C and recirculation icon toggles. */
@@ -15,5 +15,5 @@
 }
 .climate-body .slider-row > wa-icon {
   font-size: 1.5rem;
-  color: var(--text-muted);
+  color: var(--wa-color-text-quiet);
 }

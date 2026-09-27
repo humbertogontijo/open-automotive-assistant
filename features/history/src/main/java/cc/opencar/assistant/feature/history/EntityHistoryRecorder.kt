@@ -59,9 +59,8 @@ class EntityHistoryRecorder(
         Sample("sensor.range_ev", "home", "sensor", r0(snap.rangeEvKm)),
         Sample("sensor.range_fuel", "home", "sensor", r0(snap.rangeFuelKm)),
         Sample("sensor.odometer", "home", "sensor", r0(snap.odometerKm)),
-        // Prefer raw enum token so the UI can valueMap → i18n.
-        // Fall back to legacy label keys (opt.drive_mode.*) already in DB.
-        Sample("drivetrain.vehicle", "drive", "drivetrain", snap.extras["driveModeRaw"] ?: snap.driveMode),
+        // Raw enum token so the UI can valueMap → i18n.
+        Sample("drivetrain.vehicle", "drive", "drivetrain", snap.extras["driveModeRaw"]),
         Sample("climate.cabin", "controls", "climate", r1(snap.hvacTempC)),
         Sample("sensor.temp_ambient", "controls", "climate", r0(snap.tempAmbientC)),
         Sample("sensor.battery_temp", "energy", "energy", r0(snap.batteryTempC)),

@@ -1,5 +1,5 @@
 .ctrl-meta h3 {
-  margin: 0; font-size: 1.1rem; font-weight: 650; color: var(--text);
+  margin: 0; font-size: 1.1rem; font-weight: 650; color: var(--wa-color-text-normal);
   letter-spacing: -0.01em; text-transform: none;
   line-height: 1.25;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
@@ -15,7 +15,7 @@
   height: auto;
   min-height: 0;
   box-sizing: border-box;
-  background: var(--surface-solid);
+  background: var(--wa-color-surface-default);
   border: 1px solid var(--card-border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
@@ -39,8 +39,8 @@
 .ctrl-icon {
   grid-row: 1 / span 2;
   width: var(--ctrl-icon); height: var(--ctrl-icon); border-radius: 1rem;
-  background: var(--surface-2); border: 1px solid var(--border);
-  display: grid; place-items: center; flex-shrink: 0; color: var(--accent);
+  background: var(--wa-color-surface-raised); border: 1px solid var(--wa-color-surface-border);
+  display: grid; place-items: center; flex-shrink: 0; color: var(--wa-color-brand-fill-loud);
 }
 .ctrl-icon wa-icon { font-size: calc(var(--ctrl-icon) * 0.55); }
 /* Live state in the icon slot (e.g. the drivetrain gear letter). */
@@ -59,7 +59,7 @@
   align-self: stretch;
 }
 .ctrl-meta .hint {
-  margin: 0; font-size: 0.82rem; color: var(--text-muted); line-height: 1.35;
+  margin: 0; font-size: 0.82rem; color: var(--wa-color-text-quiet); line-height: 1.35;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .ctrl-meta .acronym {
@@ -121,7 +121,7 @@
 
 .lock-note {
   font-size: 0.82rem;
-  color: var(--warn);
+  color: var(--wa-color-warning-fill-loud);
   text-align: right;
   margin: 0 0 0.25rem;
   line-height: 1.2;

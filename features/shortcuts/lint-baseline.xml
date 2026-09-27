@@ -19,7 +19,7 @@
         errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/cc/opencar/assistant/feature/shortcuts/FloatChipQuickEntry.kt"
-            line="160"
+            line="153"
             column="21"/>
     </issue>
 
@@ -30,7 +30,7 @@
         errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/cc/opencar/assistant/feature/shortcuts/QuickEntryMenu.kt"
-            line="162"
+            line="155"
             column="21"/>
     </issue>
 
@@ -74,7 +74,7 @@
         errorLine2="                                  ~~~~~~~~~~~~~">
         <location
             file="src/main/java/cc/opencar/assistant/feature/shortcuts/FloatChipQuickEntry.kt"
-            line="160"
+            line="153"
             column="35"/>
     </issue>
 
@@ -85,7 +85,7 @@
         errorLine2="                                         ~~~~~~~~~~~~~">
         <location
             file="src/main/java/cc/opencar/assistant/feature/shortcuts/QuickEntryMenu.kt"
-            line="162"
+            line="155"
             column="42"/>
     </issue>
 
@@ -96,30 +96,8 @@
         errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/cc/opencar/assistant/feature/shortcuts/FloatChipQuickEntry.kt"
-            line="183"
+            line="176"
             column="34"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 30"
-        errorLine1="        val type = if (Build.VERSION.SDK_INT >= 26) {"
-        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/cc/opencar/assistant/feature/shortcuts/FloatChipQuickEntry.kt"
-            line="69"
-            column="24"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 30"
-        errorLine1="        val type = if (Build.VERSION.SDK_INT >= 26) {"
-        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/cc/opencar/assistant/feature/shortcuts/QuickEntryMenu.kt"
-            line="132"
-            column="24"/>
     </issue>
 
     <issue
@@ -129,7 +107,7 @@
         errorLine2="                                ^">
         <location
             file="src/main/java/cc/opencar/assistant/feature/shortcuts/FloatChipQuickEntry.kt"
-            line="116"
+            line="109"
             column="33"/>
     </issue>
 

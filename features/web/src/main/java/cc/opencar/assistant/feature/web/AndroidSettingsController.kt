@@ -32,10 +32,7 @@ class AndroidSettingsController(
         get() = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
 
     private val bluetooth: BluetoothAdapter?
-        get() {
-            val mgr = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
-            return mgr?.adapter ?: @Suppress("DEPRECATION") BluetoothAdapter.getDefaultAdapter()
-        }
+        get() = (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
 
     private val mediaGroupId: Int =
         volumeGroups.firstOrNull { it.keyWritable }?.groupId

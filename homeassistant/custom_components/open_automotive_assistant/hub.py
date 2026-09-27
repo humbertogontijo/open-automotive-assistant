@@ -56,17 +56,6 @@ class OaaHubClient:
             data = await resp.json()
             return (data or {}).get("nodes") or []
 
-    async def report_public_node(self, url: str, session_path: str) -> dict[str, Any]:
-        """Hub only (admin token): publish where away cars dial the node face."""
-        async with self._session.post(
-            f"{self._base}/api/nodes/public-url",
-            headers=self._headers(None),
-            json={"url": url, "sessionPath": session_path},
-            timeout=15,
-        ) as resp:
-            resp.raise_for_status()
-            return await resp.json()
-
     async def set_entity(
         self,
         entity_id: str,

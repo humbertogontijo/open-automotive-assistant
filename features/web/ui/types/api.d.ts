@@ -93,29 +93,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/nodes/public-url": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Report the public node URL cars dial when away (hub only, admin)
-         * @description Sent by the Home Assistant component with its Nabu Casa (or external) URL.
-         *     `OAA_PUBLIC_NODE_URL` still wins when set. When the effective endpoint
-         *     changes, connected cars get a `public_node` frame. `url` omitted or empty
-         *     clears the reported URL.
-         */
-        post: operations["reportPublicNodeUrl"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/nodes/pair": {
         parameters: {
             query?: never;
@@ -615,16 +592,11 @@ export interface components {
         };
         Fleet: {
             nodes?: components["schemas"]["NodeSummary"][];
-            /** @description The public node endpoint the hub hands cars (all null when there is none) */
+            /** @description The public node endpoint the hub hands cars (`OAA_PUBLIC_NODE_URL`; all null when unset) */
             publicNode?: {
                 url?: string | null;
                 /** @description What to type on a car for manual pairing (url plus any bridge prefix) */
                 dialUrl?: string | null;
-                /**
-                 * @description `env`: the app's public_node_url option; `reported`: sent by the Home Assistant integration
-                 * @enum {string|null}
-                 */
-                source?: "env" | "reported" | null;
             };
         };
         NodeSummary: {
@@ -1197,55 +1169,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PairingOffer"];
                 };
-            };
-        };
-    };
-    reportPublicNodeUrl: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** Format: uri */
-                    url?: string;
-                    /** @description Session path on `url` (default `/api/nodes/session`) */
-                    sessionPath?: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Effective public node endpoint */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        ok?: boolean;
-                        publicNodeUrl?: string | null;
-                        sessionPath?: string;
-                        /** @enum {string|null} */
-                        source?: "env" | "reported" | null;
-                    };
-                };
-            };
-            /** @description Invalid JSON or non-http(s) URL */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Admin required */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };

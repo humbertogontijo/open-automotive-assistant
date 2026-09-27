@@ -251,7 +251,6 @@ class AssistantService : Service() {
     }
 
     private fun ensureChannel() {
-        if (Build.VERSION.SDK_INT < 26) return
         val mgr = getSystemService(NotificationManager::class.java)
         mgr.createNotificationChannel(
             NotificationChannel(CHANNEL_ID, "Open Automotive Assistant", NotificationManager.IMPORTANCE_LOW),
@@ -268,12 +267,7 @@ class AssistantService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val contentPi = shortcuts?.notificationContentIntent(this) ?: openPi
-        val builder = if (Build.VERSION.SDK_INT >= 26) {
-            Notification.Builder(this, CHANNEL_ID)
-        } else {
-            @Suppress("DEPRECATION")
-            Notification.Builder(this)
-        }
+        val builder = Notification.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.app_name))
             .setContentText(getString(R.string.service_notification))
             .setSmallIcon(R.drawable.ic_stat_oaa)

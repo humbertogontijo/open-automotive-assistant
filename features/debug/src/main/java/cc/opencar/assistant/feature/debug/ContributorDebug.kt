@@ -1,7 +1,7 @@
 package cc.opencar.assistant.feature.debug
 
 import android.content.Context
-import android.net.wifi.WifiManager
+import android.net.ConnectivityManager
 import android.os.Build
 import android.provider.Settings
 import kotlinx.coroutines.channels.BufferOverflow
@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.net.Inet4Address
 import java.util.UUID
 import java.util.concurrent.ConcurrentLinkedDeque
 import java.util.zip.ZipEntry
@@ -64,22 +65,13 @@ class ContributorDebugState(context: Context) {
         return provided != null && provided == token
     }
 
-    fun wifiIp(): String {
-        return try {
-            val wm = appContext.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-            @Suppress("DEPRECATION")
-            val ip = wm.connectionInfo.ipAddress
-            String.format(
-                "%d.%d.%d.%d",
-                ip and 0xff,
-                ip shr 8 and 0xff,
-                ip shr 16 and 0xff,
-                ip shr 24 and 0xff,
-            )
-        } catch (_: Exception) {
-            "unknown"
-        }
-    }
+    fun wifiIp(): String = runCatching {
+        val cm = appContext.getSystemService(ConnectivityManager::class.java)
+        cm.getLinkProperties(cm.activeNetwork)?.linkAddresses
+            ?.map { it.address }
+            ?.firstOrNull { it is Inet4Address && !it.isLoopbackAddress }
+            ?.hostAddress
+    }.getOrNull() ?: "unknown"
 
     fun adbHint(port: Int = 5566): String = "adb connect ${wifiIp()}:$port"
 

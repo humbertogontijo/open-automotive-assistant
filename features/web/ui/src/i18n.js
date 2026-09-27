@@ -67,10 +67,6 @@ export function entityValueLabel(c, raw) {
   const value = raw !== undefined ? raw : c.value != null ? c.value : c.state;
   if (value == null || value === "") return "";
 
-  // Telemetry/history sometimes store i18n keys (opt.drive_mode.2) instead of raw ints.
-  const asKey = String(value);
-  if (hasKey(asKey)) return t(asKey);
-
   const opts = c.options;
   if (Array.isArray(opts) && opts.length) {
     const hit = opts.find(function (o) {

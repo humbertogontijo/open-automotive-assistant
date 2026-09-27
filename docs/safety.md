@@ -61,7 +61,7 @@ Web UI setup (`/api/setup/actions/*`): request runtime permissions and show host
 
 ### Camera note
 
-Live and DVR share one GPU path: camera `SurfaceTexture` → GLES mosaic → HW `MediaCodec` H.264. Live is HLS (CMAF) on the car's LAN and a pass-through H.264 WebRTC track via the hub; recordings are `MediaMuxer` `.mp4` (restreamed as fMP4 over the WebRTC data channel for remote playback). Legacy `.mjpeg` / `.seg` files remain readable if present.
+Live and DVR share one GPU path: camera `SurfaceTexture` → GLES mosaic → HW `MediaCodec` H.264. Live is HLS (CMAF) on the car's LAN and a pass-through H.264 WebRTC track via the hub; recordings are `MediaMuxer` `.mp4` (restreamed as fMP4 over the WebRTC data channel for remote playback).
 
 ## Multi-app VHAL writers
 

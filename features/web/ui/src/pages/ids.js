@@ -1,13 +1,13 @@
 /**
  * Page table: every routable id, the element that renders it, and how it loads.
- * `alias` pages render their target; `load` pages ship as separate chunks fetched on first entry.
+ * `load` pages ship as separate chunks fetched on first entry.
  */
 
 import { appUrl, stripBase } from "../base.js";
 
 /** @typedef {{ tag: string, group?: string, load?: () => Promise<unknown> }} PageDef */
 
-/** @type {Record<string, PageDef | { alias: string }>} */
+/** @type {Record<string, PageDef>} */
 const PAGES = {
   home: { tag: "oaa-page-home" },
   fleet: { tag: "oaa-page-fleet" },
@@ -23,25 +23,19 @@ const PAGES = {
   connect: { tag: "oaa-page-connect" },
   vehicle: { tag: "oaa-page-group", group: "vehicle" },
   cameras: { tag: "oaa-page-cameras", load: () => import("./cameras.js") },
-  dvr: { alias: "cameras" },
   store: { tag: "oaa-page-store" },
   shortcuts: { tag: "oaa-page-shortcuts", load: () => import("./shortcuts.js") },
   plugins: { tag: "oaa-page-plugins" },
   settings: { tag: "oaa-page-settings", load: () => import("./settings.js") },
-  system: { alias: "settings" },
-  climate: { alias: "controls" },
-  cabin: { alias: "controls" },
-  safety: { alias: "adas" },
   lab: { tag: "oaa-page-lab", load: () => import("./lab.js") },
   about: { tag: "oaa-page-about" },
 };
 
 export const PAGE_IDS = Object.keys(PAGES);
 
-/** Definition behind a page id, aliases followed; unknown ids resolve to home. @returns {PageDef} */
+/** Definition behind a page id; unknown ids resolve to home. @returns {PageDef} */
 export function pageDef(id) {
-  const p = (id && PAGES[id]) || PAGES.home;
-  return /** @type {PageDef} */ ("alias" in p ? PAGES[p.alias] : p);
+  return (id && PAGES[id]) || PAGES.home;
 }
 
 export function isKnownPage(id) {

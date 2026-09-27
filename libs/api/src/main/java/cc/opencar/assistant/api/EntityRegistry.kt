@@ -7,7 +7,6 @@ package cc.opencar.assistant.api
  *   (e.g. `MIRROR_FOLD`, `PERF_VEHICLE_SPEED`) so provenance is obvious.
  * - **Composite / multi-area:** HA-shaped ids (`climate.cabin`, `cover.window_driver`);
  *   [attributes] map semantic names → VHAL property keys.
- * - Legacy ids live in [aliases] and resolve via [resolve].
  *
  * [group] = nav page; [section] = subsection within that page (not HA domain).
  */
@@ -44,8 +43,6 @@ data class EntityDef(
     val max: Float? = null,
     val step: Float? = null,
     val history: Boolean = false,
-    /** Legacy product ids redirected here (e.g. hvac_power → climate.cabin). */
-    val aliases: Set<String> = emptySet(),
     /**
      * Preferred VHAL area for instanced covers (`cover.window_driver`, `cover.sunroof`, …).
      */
@@ -136,11 +133,6 @@ object EntityRegistry {
         ),
         input = "choice",
         valueMapId = "drive_mode",
-        aliases = setOf(
-            "drivetrain",
-            "gear", "drive_mode", "regen",
-            "battery_hold", "battery_save", "battery_mode",
-        ),
         icon = "drive_mode",
         history = true,
         lastKnown = true,
@@ -161,11 +153,6 @@ object EntityRegistry {
             "parking_brake" to "PARKING_BRAKE_ON",
         ),
         input = "bool",
-        aliases = setOf(
-            "chassis",
-            "brake_pedal", "brake_pedal_mode", "esc_sport", "hdc", "auto_hold",
-            "epb", "parking_brake",
-        ),
         icon = "brake",
         lastKnown = true,
     )
@@ -189,11 +176,6 @@ object EntityRegistry {
             "opt.steer_assist_level.3" to 3,
         ),
         valueMapId = "steer_assist_level",
-        aliases = setOf(
-            "steering",
-            "steer_assist_level", "steer_sync_drive_mode", "intelligent_steer",
-            "wheel_custom_key", "steer_soft", "steer_medium", "steer_heavy",
-        ),
         icon = "steer",
         lastKnown = true,
     )
@@ -223,14 +205,6 @@ object EntityRegistry {
             "external_light" to "CHARGE_FUNC_EXTERNAL_CHARGING_LIGHT",
         ),
         input = "bool",
-        aliases = setOf(
-            "charger",
-            "charge_plug", "charge_current", "charge_limit", "charge_switch", "charge_pre_now",
-            "charge_soc_max", "charge_soc_min", "charge_discharge_soc",
-            "charge_v2l", "charge_v2v", "charge_parking",
-            "charge_estimated_time", "charge_energy", "charge_work_current", "charge_work_voltage",
-            "charge_external_light",
-        ),
         icon = "charge",
         history = true,
         lastKnown = true,
@@ -249,10 +223,6 @@ object EntityRegistry {
             "hybrid_soc" to "HYBRID_FUNC_BATTERY_SOC",
         ),
         input = "sensor",
-        aliases = setOf(
-            "ev_battery",
-            "ev_battery_percent", "ev_battery_level_raw", "battery_temp_c", "hybrid_soc",
-        ),
         icon = "battery",
         history = true,
         writable = false,
@@ -271,10 +241,6 @@ object EntityRegistry {
             "angle" to "SETTING_FUNC_HUD_ANGLE_ADJUST",
         ),
         input = "bool",
-        aliases = setOf(
-            "hud",
-            "hud_active", "hud_snow", "hud_ar", "hud_display_mode", "hud_angle",
-        ),
         icon = "hud",
         lastKnown = true,
     )
@@ -294,10 +260,6 @@ object EntityRegistry {
             "opt.ambience_main_color.3" to 3,
             "opt.ambience_main_color.4" to 4,
         ),
-        aliases = setOf(
-            "light",
-            "ambience_main_color", "ambience_intensity", "ambient_light",
-        ),
         icon = "light",
         lastKnown = true,
         min = 0f,
@@ -313,7 +275,6 @@ object EntityRegistry {
         bindingKey = "WINDOW_POS",
         areaId = AREA_WINDOW_ROW_1_LEFT,
         deviceClass = DeviceClass.WINDOW,
-        aliases = setOf("window.driver", "window_driver"),
         icon = "window",
     )
     val COVER_WINDOW_PASSENGER = cover(
@@ -321,7 +282,6 @@ object EntityRegistry {
         bindingKey = "WINDOW_POS",
         areaId = AREA_WINDOW_ROW_1_RIGHT,
         deviceClass = DeviceClass.WINDOW,
-        aliases = setOf("window.passenger", "window_passenger"),
         icon = "window",
     )
     val COVER_WINDOW_REAR_LEFT = cover(
@@ -329,7 +289,6 @@ object EntityRegistry {
         bindingKey = "WINDOW_POS",
         areaId = AREA_WINDOW_ROW_2_LEFT,
         deviceClass = DeviceClass.WINDOW,
-        aliases = setOf("window.rear_left", "window_rear_left"),
         icon = "window",
     )
     val COVER_WINDOW_REAR_RIGHT = cover(
@@ -337,7 +296,6 @@ object EntityRegistry {
         bindingKey = "WINDOW_POS",
         areaId = AREA_WINDOW_ROW_2_RIGHT,
         deviceClass = DeviceClass.WINDOW,
-        aliases = setOf("window.rear_right", "window_rear_right"),
         icon = "window",
     )
     val COVER_SUNROOF = cover(
@@ -345,7 +303,6 @@ object EntityRegistry {
         bindingKey = "WINDOW_POS",
         areaId = AREA_WINDOW_ROOF_TOP,
         deviceClass = DeviceClass.WINDOW,
-        aliases = setOf("sunroof"),
         icon = "window",
     )
     val COVER_SUNSHADE = cover(
@@ -353,7 +310,6 @@ object EntityRegistry {
         bindingKey = "WINDOW_POS",
         areaId = AREA_WINDOW_ROOF_TOP_2,
         deviceClass = DeviceClass.SHADE,
-        aliases = setOf("sunshade"),
         icon = "window",
     )
 
@@ -368,7 +324,6 @@ object EntityRegistry {
             "move" to "DOOR_MOVE",
         ),
         input = "cover",
-        aliases = setOf("trunk", "trunk_status", "trunk_move"),
         icon = "cabin",
         lastKnown = true,
         deviceClass = DeviceClass.GARAGE,
@@ -435,14 +390,12 @@ object EntityRegistry {
             objectId = "seat_driver",
             bindingKey = "HVAC_SEAT_VENTILATION",
             areaId = AREA_SEAT_ROW_1_LEFT,
-            aliases = setOf("hvac_seat_vent", "hvac_seat_vent_driver"),
             icon = "seat",
         ),
         fan(
             objectId = "seat_passenger",
             bindingKey = "HVAC_SEAT_VENTILATION",
             areaId = AREA_SEAT_ROW_1_RIGHT,
-            aliases = setOf("hvac_seat_vent_passenger"),
             icon = "seat",
         ),
 
@@ -457,17 +410,15 @@ object EntityRegistry {
         lock(
             objectId = "central",
             bindingKey = "SETTING_FUNC_CENTRAL_LOCK",
-            aliases = setOf("central_lock"),
             icon = "lock",
         ),
         lock(
             objectId = "windows",
             bindingKey = "WINDOW_LOCK",
-            aliases = setOf("window_lock"),
             icon = "lock",
         ),
 
-        e("lka", "adas", EntityType.SWITCH, "bool", bindingKey = "SETTING_FUNC_LANE_KEEPING_AID", acronym = "LKA", lastKnown = true, icon = "adas"),
+        e("SETTING_FUNC_LANE_KEEPING_AID", "adas", EntityType.SWITCH, "bool", acronym = "LKA", lastKnown = true, icon = "adas"),
         e("SETTING_FUNC_LANE_KEEPING_AID_WARNING", "adas", EntityType.SWITCH, "bool", acronym = "LDW", lastKnown = true, icon = "adas"),
         e("SETTING_FUNC_EMGY_LANE_KEEP_AID", "adas", EntityType.SWITCH, "bool", acronym = "ELKA", lastKnown = true, icon = "adas"),
         e("SETTING_FUNC_AUTONOMOUS_EMERGENCY_BRAKING", "adas", EntityType.SWITCH, "bool", acronym = "AEB", lastKnown = true, icon = "adas"),
@@ -640,12 +591,6 @@ object EntityRegistry {
 
     private val byId: Map<String, EntityDef> = ALL.associateBy { it.id }
 
-    private val byAlias: Map<String, EntityDef> = buildMap {
-        for (def in ALL) {
-            for (a in def.aliases) put(a, def)
-        }
-    }
-
     private val byBindingKey: Map<String, EntityDef> = buildMap {
         for (def in ALL) {
             def.bindingKey?.let { putIfAbsent(it, def) }
@@ -655,36 +600,8 @@ object EntityRegistry {
 
     fun byId(id: String): EntityDef? = byId[id]
 
-    fun resolve(id: String): EntityDef? = byId[id] ?: byAlias[id]
-
-    fun resolveBinding(bindingKey: String): EntityDef? =
-        byId[bindingKey] ?: byAlias[bindingKey] ?: byBindingKey[bindingKey]
-
-    /** Attribute name for an alias on a composite, if any. */
-    fun aliasAttribute(aliasId: String): String? {
-        val def = byAlias[aliasId] ?: return null
-        if (!def.isComposite) return null
-        def.attributes.entries.firstOrNull { it.value == aliasId }?.key?.let { return it }
-        return when (aliasId) {
-            "hvac_temp" -> "temperature"
-            "hvac_fan" -> "fan_mode"
-            "steer_soft", "steer_medium", "steer_heavy" -> "assist_level"
-            "brake_pedal" -> "brake_pedal"
-            "esc_sport" -> "esc"
-            "drive_mode" -> "mode"
-            else -> def.attributes.entries.firstOrNull {
-                it.value == aliasId || it.value == aliasId + "_c"
-            }?.key
-        }
-    }
-
-    /** Map legacy steer_* bool aliases to assist_level enum values. */
-    fun steerAssistLevelForAlias(aliasId: String): Int? = when (aliasId) {
-        "steer_soft" -> 1
-        "steer_medium" -> 2
-        "steer_heavy" -> 3
-        else -> null
-    }
+    /** Entity for a session event key: an entity id, or a binding key (atomic or composite attribute). */
+    fun resolveBinding(bindingKey: String): EntityDef? = byId[bindingKey] ?: byBindingKey[bindingKey]
 
     private fun camera(role: String) = EntityDef(
         id = entityId(EntityType.CAMERA, role),
@@ -705,7 +622,6 @@ object EntityRegistry {
         bindingKey: String,
         areaId: Int,
         deviceClass: DeviceClass,
-        aliases: Set<String> = emptySet(),
         icon: String,
     ): EntityDef {
         val id = entityId(EntityType.COVER, objectId)
@@ -716,7 +632,6 @@ object EntityRegistry {
             section = "window",
             bindingKey = bindingKey,
             input = "cover",
-            aliases = aliases + objectId,
             icon = icon,
             lastKnown = true,
             areaId = areaId,
@@ -733,7 +648,6 @@ object EntityRegistry {
         objectId: String,
         bindingKey: String,
         areaId: Int,
-        aliases: Set<String> = emptySet(),
         icon: String,
     ): EntityDef {
         val id = entityId(EntityType.FAN, objectId)
@@ -750,7 +664,6 @@ object EntityRegistry {
                 "opt.hvac_seat_vent.2" to 2,
                 "opt.hvac_seat_vent.3" to 3,
             ),
-            aliases = aliases + objectId,
             icon = icon,
             lastKnown = true,
             areaId = areaId,
@@ -765,7 +678,6 @@ object EntityRegistry {
     private fun lock(
         objectId: String,
         bindingKey: String,
-        aliases: Set<String> = emptySet(),
         icon: String,
     ): EntityDef {
         val id = entityId(EntityType.LOCK, objectId)
@@ -780,7 +692,6 @@ object EntityRegistry {
                 "lock.unlocked" to 0,
                 "lock.locked" to 1,
             ),
-            aliases = aliases + objectId,
             icon = icon,
             lastKnown = true,
             valueMapId = "lock",
@@ -791,14 +702,12 @@ object EntityRegistry {
      * Atomic widget bound to one VHAL property.
      *
      * [propertyKey] is both the entity [EntityDef.id] and [EntityDef.bindingKey].
-     * Optional [legacyObjectId] seeds HA-shaped aliases (`switch.mirror_fold`).
      */
     private fun e(
         propertyKey: String,
         group: String,
         domain: EntityType,
         input: String,
-        bindingKey: String? = propertyKey,
         section: String? = null,
         optionKeys: List<Pair<String, Int>>? = null,
         writable: Boolean = true,
@@ -811,18 +720,14 @@ object EntityRegistry {
         max: Float? = null,
         step: Float? = null,
         history: Boolean = false,
-        aliases: Set<String> = emptySet(),
         areaId: Int? = null,
-        legacyObjectId: String? = null,
     ): EntityDef {
-        val key = bindingKey ?: propertyKey
-        val legacy = legacyObjectId ?: propertyKey.lowercase()
-        val resolvedSection = section ?: CatalogEntityFactory.familyOf(key)
+        val key = propertyKey
         return EntityDef(
             id = key,
             domain = domain,
             group = group,
-            section = resolvedSection,
+            section = section ?: CatalogEntityFactory.familyOf(key),
             bindingKey = key,
             input = input,
             optionKeys = optionKeys,
@@ -836,7 +741,6 @@ object EntityRegistry {
             max = max,
             step = step,
             history = history,
-            aliases = aliases + legacy + entityId(domain, legacy) + key,
             areaId = areaId,
             labelKey = "control.$key",
             hintKey = "control.$key.hint",

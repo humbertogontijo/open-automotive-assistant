@@ -37,7 +37,7 @@ export function valueOptionsForControl(c) {
       { value: "idle", label: t("media_player.idle", "Idle") },
     ];
   }
-  if (c.domain === "climate" || c.id === "climate.cabin" || c.id === "climate" || c.input === "climate") {
+  if (c.domain === "climate" || c.input === "climate") {
     const modes = (c.attributes && c.attributes.hvac_modes) || ["off", "manual", "auto"];
     return modes.map(function (m) {
       const key = String(m);

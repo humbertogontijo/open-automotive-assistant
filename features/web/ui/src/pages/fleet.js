@@ -41,12 +41,12 @@ export async function loadFleet() {
   }
 }
 
-/** The public node endpoint the hub hands cars: `{ url, dialUrl, source }`, fields null when there is none. */
+/** The public node endpoint the hub hands cars: `{ url, dialUrl }`, null fields when there is none. */
 function publicNode() {
   const fromFleet = session.fleet && session.fleet.publicNode;
   if (fromFleet) return fromFleet;
   const hub = session.hubJoin || {};
-  return { url: hub.publicNodeUrl || null, dialUrl: hub.publicDialUrl || null, source: hub.publicNodeSource || null };
+  return { url: hub.publicNodeUrl || null, dialUrl: hub.publicDialUrl || null };
 }
 
 /** A browser host a car on the same network can dial too (not a Nabu Casa / tunnel name). */
@@ -314,16 +314,12 @@ class OaaPageFleet extends OaaPage {
       icon: "about",
       title: t("fleet.public_title", "Away from home"),
       body: url
-        ? html`<p class="hint">
-              ${pub.source === "env"
-                ? t("fleet.public_env", "Cars off this network dial this public URL, set in the app options:")
-                : t("fleet.public_reported", "Cars off this network dial this public URL, reported by Home Assistant:")}
-            </p>
+        ? html`<p class="hint">${t("fleet.public_url", "Cars off this network dial this public URL:")}</p>
             <p class="hint mono">${url}</p>`
         : html`<wa-callout variant="warning" size="small">
             ${t(
               "fleet.public_none",
-              "No public URL: cars only reach the hub on this network. Enable Nabu Casa remote access and add this hub in the Open Automotive Assistant integration, or set public_node_url in the app options.",
+              "No public URL (OAA_PUBLIC_NODE_URL), so cars only reach the hub on this network. The Home Assistant app sets it from Nabu Casa remote access when it starts.",
             )}
           </wa-callout>`,
     });

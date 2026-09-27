@@ -2,7 +2,7 @@ import { html, svg, nothing } from "lit";
 import { OaaElement } from "../lit/oaa-element.js";
 import { catalog, i18n, findEntity } from "../store.js";
 import { OaaPage } from "../lit/oaa-page.js";
-import { t, entityLabel, entityValueLabel, optionLabel, hasKey } from "../i18n.js";
+import { t, entityLabel, entityValueLabel, optionLabel } from "../i18n.js";
 import { api } from "../api.js";
 import { fmt } from "../format.js";
 import { segmentToggle, choiceSelect } from "../ui/cards/choice.js";
@@ -77,8 +77,6 @@ function historyEntityLabel(id) {
 function historyFormatValue(value, meta) {
   if (value == null || value === "") return "—";
   const raw = String(value);
-  // Samples may be raw ints, or legacy i18n keys from telemetry labels.
-  if (hasKey(raw)) return t(raw);
 
   if (meta) {
     const mapped = entityValueLabel(

@@ -35,13 +35,6 @@ class OaaDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         )
         self.node_id: str | None = entry.data.get(CONF_NODE_ID) or None
 
-    async def is_hub(self) -> bool:
-        """True when the server is a hub (per-car entries see the car's status in [data])."""
-        try:
-            return (await self.client.get_status(None)).get("role") == "hub"
-        except Exception:  # noqa: BLE001
-            return False
-
     async def _async_update_data(self) -> dict[str, Any]:
         try:
             status = await self.client.get_status(self.node_id)

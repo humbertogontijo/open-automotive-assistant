@@ -71,7 +71,7 @@ class EntityValueWatcher(
     }
 
     /**
-     * Session events use platform binding keys (`hvac_power`). For composites,
+     * Session events use platform binding keys (`HVAC_POWER_ON`). For composites,
      * re-read the product id so watchers see HVAC mode, not attr-raw.
      */
     private suspend fun onSessionEntity(entityId: String, value: String?) {

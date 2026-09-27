@@ -12,37 +12,4 @@
             column="21"/>
     </issue>
 
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 30"
-        errorLine1="            val st = if (android.os.Build.VERSION.SDK_INT >= 26) {"
-        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/cc/opencar/assistant/feature/dvr/CameraPreviewSession.kt"
-            line="148"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 30"
-        errorLine1="        return if (Build.VERSION.SDK_INT >= 30) {"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/cc/opencar/assistant/feature/dvr/DvrController.kt"
-            line="1035"
-            column="20"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 30"
-        errorLine1="            val isHw = if (Build.VERSION.SDK_INT >= 29) {"
-        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/cc/opencar/assistant/feature/dvr/MosaicH264Encoder.kt"
-            line="243"
-            column="28"/>
-    </issue>
-
 </issues>

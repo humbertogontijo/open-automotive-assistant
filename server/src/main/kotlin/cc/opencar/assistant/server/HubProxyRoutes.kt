@@ -19,7 +19,6 @@ import io.ktor.server.request.path
 import io.ktor.server.request.queryString
 import io.ktor.server.request.receiveChannel
 import io.ktor.server.request.receiveParameters
-import io.ktor.server.request.receiveText
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondBytes
@@ -58,7 +57,6 @@ internal fun Routing.proxyRoutes(hub: HubContext) = with(hub) {
                     "name" to identity.name,
                     "publicNodeUrl" to publicNode.url,
                     "publicDialUrl" to publicNode.dialUrl,
-                    "publicNodeSource" to publicNode.source,
                     "publicHumanUrl" to HubConfig.publicHumanUrl,
                     "nodePort" to nodePort,
                 ),
@@ -93,25 +91,6 @@ internal fun Routing.proxyRoutes(hub: HubContext) = with(hub) {
                 "expiresAtMs" to offer.expiresAtMs,
                 "publicNodeUrl" to publicNode.url,
                 "publicDialUrl" to publicNode.dialUrl,
-            ),
-        )
-    }
-
-    post(OaaPaths.NODES_PUBLIC_URL) {
-        call.requireAdmin() ?: return@post
-        val obj = runCatching { JSONObject(call.receiveText()) }.getOrNull()
-            ?: return@post call.respondError(HttpStatusCode.BadRequest, "invalid json")
-        val url = obj.optString("url").trim().takeIf { it.isNotEmpty() }
-        if (url != null && !PublicNode.isHttpUrl(url)) {
-            return@post call.respondError(HttpStatusCode.BadRequest, "url must be http(s)")
-        }
-        if (publicNode.report(url, obj.optString("sessionPath"))) broadcastPublicNode()
-        call.respond(
-            mapOf(
-                "ok" to true,
-                "publicNodeUrl" to publicNode.url,
-                "sessionPath" to publicNode.sessionPath,
-                "source" to publicNode.source,
             ),
         )
     }

@@ -53,9 +53,6 @@ object OaaPaths {
     const val NODES_DISCOVERED = "/api/nodes/discovered"
     /** Hub: start pairing a car (`POST`), then `POST {id}/confirm` with the car's code. */
     const val NODES_INVITE = "/api/nodes/invite"
-    /** Hub (admin): the HA component reports its public node URL (`POST {url, sessionPath}`). */
-    const val NODES_PUBLIC_URL = "/api/nodes/public-url"
-
     const val AUTH_STATUS = "/api/auth/status"
     /** Car: a device or hub asks for access; the head unit shows a code. */
     const val AUTH_PAIR_REQUEST = "/api/auth/pair/request"
@@ -428,9 +425,8 @@ object OaaMdns {
 object OaaSpa {
     val PAGES = setOf(
         "home", "fleet", "history", "controls", "drive", "energy", "lights", "adas",
-        "assistant", "display", "sound", "connect", "vehicle", "cameras", "dvr", "store",
-        "shortcuts", "plugins", "settings", "system", "climate", "cabin", "safety", "lab",
-        "about", "login", "setup",
+        "assistant", "display", "sound", "connect", "vehicle", "cameras", "store",
+        "shortcuts", "plugins", "settings", "lab", "about", "login", "setup",
     )
 }
 

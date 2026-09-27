@@ -221,7 +221,7 @@ internal fun Routing.registerCoreRoutes(deps: OaaWebDeps) {
             WebEventHub.emitCatalog("control_write")
             // Composites refresh via catalog only — never patch product value with
             // structured write tokens (temperature:22) or attr-raw.
-            val product = EntityRegistry.resolve(id)
+            val product = EntityRegistry.byId(id)
             if (product == null || !product.isComposite) {
                 WebEventHub.emitEntity(id, value, status = "ok")
             }

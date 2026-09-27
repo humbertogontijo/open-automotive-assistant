@@ -28,8 +28,9 @@ class OaaHubServer(
     private val demoNode: ((EventBus) -> DemoNodeTransport)? =
         if (HubConfig.demoNode) { bus -> DemoNodeTransport("demo", bus) } else null,
     private val mdnsEnabled: Boolean = HubConfig.mdnsEnabled,
+    publicNode: PublicNode = PublicNode(),
 ) {
-    internal val hub = HubContext(dataDir, humanPort, nodePort)
+    internal val hub = HubContext(dataDir, humanPort, nodePort, publicNode = publicNode)
     private var humanEngine: ApplicationEngine? = null
     private var nodeEngine: ApplicationEngine? = null
     private var mdns: HubMdns? = null
@@ -65,7 +66,7 @@ class OaaHubServer(
             }
         }
         log.info("human face listening on :$humanPort (data=${hub.dataDir.absolutePath})")
-        log.info("public node URL: ${hub.publicNode.dialUrl ?: "none"} (${hub.publicNode.source ?: "unset"})")
+        log.info("public node URL: ${hub.publicNode.dialUrl ?: "none"}")
         humanEngine?.start(wait = wait)
     }
 

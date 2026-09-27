@@ -121,10 +121,10 @@ data class Scene(
             icon = "battery",
             builtin = true,
             targets = listOf(
-                SceneTarget("switch.parking_comfort", "1", SceneOff.Set("0")),
+                SceneTarget("SCENE_FUNC_PARKING_COMFORT_SWITCH", "1", SceneOff.Set("0")),
                 SceneTarget("climate.cabin", "off", SceneOff.Restore),
-                SceneTarget("select.exterior_light", "0", SceneOff.Restore),
-                SceneTarget("switch.rear_fog", "0", SceneOff.Restore),
+                SceneTarget("SETTING_FUNC_LAMP_EXTERIOR_LIGHT_CONTROL", "0", SceneOff.Restore),
+                SceneTarget("FOG_LIGHTS_SWITCH", "0", SceneOff.Restore),
             ),
         )
     }

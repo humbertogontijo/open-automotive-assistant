@@ -198,8 +198,7 @@ class NodeRegistry(dataDir: File) {
         }.getOrNull() ?: return
         nodes.clear()
         tokenIndex.clear()
-        // Older hubs persisted the demo node; it is re-registered on start when enabled.
-        for (n in list.filterNot { it.integration == "demo" && it.token.startsWith("demo-") }) {
+        for (n in list) {
             nodes[n.id] = n
             tokenIndex[n.token] = n.id
         }

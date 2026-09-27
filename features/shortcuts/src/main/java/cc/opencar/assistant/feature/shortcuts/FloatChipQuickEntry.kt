@@ -7,7 +7,6 @@ import android.graphics.Paint
 import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.graphics.RectF
-import android.os.Build
 import android.provider.Settings
 import android.util.Log
 import android.view.Gravity
@@ -66,16 +65,10 @@ class FloatChipQuickEntry : QuickEntry {
         val statusBarH = statusBarHeightPx(ctx).coerceAtLeast((96 * density).toInt())
         val chip = ChipView(ctx, sizePx)
 
-        val type = if (Build.VERSION.SDK_INT >= 26) {
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        } else {
-            @Suppress("DEPRECATION")
-            WindowManager.LayoutParams.TYPE_PHONE
-        }
         val params = WindowManager.LayoutParams(
             sizePx,
             sizePx,
-            type,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,

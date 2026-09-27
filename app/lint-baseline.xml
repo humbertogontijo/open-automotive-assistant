@@ -8,7 +8,7 @@
         errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/cc/opencar/assistant/MainActivity.kt"
-            line="285"
+            line="283"
             column="13"/>
     </issue>
 
@@ -30,7 +30,7 @@
         errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/cc/opencar/assistant/MainActivity.kt"
-            line="168"
+            line="166"
             column="21"/>
     </issue>
 
@@ -93,21 +93,21 @@
         id="Aligned16KB"
         message="The native library `arm64-v8a/libgojni.so` (from `open-automotive-assistant:feature-web:unspecified`) is not 16 KB aligned">
         <location
-            file="$GRADLE_USER_HOME/caches/8.14.3/transforms/32ad6f137e70c132ffe3768f8b28f106/transformed/out/jni/arm64-v8a/libgojni.so"/>
+            file="$GRADLE_USER_HOME/caches/8.14.3/transforms/6ff8570ddbe795add3a2e5cf9dcbed04/transformed/out/jni/arm64-v8a/libgojni.so"/>
     </issue>
 
     <issue
         id="Aligned16KB"
         message="The native library `arm64-v8a/libgojni.so` (from `open-automotive-assistant:feature-web:unspecified`) is not 16 KB aligned">
         <location
-            file="$GRADLE_USER_HOME/caches/8.14.3/transforms/32ad6f137e70c132ffe3768f8b28f106/transformed/out/jni/arm64-v8a/libgojni.so"/>
+            file="$GRADLE_USER_HOME/caches/8.14.3/transforms/6ff8570ddbe795add3a2e5cf9dcbed04/transformed/out/jni/arm64-v8a/libgojni.so"/>
     </issue>
 
     <issue
         id="Aligned16KB"
         message="The native library `arm64-v8a/libgojni.so` (from `open-automotive-assistant:feature-web:unspecified`) is not 16 KB aligned">
         <location
-            file="$GRADLE_USER_HOME/caches/8.14.3/transforms/32ad6f137e70c132ffe3768f8b28f106/transformed/out/jni/arm64-v8a/libgojni.so"/>
+            file="$GRADLE_USER_HOME/caches/8.14.3/transforms/6ff8570ddbe795add3a2e5cf9dcbed04/transformed/out/jni/arm64-v8a/libgojni.so"/>
     </issue>
 
     <issue
@@ -166,28 +166,6 @@
     </issue>
 
     <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is never &lt; 30"
-        errorLine1="        if (Build.VERSION.SDK_INT &lt; 26) return"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/cc/opencar/assistant/AssistantService.kt"
-            line="254"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="ObsoleteSdkInt"
-        message="Unnecessary; `SDK_INT` is always >= 30"
-        errorLine1="        val builder = if (Build.VERSION.SDK_INT >= 26) {"
-        errorLine2="                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/cc/opencar/assistant/AssistantService.kt"
-            line="271"
-            column="27"/>
-    </issue>
-
-    <issue
         id="UseKtx"
         message="Use the KTX extension function `SharedPreferences.edit` instead?"
         errorLine1="        val prefs = app.getSharedPreferences(&quot;oaa_runtime&quot;, Context.MODE_PRIVATE).edit()"
@@ -205,7 +183,7 @@
         errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/cc/opencar/assistant/MainActivity.kt"
-            line="269"
+            line="267"
             column="17"/>
     </issue>
 

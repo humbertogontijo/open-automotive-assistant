@@ -1,20 +1,14 @@
 package cc.opencar.assistant.server
 
-import cc.opencar.assistant.protocol.OaaPaths
 import java.security.SecureRandom
 
 object HubConfig {
     private fun env(name: String): String? = System.getenv(name)?.trim()?.takeIf { it.isNotEmpty() }
 
+    /** URL away cars dial the node face on; see [PublicNode]. */
     val publicNodeUrl: String? get() = env("OAA_PUBLIC_NODE_URL")
 
     val publicHumanUrl: String? get() = env("OAA_PUBLIC_HUMAN_URL")
-
-    /** Path on publicNodeUrl for the node WebSocket (HA Cloud uses /api/oaa_node/session). */
-    val sessionPath: String get() = env("OAA_SESSION_PATH") ?: OaaPaths.NODES_SESSION
-
-    /** Explicit OTA path on publicNodeUrl; [PublicNode.artifactsPath] derives one otherwise. */
-    val artifactsPathOverride: String? get() = env("OAA_ARTIFACTS_PATH")?.trimEnd('/')
 
     val homeAssistantUrl: String? get() = env("OAA_HA_URL")
 

@@ -13,20 +13,20 @@ wa-card.ctrl-card::part(body) {
 .icon-btn {
   --wa-form-control-height: var(--icon-btn);
   font-size: 1.15rem;
-  color: var(--text-muted);
+  color: var(--wa-color-text-quiet);
 }
 .icon-btn::part(button) {
   width: var(--icon-btn); padding: 0;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  color: var(--text-muted);
+  border: 1px solid var(--wa-color-surface-border);
+  background: var(--wa-color-surface-raised);
+  color: var(--wa-color-text-quiet);
 }
 .icon-btn.active::part(button) {
   color: var(--pin);
   background: var(--pin-soft);
   border-color: color-mix(in srgb, var(--pin) 55%, transparent);
 }
-.hide-btn.restore::part(button) { color: var(--accent); }
+.hide-btn.restore::part(button) { color: var(--wa-color-brand-fill-loud); }
 
 /* —— Segment toggle (wa-radio-group of button radios, ≤4 options) —— */
 wa-radio-group.toggle-group { width: 100%; }
@@ -36,15 +36,15 @@ wa-radio.toggle-seg {
   --wa-form-control-height: var(--ctrl-touch);
   justify-content: center; text-align: center;
   font-size: 1.05rem; font-weight: 650; line-height: 1.2;
-  color: var(--text-muted);
-  background: var(--surface-2);
-  border-color: var(--border);
+  color: var(--wa-color-text-quiet);
+  background: var(--wa-color-surface-raised);
+  border-color: var(--wa-color-surface-border);
   hyphens: auto;
 }
 wa-radio.toggle-seg:state(checked) {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-contrast);
+  background: var(--wa-color-brand-fill-loud);
+  border-color: var(--wa-color-brand-fill-loud);
+  color: var(--wa-color-brand-on-loud);
 }
 /* Pinned reboot value: outlined when live is elsewhere, pin-colored when they match. */
 wa-radio.toggle-seg.pin-mark { color: var(--pin); background: var(--pin-soft); border-color: var(--pin); }
@@ -70,18 +70,18 @@ oaa-choice-select wa-select {
   --wa-form-control-height: var(--ctrl-touch);
   font-size: 1.05rem;
 }
-oaa-choice-select wa-select::part(combobox) { background: var(--surface-2); border-color: var(--border); }
+oaa-choice-select wa-select::part(combobox) { background: var(--wa-color-surface-raised); border-color: var(--wa-color-surface-border); }
 oaa-choice-select .choice-trigger {
   --wa-form-control-height: var(--ctrl-touch);
   font-size: 1.05rem;
 }
 oaa-choice-select .choice-trigger::part(button) {
   justify-content: space-between;
-  background: var(--surface-2); border-color: var(--border); color: var(--text); font-weight: 400;
+  background: var(--wa-color-surface-raised); border-color: var(--wa-color-surface-border); color: var(--wa-color-text-normal); font-weight: 400;
 }
 oaa-choice-select .choice-trigger::part(label) { overflow: hidden; text-overflow: ellipsis; }
 oaa-choice-select.unset wa-select::part(display-input),
-oaa-choice-select.unset .choice-trigger { color: var(--text-muted); }
+oaa-choice-select.unset .choice-trigger { color: var(--wa-color-text-quiet); }
 oaa-choice-select.pin-match wa-select::part(combobox),
 oaa-choice-select.pin-match .choice-trigger::part(button) { border-color: var(--pin); color: var(--pin); }
 wa-option.pin-mark { color: var(--pin); }
@@ -93,14 +93,14 @@ wa-option.pin-mark { color: var(--pin); }
   position: relative;
   display: grid; grid-template-columns: auto 1fr; gap: 0.75rem; align-items: center;
   width: 100%; min-height: var(--ctrl-touch); padding: 0.35rem 0.85rem;
-  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--wa-color-surface-raised); border: 1px solid var(--wa-color-surface-border); border-radius: var(--radius-sm);
 }
 .slider-row.has-lead { grid-template-columns: auto auto 1fr; }
 .slider-readout {
   font-weight: 650; font-size: 1.15rem; min-width: 3.25rem; text-align: center;
   font-variant-numeric: tabular-nums;
 }
-.slider-readout .unit { font-size: 0.85rem; font-weight: 550; color: var(--text-muted); margin-left: 0.1rem; }
+.slider-readout .unit { font-size: 0.85rem; font-weight: 550; color: var(--wa-color-text-quiet); margin-left: 0.1rem; }
 .slider-row wa-slider { --track-size: 0.55rem; --thumb-width: 1.55rem; --thumb-height: 1.55rem; }
 /* The readout shows the value; the label stays for screen readers only. */
 .slider-row wa-slider::part(label) {
@@ -118,18 +118,18 @@ oaa-toggle-button { display: flex; min-width: 0; }
   display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
   padding: 0.25rem 0.55rem;
   font: inherit; font-size: 0.95rem; font-weight: 650; line-height: 1.15; text-align: center; white-space: normal;
-  color: var(--text-muted); background: var(--surface-2);
-  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--wa-color-text-quiet); background: var(--wa-color-surface-raised);
+  border: 1px solid var(--wa-color-surface-border); border-radius: var(--radius-sm);
   cursor: pointer; -webkit-tap-highlight-color: transparent;
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 .toggle-btn wa-icon { font-size: 1.3rem; flex-shrink: 0; }
 .toggle-btn-label { min-width: 0; overflow-wrap: break-word; hyphens: auto; }
-.toggle-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-contrast); }
-.toggle-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.toggle-btn[aria-pressed="true"] { background: var(--wa-color-brand-fill-loud); border-color: var(--wa-color-brand-fill-loud); color: var(--wa-color-brand-on-loud); }
+.toggle-btn:focus-visible { outline: 2px solid var(--wa-color-brand-fill-loud); outline-offset: 2px; }
 .toggle-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 @media (hover: hover) {
-  .toggle-btn:not(:disabled, [aria-pressed="true"]):hover { color: var(--text); border-color: var(--border-strong); }
+  .toggle-btn:not(:disabled, [aria-pressed="true"]):hover { color: var(--wa-color-text-normal); border-color: var(--wa-color-neutral-border-normal); }
 }
 oaa-toggle-button:has(> .icon-only) { flex: 0 0 auto; }
 .toggle-btn.icon-only { width: var(--ctrl-touch); padding: 0; }
@@ -154,8 +154,8 @@ oaa-toggle-button:has(> .icon-only) { flex: 0 0 auto; }
 .stepper {
   display: flex; align-items: center; flex-wrap: wrap; width: 100%;
   min-height: var(--ctrl-touch);
-  background: var(--surface-2); border-radius: var(--radius-sm);
-  border: 1px solid var(--border); overflow: hidden;
+  background: var(--wa-color-surface-raised); border-radius: var(--radius-sm);
+  border: 1px solid var(--wa-color-surface-border); overflow: hidden;
 }
 .stepper > wa-button {
   --wa-form-control-height: var(--ctrl-touch);
@@ -163,14 +163,14 @@ oaa-toggle-button:has(> .icon-only) { flex: 0 0 auto; }
 }
 .stepper > wa-button::part(button) {
   width: var(--ctrl-touch); padding: 0; border-radius: 0;
-  background: transparent; color: var(--text);
+  background: transparent; color: var(--wa-color-text-normal);
 }
 .stepper .val {
   flex: 1; text-align: center; font-weight: 650; font-size: 1.45rem;
   padding: 0 0.5rem;
 }
-.stepper .val.unset { color: var(--text-muted); font-weight: 550; }
-.stepper .unit { font-size: 0.9rem; color: var(--text-muted); font-weight: 550; margin-left: 0.15rem; }
+.stepper .val.unset { color: var(--wa-color-text-quiet); font-weight: 550; }
+.stepper .unit { font-size: 0.9rem; color: var(--wa-color-text-quiet); font-weight: 550; margin-left: 0.15rem; }
 .stepper.pin-match { border-color: var(--pin); }
 .stepper.pin-match .val { color: var(--pin); }
 

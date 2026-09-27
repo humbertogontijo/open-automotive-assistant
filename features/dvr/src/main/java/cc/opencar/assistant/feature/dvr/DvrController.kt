@@ -3,7 +3,6 @@ package cc.opencar.assistant.feature.dvr
 import android.content.Context
 import android.content.SharedPreferences
 import android.hardware.camera2.CameraManager
-import android.os.Build
 import android.os.Environment
 import android.os.StatFs
 import android.os.storage.StorageManager
@@ -1031,16 +1030,7 @@ class DvrController(
         }
     }
 
-    private fun volumePath(vol: StorageVolume): File? {
-        return if (Build.VERSION.SDK_INT >= 30) {
-            vol.directory
-        } else {
-            @Suppress("DEPRECATION")
-            vol.javaClass.methods
-                .firstOrNull { it.name == "getPathFile" }
-                ?.invoke(vol) as? File
-        }
-    }
+    private fun volumePath(vol: StorageVolume): File? = vol.directory
 
     private fun looksLikeUsb(desc: String, vol: StorageVolume): Boolean {
         val d = desc.lowercase(Locale.US)

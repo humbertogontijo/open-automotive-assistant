@@ -32,7 +32,7 @@ export function pageHome() {
     ? items
     : catalog.entities.filter(function (e) {
         if (!(e.status === "ok" || e.status === "cached")) return false;
-        if (e.id === "drivetrain.vehicle" || e.id === "drivetrain") return true;
+        if (e.id === "drivetrain.vehicle") return true;
         return e.group === "home" && e.domain === "sensor";
       });
   const hero = pickEntities(heroPool, HOME_HERO_IDS);

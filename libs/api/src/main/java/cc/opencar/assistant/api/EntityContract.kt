@@ -7,9 +7,9 @@ package cc.opencar.assistant.api
  * the curated [EntityRegistry] exposes stable catalog **entity ids** used by
  * UI, history, shortcuts, scenes, and routines. Features never hardcode VHAL hex.
  *
- * Composite entities (e.g. `climate`) have one product id with [EntityDef.attributes]
- * pointing at multiple binding keys (`hvac_power`, `hvac_temp_c`, …). Atomic entities
- * keep `id == bindingKey`.
+ * Composite entities (e.g. `climate.cabin`) have one product id with [EntityDef.attributes]
+ * pointing at multiple binding keys (`HVAC_POWER_ON`, `HVAC_TEMPERATURE_SET`, …). Atomic
+ * entities keep `id == bindingKey`.
  *
  * JSON maps from `/api/entities` (and virtual shortcut cards) include:
  *
@@ -40,8 +40,8 @@ package cc.opencar.assistant.api
  * attribute binding exists.
  *
  * **Portability:** shortcuts / scenes / routines must reference catalog `id`s only.
- * Builtin scenes (e.g. Sentinel) skip missing targets at runtime. Legacy alias ids
- * (`hvac_power`) resolve to the composite (`climate`) for set/read.
+ * Builtin scenes (e.g. Sentinel) skip missing targets at runtime. Composite attributes
+ * are written through the composite id (`climate.cabin` with `temperature:22`).
  *
  * MQTT / HA outbound discovery may publish these fields later; inbound HA bridge
  * remains [plugins/homeassistant].

@@ -1,7 +1,7 @@
 /* Shortcuts page: list cards, tabs and the shortcut / routine / scene editors. */
 
 .shortcuts-tabs {
-  --indicator-color: var(--accent);
+  --indicator-color: var(--wa-color-brand-fill-loud);
 }
 
 .shortcuts-tabs wa-tab-panel::part(base) {
@@ -51,7 +51,7 @@ oaa-scene-editor {
   gap: 0.4rem;
   margin-bottom: 0.6rem;
   padding: 0.65rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--wa-color-surface-border);
   border-radius: var(--radius-sm, 8px);
 }
 

@@ -5,7 +5,6 @@ package cc.opencar.assistant.api
  *
  * Entity ids follow Home Assistant shape: `domain.object_id`
  * (e.g. `cover.window_driver`, `switch.wifi`, `climate.cabin`).
- * Legacy bare / pre-cover ids resolve via [fromId] and [EntityRegistry] aliases.
  *
  * Domain taxonomy is AAOS + CarPlay Ultra–led — see `docs/domains.md`.
  * There is no `android` product domain; HU radios/brightness/volumes use
@@ -43,20 +42,6 @@ enum class EntityType(val id: String) {
     ;
 
     companion object {
-        fun fromId(id: String?): EntityType {
-            if (id.isNullOrBlank()) return EXTRA
-            entries.firstOrNull { it.id == id }?.let { return it }
-            // Legacy HA / pre-cover / pre-composite ids
-            return when (id) {
-                "drive_mode", "regen", "energy" -> DRIVETRAIN
-                "brake" -> CHASSIS
-                "charging" -> CHARGER
-                "ambient_light" -> LIGHT
-                "adas" -> SWITCH
-                "seat" -> SEAT
-                "window", "trunk", "hood", "sunroof", "door", "mirror" -> COVER
-                else -> EXTRA
-            }
-        }
+        fun fromId(id: String?): EntityType = entries.firstOrNull { it.id == id } ?: EXTRA
     }
 }

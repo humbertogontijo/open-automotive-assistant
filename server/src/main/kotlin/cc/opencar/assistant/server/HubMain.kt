@@ -21,7 +21,7 @@ fun main(args: Array<String>) {
             }
             "-h", "--help" -> {
                 println("Usage: oaa-hub [--data DIR] [--port HUMAN_PORT] [--node-port NODE_PORT]")
-                println("Env: OAA_PORT OAA_NODE_PORT OAA_DATA OAA_DEMO_NODE OAA_PUBLIC_NODE_URL OAA_SESSION_PATH OAA_ARTIFACTS_PATH OAA_HA_URL OAA_TURN_URLS OAA_TURN_SECRET")
+                println("Env: OAA_PORT OAA_NODE_PORT OAA_DATA OAA_DEMO_NODE OAA_PUBLIC_NODE_URL OAA_HA_URL OAA_TURN_URLS OAA_TURN_SECRET")
                 return
             }
         }

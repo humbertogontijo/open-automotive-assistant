@@ -1,4 +1,4 @@
 /* light.css — HA-style light domain */
 .light-card.is-on .ctrl-icon {
-  color: var(--accent);
+  color: var(--wa-color-brand-fill-loud);
 }

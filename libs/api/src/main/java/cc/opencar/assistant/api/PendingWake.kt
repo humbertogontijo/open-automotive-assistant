@@ -2,8 +2,6 @@ package cc.opencar.assistant.api
 
 import android.content.Context
 import android.content.Intent
-import android.os.Build
-
 /**
  * Cross-process wake/sleep handoff when the HU resumes before the app runtime
  * (and shortcuts) are ready — e.g. process was dead during STR and a
@@ -75,7 +73,6 @@ object PendingWake {
             svc.putExtra(EXTRA_KIND, kind)
             svc.putExtra(EXTRA_SOURCE, source ?: "pending")
         }
-        if (Build.VERSION.SDK_INT >= 26) context.startForegroundService(svc)
-        else context.startService(svc)
+        context.startForegroundService(svc)
     }
 }

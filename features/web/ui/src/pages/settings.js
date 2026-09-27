@@ -137,6 +137,7 @@ class OaaPageSettings extends OaaPage {
     hubCode: { state: true },
     joining: { state: true },
     clients: { state: true },
+    systemToken: { state: true },
   };
 
   constructor() {
@@ -147,6 +148,8 @@ class OaaPageSettings extends OaaPage {
     this.joining = false;
     /** @type {any[] | null} */
     this.clients = null;
+    /** @type {string | null} */
+    this.systemToken = null;
   }
 
   load() {
@@ -222,6 +225,41 @@ class OaaPageSettings extends OaaPage {
       toastError(t("hub.failed", "Pairing failed") + ": " + errText(e));
     } finally {
       this.joining = false;
+    }
+  }
+
+  /** Hub admins: the machine token integrations (Home Assistant) sign in with. */
+  integrationTokenCard() {
+    const user = (session.status && session.status.user) || (session.hubAuth && session.hubAuth.user);
+    if (session.role !== "hub" || session.selectedNodeId || !user || user.role !== "admin") return nothing;
+    return prefCard({
+      icon: "lock",
+      title: t("hub.integration_token", "Integration token"),
+      body: html`
+        <p class="hint">
+          ${t(
+            "hub.integration_token_hint",
+            "Paste it when adding this hub to the Open Automotive Assistant integration in Home Assistant. It grants admin access; keep it private.",
+          )}
+        </p>
+        ${this.systemToken ? html`<p class="hint mono">${this.systemToken}</p>` : nothing}
+        <div class="pref-actions">
+          <wa-button appearance="outlined" @click=${() => this.showSystemToken()}>
+            ${t("hub.integration_token_show", "Show and copy")}
+          </wa-button>
+        </div>
+      `,
+    });
+  }
+
+  async showSystemToken() {
+    try {
+      const res = await api("/api/auth/system-token");
+      this.systemToken = res.token;
+      await navigator.clipboard.writeText(res.token);
+      toast(t("hub.integration_token_copied", "Token copied"), { variant: "success" });
+    } catch (e) {
+      if (!this.systemToken) toastError(errText(e));
     }
   }
 
@@ -320,6 +358,7 @@ class OaaPageSettings extends OaaPage {
           body: prefSegment("locale", localeOpts, i18n.locale),
         })}
         ${unitDimensionCards()} ${homeCard()} ${setupCard()} ${session.role === "local" ? this.hubCard() : nothing} ${session.role === "local" ? this.trustedCard() : nothing}
+        ${this.integrationTokenCard()}
       </div>
     `;
   }

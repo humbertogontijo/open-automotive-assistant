@@ -119,8 +119,8 @@ class HubServerTest {
         }
     }
 
-    private fun startHub(human: Int, node: Int): OaaHubServer =
-        OaaHubServer(tmp, humanPort = human, nodePort = node, demoNode = ::TestNode, mdnsEnabled = false).also {
+    private fun startHub(human: Int, node: Int, publicNode: PublicNode = PublicNode(null)): OaaHubServer =
+        OaaHubServer(tmp, humanPort = human, nodePort = node, demoNode = ::TestNode, mdnsEnabled = false, publicNode = publicNode).also {
             server = it
             it.start(wait = false)
             Thread.sleep(600)
@@ -296,8 +296,14 @@ class HubServerTest {
     }
 
     @Test
-    fun reportedPublicNodeReachesCarsAndServesBridgeArtifactPath() {
-        val hub = startHub(18837, 18838)
+    fun publicNodeReachesCarsAndServesBridgeArtifactPath() {
+        val tunnel = PublicNode(" https://oaa.example.com/ ")
+        assertEquals("https://oaa.example.com", tunnel.url)
+        assertEquals(OaaPaths.NODES_SESSION, tunnel.sessionPath)
+        assertEquals(OaaPaths.NODES_ARTIFACTS, tunnel.artifactsPath)
+        assertNull(PublicNode("oaa.example.com").dialUrl, "not a URL cars can dial")
+
+        val hub = startHub(18837, 18838, PublicNode("https://x.ui.nabu.casa/api/oaa_node/"))
         val base = "http://127.0.0.1:18837"
         val admin = mapOf("Authorization" to "Bearer ${setupAdmin(base)}", "Content-Type" to "application/json")
         val registry = hub.hub.registry
@@ -305,22 +311,12 @@ class HubServerTest {
         val car = FakeNode("car1")
         registry.attachSession("car1", car)
 
-        val report = """{"url":"https://x.ui.nabu.casa/","sessionPath":"/api/oaa_node/session"}""".toByteArray()
-        val user = hub.hub.auth.loginHa("ha-user", "bob", "Bob")
-        assertEquals(403, http("$base${OaaPaths.NODES_PUBLIC_URL}", "POST", mapOf("Authorization" to "Bearer ${user.token}"), report).code)
-        assertEquals(400, http("$base${OaaPaths.NODES_PUBLIC_URL}", "POST", admin, """{"url":"ftp://x"}""".toByteArray()).code)
-
-        val res = http("$base${OaaPaths.NODES_PUBLIC_URL}", "POST", admin, report)
-        assertEquals(200, res.code, res.text())
-        assertEquals("https://x.ui.nabu.casa", res.json().getString("publicNodeUrl"))
-        assertEquals("reported", res.json().getString("source"))
-        val frame = car.sent.single()
+        val frame = JSONObject(hub.hub.publicNode.frame())
         assertEquals(OaaFrames.PUBLIC_NODE, frame.getString("type"))
         assertEquals("https://x.ui.nabu.casa", frame.getJSONObject("payload").getString("publicNodeUrl"))
         assertEquals("/api/oaa_node/session", frame.getJSONObject("payload").getString("sessionPath"))
+        assertEquals("/api/oaa_node/artifacts", hub.hub.publicNode.artifactsPath)
 
-        http("$base${OaaPaths.NODES_PUBLIC_URL}", "POST", admin, report)
-        assertEquals(1, car.sent.size, "unchanged URL is not re-sent")
         val status = http("$base/api/status", headers = admin).json().getJSONObject("hub")
         assertEquals("https://x.ui.nabu.casa", status.getString("publicNodeUrl"))
         assertEquals("https://x.ui.nabu.casa/api/oaa_node", status.getString("publicDialUrl"))
@@ -328,7 +324,6 @@ class HubServerTest {
         runBlocking { hub.hub.nodeListener.onHello("car1", JSONObject().put("name", "Car").put("via", "public")) }
         val fleet = http("$base${OaaPaths.NODES}", headers = admin).json()
         assertEquals("https://x.ui.nabu.casa/api/oaa_node", fleet.getJSONObject("publicNode").getString("dialUrl"))
-        assertEquals("reported", fleet.getJSONObject("publicNode").getString("source"))
         assertEquals("public", fleet.getJSONArray("nodes").getJSONObject(0).getString("via"))
         registry.detachSession("car1", car)
         assertNull(hub.hub.nodeSummary(registry.get("car1")!!)["via"], "no connection type while offline")

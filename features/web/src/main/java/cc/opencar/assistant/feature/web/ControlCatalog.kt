@@ -24,6 +24,9 @@ import kotlinx.coroutines.flow.first
 object ControlCatalog {
     val ALL: List<EntityDef> get() = EntityRegistry.ALL
 
+    /** Id prefix of the telemetry rows built by [telemetrySensors]. */
+    private const val SENSOR_PREFIX = "sensor."
+
     /** Curated registry + auto entities for unbound catalog property keys. */
     fun defsFor(session: VehicleSession): List<EntityDef> =
         ALL + CatalogEntityFactory.fromCatalog(session.catalog())
@@ -69,14 +72,21 @@ object ControlCatalog {
         dvr: DvrController? = null,
     ): Built {
         val controls = snapshot(session, context, memory)
-        val t = session.telemetry().first()
-        val i18n = context?.let { i18n(it, session) }
         val persist = memory?.persistSnapshot().orEmpty()
+        val androidEntities = android?.entityMaps(persist).orEmpty()
+        val locationEntities = location?.entityMaps().orEmpty()
+        val cameraEntities = cameraEntityMaps(dvr)
+        return Built(controls, telemetrySensors(session) + controls + androidEntities + locationEntities + cameraEntities)
+    }
+
+    /** `sensor.*` rows read off the telemetry snapshot (model, VIN, speed, SoC, …). */
+    private suspend fun telemetrySensors(session: VehicleSession): List<Map<String, Any?>> {
+        val t = session.telemetry().first()
         val vinValue = when (val out = session.diagnose(EntityRegistry.property("INFO_VIN"))) {
             is ReadOutcome.Ok -> out.value?.display()
             else -> null
         }
-        val sensors = listOf(
+        return listOf(
             sensor("model", "vehicle", t.extras["model"], icon = "sensor"),
             sensor("vin", "vehicle", vinValue, icon = "sensor"),
             sensor(
@@ -244,13 +254,6 @@ object ControlCatalog {
                 icon = "sensor",
             ),
         )
-        val androidEntities = android?.entityMaps(persist).orEmpty()
-        val locationEntities = location?.entityMaps().orEmpty()
-        val cameraEntities = cameraEntityMaps(dvr)
-        // Prefer registry-bound sensors (declarative pack) over telemetry-only duplicates.
-        val controlIds = controls.mapNotNull { it["id"] as? String }.toSet()
-        val telemetrySensors = sensors.filter { (it["id"] as? String) !in controlIds }
-        return Built(controls, telemetrySensors + controls + androidEntities + locationEntities + cameraEntities)
     }
 
     private fun cameraEntityMaps(dvr: DvrController?): List<Map<String, Any?>> {
@@ -259,7 +262,7 @@ object ControlCatalog {
         val streaming = dvr.isMosaicRunning()
         return dvr.cameras().mapNotNull { src ->
             val role = src.role ?: return@mapNotNull null
-            val def = EntityRegistry.resolve(src.id) ?: EntityRegistry.CAMERAS.firstOrNull {
+            val def = EntityRegistry.byId(src.id) ?: EntityRegistry.CAMERAS.firstOrNull {
                 it.id == "camera.$role"
             } ?: return@mapNotNull null
             val state = if (streaming && src.cameraId in open) "streaming" else "idle"
@@ -291,7 +294,7 @@ object ControlCatalog {
     }
 
     private fun resolveDef(session: VehicleSession, id: String): EntityDef? {
-        EntityRegistry.resolve(id)?.let { return it }
+        EntityRegistry.byId(id)?.let { return it }
         val claimed = CatalogEntityFactory.claimedBindingKeys()
         if (id in claimed) return null
         val entry = session.catalog().firstOrNull { e ->
@@ -302,6 +305,9 @@ object ControlCatalog {
 
     /** Current display value for shortcut conditions / entity_state watching. */
     suspend fun currentValue(session: VehicleSession, id: String): String? {
+        if (id.startsWith(SENSOR_PREFIX)) {
+            return telemetrySensors(session).firstOrNull { it["id"] == id }?.get("value") as? String
+        }
         val def = resolveDef(session, id) ?: return null
         if (def.domain == EntityType.CAMERA) {
             // Live state is owned by DVR; callers with a DvrController should use entity maps.
@@ -313,11 +319,6 @@ object ControlCatalog {
             } else {
                 compositeMap(session, def, null, null)
             } ?: return null
-            val attr = if (id == def.id) null else EntityRegistry.aliasAttribute(id)
-            if (attr != null) {
-                return (map["attributes"] as? Map<*, *>)?.get(attr)?.toString()
-                    ?: map["value"] as? String
-            }
             return map["value"] as? String
         }
         if (def.domain == EntityType.COVER) {
@@ -336,11 +337,10 @@ object ControlCatalog {
             ?: return Result.failure(IllegalArgumentException("unknown control"))
 
         if (resolved.isComposite) {
-            val attr = if (id == resolved.id) null else EntityRegistry.aliasAttribute(id)
             return if (resolved.domain == EntityType.CLIMATE) {
-                setClimate(session, resolved, raw, attr, store)
+                setClimate(session, resolved, raw, store)
             } else {
-                setComposite(session, resolved, raw, attr, id, store)
+                setComposite(session, resolved, raw, store)
             }
         }
 
@@ -393,18 +393,9 @@ object ControlCatalog {
         session: VehicleSession,
         def: EntityDef,
         raw: String,
-        aliasAttr: String?,
-        requestId: String,
         store: LastKnownStore?,
     ): Result<Unit> {
         val v = raw.trim()
-        EntityRegistry.steerAssistLevelForAlias(requestId)?.let { level ->
-            val on = v == "1" || v.equals("true", true) || v.equals("on", true)
-            if (on) return writeCompositeAttr(session, def, "assist_level", level.toString(), store)
-        }
-        if (aliasAttr != null) {
-            return writeCompositeAttr(session, def, aliasAttr, v, store)
-        }
         if (def.domain == EntityType.LIGHT) {
             when (v.lowercase()) {
                 "on", "1", "true" ->
@@ -607,14 +598,9 @@ object ControlCatalog {
         session: VehicleSession,
         def: EntityDef,
         raw: String,
-        aliasAttr: String?,
         store: LastKnownStore?,
     ): Result<Unit> {
         val v = raw.trim()
-        // Alias writes: treat as attribute set (hvac_power=1 → power)
-        if (aliasAttr != null) {
-            return writeClimateAttr(session, def, aliasAttr, v, store)
-        }
         val lower = v.lowercase().replace('-', '_')
         when {
             lower == "off" || lower == "0" -> return writeClimateAttr(session, def, "power", "0", store)
@@ -1072,17 +1058,16 @@ object ControlCatalog {
         binary: Boolean = false,
         section: String = "telemetry",
     ): Map<String, Any?> {
-        val id = "sensor.$objectId"
+        val id = SENSOR_PREFIX + objectId
         val ok = value != null && value.isNotBlank()
-        val stringKey = "sensor.$objectId"
         return EntityContract.enrich(
             mapOf(
                 "id" to id,
                 "group" to group,
                 EntityContract.FIELD_SECTION to section,
                 "domain" to EntityType.SENSOR.id,
-                "labelKey" to stringKey,
-                "hintKey" to "$stringKey.hint",
+                "labelKey" to id,
+                "hintKey" to "$id.hint",
                 "input" to "sensor",
                 "icon" to icon,
                 "deviceClass" to deviceClass?.id,

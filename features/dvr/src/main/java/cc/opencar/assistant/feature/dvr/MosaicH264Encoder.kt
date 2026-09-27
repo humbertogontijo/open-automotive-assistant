@@ -4,7 +4,6 @@ import android.media.MediaCodec
 import android.media.MediaCodecInfo
 import android.media.MediaCodecList
 import android.media.MediaFormat
-import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.Surface
@@ -240,13 +239,7 @@ class MosaicH264Encoder(
             if (!caps.colorFormats.contains(MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)) {
                 continue
             }
-            val isHw = if (Build.VERSION.SDK_INT >= 29) {
-                info.isHardwareAccelerated
-            } else {
-                val n = info.name.lowercase()
-                !n.contains("sw") && !n.contains("google") && !n.contains("c2.android")
-            }
-            if (isHw) hw.add(info.name)
+            if (info.isHardwareAccelerated) hw.add(info.name)
         }
         val byFormat = list.findEncoderForFormat(format)
         val ordered = LinkedHashSet<String?>()

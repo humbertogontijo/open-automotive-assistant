@@ -145,11 +145,7 @@ class CameraPreviewSession(private val context: Context) : AutoCloseable {
             params.setPreviewSize(pw, ph)
             val fps = choosePreviewFps(params)
             runCatching { cam.parameters = params }
-            val st = if (android.os.Build.VERSION.SDK_INT >= 26) {
-                SurfaceTexture(/* singleBuffered = */ false)
-            } else {
-                SurfaceTexture(100 + camIndex)
-            }
+            val st = SurfaceTexture(/* singleBuffered = */ false)
             st.setDefaultBufferSize(pw, ph)
             cam.setPreviewTexture(st)
             slots[id] = Slot(id, camIndex, cam, st, pw, ph, fps)

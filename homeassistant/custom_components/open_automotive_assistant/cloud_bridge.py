@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Awaitable, Callable
 
 from aiohttp import ClientSession, ClientTimeout, WSMsgType, web
 from homeassistant.components.http import HomeAssistantView
@@ -30,7 +29,6 @@ from .cloud_paths import (
     node_public_urls,
 )
 from .const import DOMAIN
-from .hub import OaaHubClient
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -197,40 +195,6 @@ async def async_resolve_cloud_url(hass: HomeAssistant) -> str | None:
     if hass.config.external_url:
         return str(hass.config.external_url).rstrip("/")
     return None
-
-
-async def async_report_public_node(hass: HomeAssistant, client: OaaHubClient) -> None:
-    """Tell the hub to publish this HA's Cloud / external URL to its cars.
-
-    Only a URL that resolves is sent: while Nabu Casa is still connecting there is nothing to
-    report, and the hub keeps (and cars keep dialing) the last one.
-    """
-    cloud_base = await async_resolve_cloud_url(hass)
-    if not cloud_base:
-        return
-    try:
-        res = await client.report_public_node(cloud_base, NODE_SESSION_PATH)
-    except Exception as err:  # noqa: BLE001
-        _LOGGER.warning("OAA hub did not accept public node URL %s: %s", cloud_base, err)
-        return
-    if res.get("source") == "env":
-        _LOGGER.info("OAA hub keeps its configured public node URL %s", res.get("publicNodeUrl"))
-    else:
-        _LOGGER.info("OAA hub publishes %s%s to cars", cloud_base, NODE_SESSION_PATH)
-
-
-def async_listen_cloud_connected(hass: HomeAssistant, action: Callable[[], Awaitable[None]]) -> Callable[[], None]:
-    """Run [action] each time Home Assistant Cloud connects; a no-op without the cloud integration."""
-    try:
-        from homeassistant.components.cloud import CloudConnectionState, async_listen_connection_change
-    except ImportError:
-        return lambda: None
-
-    async def _changed(state: CloudConnectionState) -> None:
-        if state is CloudConnectionState.CLOUD_CONNECTED:
-            await action()
-
-    return async_listen_connection_change(hass, _changed)
 
 
 async def async_set_cloud_target(hass: HomeAssistant, hub_host: str, node_port: int) -> dict[str, str]:

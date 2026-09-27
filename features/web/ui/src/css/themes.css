@@ -1,6 +1,5 @@
 /*
  * Flat Home Assistant / Music Assistant surfaces per data-theme, set as Web Awesome tokens.
- * The short legacy names (--accent, --surface, --text-muted…) are aliases of those tokens.
  */
 :root {
   --font: "Segoe UI Variable", "Segoe UI", Roboto, system-ui, -apple-system, sans-serif;
@@ -36,31 +35,15 @@
   --wa-color-warning-fill-loud: var(--ha-orange);
   --wa-color-warning-on-loud: #1a1000;
 
-  /* Legacy aliases */
-  --bg: var(--wa-color-surface-lowered);
-  --surface: var(--wa-color-surface-default);
-  --surface-solid: var(--wa-color-surface-default);
-  --surface-2: var(--wa-color-surface-raised);
-  --surface-3: var(--wa-color-neutral-fill-normal);
-  --sidebar: var(--wa-color-surface-default);
-  --text: var(--wa-color-text-normal);
-  --text-muted: var(--wa-color-text-quiet);
-  --accent: var(--wa-color-brand-fill-loud);
-  --accent-hover: var(--wa-color-brand-on-normal);
-  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
-  --accent-fill-soft: color-mix(in srgb, var(--accent) 35%, transparent);
-  --accent-contrast: var(--wa-color-brand-on-loud);
-  --warn: var(--wa-color-warning-fill-loud);
-  --ok: var(--wa-color-success-fill-loud);
-  --border: var(--wa-color-surface-border);
-  --border-strong: var(--wa-color-neutral-border-normal);
-  --scrim: var(--wa-color-overlay-modal);
+  /* Derived tints */
+  --accent-soft: color-mix(in srgb, var(--wa-color-brand-fill-loud) 16%, transparent);
+  --accent-fill-soft: color-mix(in srgb, var(--wa-color-brand-fill-loud) 35%, transparent);
   --scrim-soft: color-mix(in srgb, black 35%, transparent);
   /* Transparent rather than none: it is comma-joined with rings (`var(--shadow), 0 0 0 2px …`). */
   --shadow: 0 0 0 0 transparent;
   --card-border: transparent;
 
-  /* Pin / reboot-snapshot accent (distinct from the live --accent) */
+  /* Pin / reboot-snapshot accent (distinct from the live brand fill) */
   --pin: #e6b84d;
   --pin-soft: color-mix(in srgb, var(--pin) 16%, transparent);
   --pin-contrast: #1a1408;

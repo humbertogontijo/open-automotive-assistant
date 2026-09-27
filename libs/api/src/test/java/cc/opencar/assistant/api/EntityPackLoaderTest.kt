@@ -18,14 +18,12 @@ class EntityPackLoaderTest {
         assertTrue(climate.isComposite)
         assertNull(climate.bindingKey)
         assertEquals("HVAC_POWER_ON", climate.attributes["power"])
-        assertTrue(climate.aliases.contains("hvac_power"))
         assertEquals("climate", climate.resolvedSection())
 
         val speed = pack.first { it.id == "PERF_VEHICLE_SPEED" }
         assertEquals("PERF_VEHICLE_SPEED", speed.bindingKey)
         assertEquals(DeviceClass.SPEED, speed.deviceClass)
         assertFalse(speed.writable)
-        assertTrue(speed.aliases.contains("sensor.speed"))
     }
 
     @Test
@@ -68,10 +66,9 @@ class EntityPackLoaderTest {
         val climate = EntityRegistry.CLIMATE
         assertEquals("climate.cabin", climate.id)
         assertTrue(climate.isComposite)
-        assertTrue(EntityRegistry.ALL.any { it.id == "PERF_VEHICLE_SPEED" })
-        assertTrue(EntityRegistry.ALL.any { it.id == "TYPE_EV_BATTERY_PERCENTAGE" })
-        assertNotNull(EntityRegistry.resolve("sensor.speed"))
-        assertNotNull(EntityRegistry.resolve("sensor.soc"))
+        assertNotNull(EntityRegistry.byId("PERF_VEHICLE_SPEED"))
+        assertNotNull(EntityRegistry.byId("TYPE_EV_BATTERY_PERCENTAGE"))
+        assertNull(EntityRegistry.byId("sensor.speed"))
         // File exists for contributors inspecting the pack.
         val file = File("src/main/resources/entities/standard-pilot.json")
         assertTrue("expected ${file.absolutePath}", file.isFile)

@@ -41,7 +41,6 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
-import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -309,7 +308,6 @@ class HubClient(
     }
 
     private fun ensureNodeId() {
-        migrateEndpoints()
         if (!nodeId.isNullOrBlank()) return
         val androidId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
             ?: UUID.randomUUID().toString()
@@ -359,14 +357,13 @@ class HubClient(
         lastFailed = if (listener.opened) null else chosen
     }
 
-    /** The hub's node face answers on [local] right now, and it is our hub (older hubs omit `hubId`). */
+    /** The hub's node face answers on [local] right now, and it is our hub. */
     private fun localAnswers(local: NodeUrl): Boolean = runCatching {
         val req = Request.Builder().url(local.url + OaaPaths.HEALTH).build()
         probeClient.newCall(req).execute().use { resp ->
             val json = JSONObject(resp.body?.string().orEmpty())
-            val hubId = json.optString("hubId")
-            val ours = prefs.getString(PREF_HUB_ID, null)
-            resp.isSuccessful && json.optString("face") == "node" && (hubId.isEmpty() || ours == null || hubId == ours)
+            resp.isSuccessful && json.optString("face") == "node" &&
+                json.optString("hubId") == prefs.getString(PREF_HUB_ID, null)
         }
     }.getOrDefault(false)
 
@@ -547,25 +544,6 @@ class HubClient(
         .putString(PREF_LOCAL_NODE, e.local?.toJson()?.toString())
         .putString(PREF_PUBLIC_NODE, e.public?.toJson()?.toString())
 
-    /** Builds up to 0.1.0 kept one ordered list of node URLs (or, before that, a single one). */
-    private fun migrateEndpoints() {
-        val single = prefs.getString(LEGACY_NODE_URL, null)?.let {
-            NodeUrl(it.trimEnd('/'), prefs.getString(LEGACY_SESSION_PATH, null)?.takeIf(String::isNotBlank) ?: OaaPaths.NODES_SESSION)
-        }
-        val list = prefs.getString(LEGACY_NODE_URLS, null)
-        if (single == null && list == null) return
-        val candidates = runCatching {
-            val arr = JSONArray(list ?: "[]")
-            (0 until arr.length()).mapNotNull { NodeUrl.parse(arr.optJSONObject(it)) }
-        }.getOrDefault(emptyList()) + listOfNotNull(single)
-        prefs.edit()
-            .putEndpoints(HubEndpoints.fromCandidates(candidates))
-            .remove(LEGACY_NODE_URLS)
-            .remove(LEGACY_NODE_URL)
-            .remove(LEGACY_SESSION_PATH)
-            .apply()
-    }
-
     /** Running build, reported in `hello`; the hub treats the APK hash as the installed version. */
     private fun buildAppInfo(): JSONObject {
         val pm = context.packageManager
@@ -593,9 +571,6 @@ class HubClient(
         const val PREF_TOKEN = "hub_token"
         const val PREF_NAME = "hub_display_name"
         private const val PREF_LAST_ERROR = "hub_last_error"
-        private const val LEGACY_NODE_URLS = "hub_node_urls"
-        private const val LEGACY_NODE_URL = "hub_node_url"
-        private const val LEGACY_SESSION_PATH = "hub_session_path"
         /** While on the public URL, how often to check whether the hub answers locally again. */
         private const val LOCAL_PROBE_MS = 60_000L
         private const val TAG = "OaaHubClient"

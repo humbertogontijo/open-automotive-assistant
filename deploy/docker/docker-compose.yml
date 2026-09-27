@@ -18,10 +18,10 @@ services:
       - oaa-data:/data
     # OAA_DATA, OAA_PORT and OAA_NODE_PORT defaults come from the image.
     environment:
-      # Optional remote URLs (set when using tunnel / proxy profiles):
+      # Optional remote URLs (set when using tunnel / proxy profiles). OAA_PUBLIC_NODE_URL is
+      # what away cars dial (and what you type on a car for manual pairing):
       # - OAA_PUBLIC_NODE_URL=https://oaa-nodes.example.com
       # - OAA_PUBLIC_HUMAN_URL=https://oaa.example.com
-      # - OAA_SESSION_PATH=/api/nodes/session
       # HA OAuth (compose hubs that offer “Sign in with Home Assistant”):
       # - OAA_HA_URL=http://homeassistant:8123
       # - OAA_HA_CLIENT_ID=...

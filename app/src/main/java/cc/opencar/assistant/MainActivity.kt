@@ -8,6 +8,7 @@ import android.provider.Settings
 import android.util.Log
 import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
@@ -30,7 +31,9 @@ import org.mozilla.geckoview.WebExtension
 class MainActivity : ComponentActivity() {
     private lateinit var geckoView: GeckoView
     private lateinit var session: GeckoSession
-    private var canGoBack = false
+    private val backInPage = object : OnBackPressedCallback(false) {
+        override fun handleOnBackPressed() = session.goBack()
+    }
 
     /** Content-script port of the built-in `oaa-ext` extension; null until the page connects. */
     private var bridgePort: WebExtension.Port? = null
@@ -71,9 +74,10 @@ class MainActivity : ComponentActivity() {
         session.permissionDelegate = LocalOriginPermissions
         session.navigationDelegate = object : GeckoSession.NavigationDelegate {
             override fun onCanGoBack(session: GeckoSession, canGoBack: Boolean) {
-                this@MainActivity.canGoBack = canGoBack
+                backInPage.isEnabled = canGoBack
             }
         }
+        onBackPressedDispatcher.addCallback(this, backInPage)
         session.open(runtime)
         installBridge()
         geckoView = GeckoView(this).apply {
@@ -141,12 +145,6 @@ class MainActivity : ComponentActivity() {
         if (::session.isInitialized) {
             navigateToSection(intent)
         }
-    }
-
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
-        if (::session.isInitialized && canGoBack) session.goBack()
-        else super.onBackPressed()
     }
 
     private fun oaaUrl(intent: Intent?): String {

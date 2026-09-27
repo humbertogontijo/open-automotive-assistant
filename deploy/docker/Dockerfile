@@ -10,10 +10,13 @@ RUN --mount=type=cache,target=/root/.gradle \
     --mount=type=cache,target=/src/features/web/ui/.gradle \
     chmod +x gradlew \
   && OAA_HUB_ONLY=1 ./gradlew :server:jar --no-daemon
+# Home Assistant app helper (run.sh): Home Assistant's public URL for OAA_PUBLIC_NODE_URL.
+RUN javac -cp "$(ls server/build/libs/*.jar)" -d /src/addon deploy/homeassistant/addon/HaPublicUrl.java
 
 FROM eclipse-temurin:17-jre-jammy
 RUN mkdir -p /data /app
 COPY --from=build /src/server/build/libs/*.jar /app/oaa-hub.jar
+COPY --from=build /src/addon /app/addon
 COPY deploy/docker/run.sh /run.sh
 RUN chmod a+x /run.sh
 ENV OAA_DATA=/data

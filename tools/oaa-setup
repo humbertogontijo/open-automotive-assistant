@@ -14,7 +14,7 @@
 #   grant                grant runtime car/camera permissions for the Android user
 #   check                print permission / package status
 #   setup                connect → build → sign → install → grant → check
-#   uninstall            remove the package (best-effort legacy priv-app cleanup)
+#   uninstall            remove the package
 #   start                launch MainActivity for the target user
 #   pair                 mint a car API token over adb for host scripts (the car's
 #                        :8787 API needs a paired device or token, ADR-0004)

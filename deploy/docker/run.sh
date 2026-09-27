@@ -17,10 +17,13 @@ export_opt() {
   value="$(opt "$2")"
   if [ -n "$value" ]; then export "$1=$value"; fi
 }
-export_opt OAA_PUBLIC_NODE_URL public_node_url
-# The app's public URL is Home Assistant's; cars reach the node face through the HACS bridge.
-if [ -n "$(opt public_node_url)" ] && [ -z "${OAA_SESSION_PATH:-}" ]; then
-  export OAA_SESSION_PATH=/api/oaa_node/session
+# Home Assistant app: away cars reach the hub through Home Assistant's public URL and the
+# integration's /api/oaa_node bridge. The public_node_url option wins over the URL Home Assistant
+# reports (Nabu Casa remote access, else its external URL).
+if [ -n "${SUPERVISOR_TOKEN:-}" ]; then
+  ha_url="$(opt public_node_url)"
+  if [ -z "$ha_url" ]; then ha_url="$(java -cp /app/oaa-hub.jar:/app/addon HaPublicUrl 60 || true)"; fi
+  if [ -n "$ha_url" ]; then export OAA_PUBLIC_NODE_URL="${ha_url%/}/api/oaa_node"; fi
 fi
 export_opt OAA_STUN_URLS stun_urls
 export_opt OAA_TURN_URLS turn_urls

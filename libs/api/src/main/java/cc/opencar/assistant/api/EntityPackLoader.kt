@@ -78,7 +78,6 @@ object EntityPackLoader {
             max = o.optDoubleOrNull("max")?.toFloat(),
             step = o.optDoubleOrNull("step")?.toFloat(),
             history = o.optBoolean("history", false),
-            aliases = o.optJSONArray("aliases")?.toStringSet().orEmpty(),
             areaId = o.optIntOrNull("areaId"),
             attributeAreas = o.optJSONObject("attributeAreas")?.toIntMap().orEmpty(),
         )
@@ -101,12 +100,6 @@ object EntityPackLoader {
             val k = keys.next()
             out[k] = getInt(k)
         }
-        return out
-    }
-
-    private fun JSONArray.toStringSet(): Set<String> {
-        val out = linkedSetOf<String>()
-        for (i in 0 until length()) out += getString(i)
         return out
     }
 

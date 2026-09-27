@@ -143,10 +143,4 @@ oaa_install_data() {
 oaa_uninstall() {
   log "Uninstall $OAA_PACKAGE"
   adb_s uninstall "$OAA_PACKAGE" 2>/dev/null || true
-  # Best-effort cleanup if an older priv-app copy remains from prior tooling.
-  if adb_s root >/dev/null 2>&1; then
-    sleep 1
-    adb_s remount >/dev/null 2>&1 || true
-    adb_s shell "rm -rf '/system/priv-app/OpenCarAssistant' '/system/priv-app/OpenAutomotiveAssistant' '/system/etc/permissions/privapp-permissions-opencar.xml'" 2>/dev/null || true
-  fi
 }

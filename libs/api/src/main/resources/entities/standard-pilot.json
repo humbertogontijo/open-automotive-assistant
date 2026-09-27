@@ -17,16 +17,6 @@
         "recirc": "HVAC_RECIRC_ON",
         "current_temperature": "SENSOR_TYPE_TEMPERATURE_INDOOR"
       },
-      "aliases": [
-        "climate",
-        "hvac_power",
-        "hvac_ac",
-        "hvac_auto",
-        "hvac_recirc",
-        "hvac_temp",
-        "hvac_fan",
-        "hvac_fan_direction"
-      ],
       "min": 16,
       "max": 32,
       "step": 0.5,
@@ -48,11 +38,6 @@
       "unitOfMeasurement": "km_h",
       "icon": "sensor",
       "history": true,
-      "aliases": [
-        "sensor.speed",
-        "speed",
-        "speed_kmh"
-      ],
       "labelKey": "control.PERF_VEHICLE_SPEED",
       "hintKey": "control.PERF_VEHICLE_SPEED.hint"
     },
@@ -68,11 +53,6 @@
       "unitOfMeasurement": "percent",
       "icon": "battery",
       "history": true,
-      "aliases": [
-        "ev_battery_percent",
-        "sensor.soc",
-        "soc"
-      ],
       "labelKey": "control.TYPE_EV_BATTERY_PERCENTAGE",
       "hintKey": "control.TYPE_EV_BATTERY_PERCENTAGE.hint"
     },
@@ -88,11 +68,6 @@
       "unitOfMeasurement": "km",
       "icon": "energy",
       "history": true,
-      "aliases": [
-        "range",
-        "range_km",
-        "sensor.range"
-      ],
       "labelKey": "control.RANGE_REMAINING",
       "hintKey": "control.RANGE_REMAINING.hint"
     },
@@ -108,11 +83,6 @@
       "unitOfMeasurement": "celsius",
       "icon": "temp",
       "history": true,
-      "aliases": [
-        "sensor.temp_ambient",
-        "temp_ambient",
-        "temp_ambient_c"
-      ],
       "labelKey": "control.SENSOR_TYPE_TEMPERATURE_AMBIENT",
       "hintKey": "control.SENSOR_TYPE_TEMPERATURE_AMBIENT.hint"
     },
@@ -128,11 +98,6 @@
       "unitOfMeasurement": "km",
       "icon": "sensor",
       "history": true,
-      "aliases": [
-        "odometer",
-        "odometer_km",
-        "sensor.odometer"
-      ],
       "labelKey": "control.PERF_ODOMETER",
       "hintKey": "control.PERF_ODOMETER.hint"
     }

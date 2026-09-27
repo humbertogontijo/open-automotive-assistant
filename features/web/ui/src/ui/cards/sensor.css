@@ -3,5 +3,5 @@
   text-align: center; width: 100%;
 }
 .sensor-card .entity-value .unit {
-  font-size: 1.1rem; font-weight: 550; color: var(--text-muted); margin-left: 0.25rem;
+  font-size: 1.1rem; font-weight: 550; color: var(--wa-color-text-quiet); margin-left: 0.25rem;
 }

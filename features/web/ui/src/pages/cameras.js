@@ -124,7 +124,7 @@ function pageCameras() {
             <p class="sub" style="margin:0 0 6px">${t("cameras.storage", "Save to")}</p>
             ${prefSegment("cam-storage", storageOpts, storageId)}
             ${dvr.storageNote
-              ? html`<p class="sub" style="color:var(--warn);margin:8px 0 0">${dvr.storageNote}</p>`
+              ? html`<p class="sub" style="color:var(--wa-color-warning-fill-loud);margin:8px 0 0">${dvr.storageNote}</p>`
               : nothing}
             <div style="margin-top:12px">
               ${spaceBar(usedB, totalB)}
