@@ -41,7 +41,25 @@ Multi-arch images: `ghcr.io/<owner>/open-automotive-assistant` (CI workflow `pub
 
 The app uses the published `image:` in [`deploy/homeassistant/open_automotive_assistant/config.yaml`](../deploy/homeassistant/open_automotive_assistant/config.yaml), the same image docker compose builds from [`deploy/docker/Dockerfile`](../deploy/docker/Dockerfile). Open via **Ingress** (auto-login via `X-Remote-User-*`) or `http://HOME_ASSISTANT_IP:8787`.
 
-Away cars: install the HACS component so it registers HA Cloud **node** views (`/api/oaa_node/pair|session|artifacts`). Set `OAA_PUBLIC_NODE_URL` to your Nabu Casa base and `OAA_SESSION_PATH=/api/oaa_node/session`. OTA downloads follow the session path (`/api/oaa_node/artifacts`); override with `OAA_ARTIFACTS_PATH` only for custom proxies.
+### Away cars (public node URL)
+
+Nabu Casa exposes Home Assistant only, so away cars reach the node face through the HACS component's HA Cloud **node** views (`/api/oaa_node/pair|session|artifacts`, token-gated by the car's node token, not an HA login). Install the component and add the hub with its system token.
+
+The hub publishes one public node endpoint to cars:
+
+1. `OAA_PUBLIC_NODE_URL` (+ `OAA_SESSION_PATH`) when set. In the HA app this is the `public_node_url` option (e.g. `https://xxxx.ui.nabu.casa`); the session path defaults to `/api/oaa_node/session`.
+2. Otherwise the URL the component reports: its Nabu Casa remote URL (else HA's external URL), sent with `POST /api/nodes/public-url` (admin) on setup and each time HA Cloud connects, and kept in `data/public-node.json`. Nothing to configure.
+
+Cars get it when they pair and in a `public_node` frame on every connect and whenever it changes, so cars paired earlier pick it up the next time they are online. A new URL replaces the previously published one; the car never drops it on "none", since that could strand a car that is away. OTA offers use the endpoint's artifacts path (`/api/oaa_node/artifacts`); the node face serves that path too, so cars on the LAN download the same offer. Override with `OAA_ARTIFACTS_PATH` only for custom proxies.
+
+### Local and public URL on the car
+
+Like the Home Assistant app's internal and external URLs, each car keeps two node-face URLs, shown under Settings → Hub:
+
+- **Local**: the hub's LAN address, learned at pairing (the address the hub called from, or the plain `http://HUB_IP:8788` typed for manual pairing).
+- **Public**: the endpoint above; the car follows every `public_node` update.
+
+Before each connect the car probes `GET <local>/api/health` (2 s connect timeout); when the node face answers with this hub's `hubId`, the session uses the local URL, otherwise the public one. While on the public URL the car re-probes the local one every 60 s and on each network change, and moves back as soon as the hub answers there. While on the local URL, a network change that makes the hub unreachable moves the session to the public URL right away instead of waiting for pings to time out. A URL whose socket fails to open is tried last on the next attempt. Cars with only one of the two URLs always dial that one.
 
 ## First-run auth
 
@@ -57,7 +75,7 @@ The hub adds cars; the car confirms with a code on its own screen ([adr/0004-car
 
 1. Hub UI → Fleet → **Nearby cars** lists unpaired cars announcing `_oaa-car._tcp` on the LAN (needs host networking for the hub). Or use **Add by address** with the car's IP.
 2. **Add** → the car shows a 6-digit code (dialog and notification) → type it on the hub.
-3. The hub registers the car and hands it a node token; the car dials the node face at the hub's LAN address (port 8788) first, then `OAA_PUBLIC_NODE_URL` when set, and stops announcing itself.
+3. The hub registers the car and hands it a node token; the car keeps the hub's LAN address (port 8788) as its local URL and the public node URL ([above](#away-cars-public-node-url)), picks between them as in [Local and public URL on the car](#local-and-public-url-on-the-car), and stops announcing itself.
 
 | Method | Path | Notes |
 |--------|------|-------|
@@ -70,7 +88,7 @@ The hub adds cars; the car confirms with a code on its own screen ([adr/0004-car
 
 1. Hub UI → Fleet → Manual pairing → **Generate pairing code** (note Cloud/public node URL when shown).
 2. Car UI → Settings → Hub → *Pair manually with a hub code* → enter the hub's **node** URL shown on Fleet (`http://HUB_IP:8788`, or the tunnel / HA Cloud node URL such as `https://….ui.nabu.casa/api/oaa_node`) and the code.
-3. Car stores the node token and keeps its session on the `OAA_PUBLIC_NODE_URL` the hub publishes, falling back to the typed URL. The hub also appears under the car's trusted devices.
+3. Car stores the node token. A typed LAN URL becomes its local URL; a typed tunnel or HA Cloud URL stands in as the public URL until the hub publishes its own. The hub also appears under the car's trusted devices.
 
 Removing the hub from the car's trusted devices, or Settings → Hub → Leave, drops the link; the car announces itself again.
 

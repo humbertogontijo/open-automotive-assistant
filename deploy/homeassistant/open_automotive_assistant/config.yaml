@@ -1,6 +1,6 @@
 name: "Open Automotive Assistant"
 description: "Always-on OAA hub — control paired cars with the same UI as the head unit"
-version: "0.1.0"
+version: "0.1.1"
 slug: open_automotive_assistant
 url: "https://github.com/humbertogontijo/open-automotive-assistant"
 arch:
@@ -28,9 +28,12 @@ map:
     read_only: false
 environment:
   OAA_HOMEASSISTANT_ADDON: "true"
+# public_node_url: Home Assistant URL away cars dial (e.g. https://xxxx.ui.nabu.casa), through
+# the HACS component's /api/oaa_node bridge. Leave empty to use the one the component reports.
 # WebRTC media plane (remote Cameras). Leave empty for public STUN only.
 options: {}
 schema:
+  public_node_url: "url?"
   stun_urls: "str?"
   turn_urls: "str?"
   turn_secret: "password?"

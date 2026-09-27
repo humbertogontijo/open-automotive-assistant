@@ -28,12 +28,13 @@ class HubContext(
     val identity = HubIdentity(dataDir)
     val registry = NodeRegistry(dataDir)
     val discovered = DiscoveredCars()
-    val invites = CarInvites(identity, registry, nodePort)
+    val publicNode = PublicNode(dataDir)
+    val invites = CarInvites(identity, registry, nodePort, publicNode)
     val auth = AuthStore(dataDir)
     val signalRelay = WebRtcSignalRelay(registry, ice)
     val logs = LogRelay(registry)
     val artifacts = ArtifactStore(dataDir)
-    val rollouts = OtaRollouts(dataDir, registry, artifacts)
+    val rollouts = OtaRollouts(dataDir, registry, artifacts) { publicNode.artifactsPath }
     val haOAuth: HaOAuth? = HubConfig.homeAssistantUrl?.let { url -> HubConfig.haClientId?.let { HaOAuth(url, it) } }
 
     val nodeListener = object : NodeListener {
@@ -76,6 +77,12 @@ class HubContext(
     )
 
     fun fleet(): Map<String, Any?> = mapOf("nodes" to registry.all().map { nodeSummary(it) })
+
+    /** Tell every connected car where to dial when away; call after [PublicNode.report] changed it. */
+    suspend fun broadcastPublicNode() {
+        val frame = publicNode.frame()
+        registry.all().forEach { registry.session(it.id)?.send(frame) }
+    }
 
     // --- per-call helpers ---
 

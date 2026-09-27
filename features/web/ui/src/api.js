@@ -1,7 +1,8 @@
 /**
- * Relative fetch helper. On hub hosts, selectedNodeId is sent as X-Oaa-Node
- * so the same SPA pages talk to one car at a time.
+ * Fetch helper for app paths (`/api/...`, resolved under BASE_PATH). On hub hosts,
+ * selectedNodeId is sent as X-Oaa-Node so the same SPA pages talk to one car at a time.
  */
+import { appUrl } from "./base.js";
 import { session } from "./store.js";
 
 /** @type {(() => void)|null} */
@@ -19,7 +20,7 @@ export async function api(path, opts) {
     headers["X-Oaa-Node"] = session.selectedNodeId || "";
   }
   options.headers = headers;
-  const r = await fetch(path, options);
+  const r = await fetch(appUrl(path), options);
   if (r.status === 401 && onUnauthorized && path.indexOf("/api/") === 0 && path.indexOf("/api/auth/") !== 0) {
     onUnauthorized();
   }

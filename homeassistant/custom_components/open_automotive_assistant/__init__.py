@@ -13,7 +13,12 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 
-from .cloud_bridge import async_register_cloud_views, async_set_cloud_target
+from .cloud_bridge import (
+    async_listen_cloud_connected,
+    async_register_cloud_views,
+    async_report_public_node,
+    async_set_cloud_target,
+)
 from .const import CONF_NODE_PORT, DEFAULT_NODE_PORT, DOMAIN
 from .coordinator import OaaDataUpdateCoordinator
 
@@ -45,6 +50,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     node_port = int(entry.data.get(CONF_NODE_PORT) or DEFAULT_NODE_PORT)
     await async_set_cloud_target(hass, entry.data[CONF_HOST], node_port)
+    if await coordinator.is_hub():
+
+        async def _report() -> None:
+            await async_report_public_node(hass, coordinator.client)
+
+        await _report()
+        entry.async_on_unload(async_listen_cloud_connected(hass, _report))
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_reload))

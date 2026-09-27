@@ -3,6 +3,7 @@ import { OaaElement } from "../lit/oaa-element.js";
 import { session, statusVersion } from "../store.js";
 import { t } from "../i18n.js";
 import { icon } from "../icons.js";
+import { pagePath } from "../pages/ids.js";
 
 /**
  * @typedef {{ page: string, icon: string, label: string, cap?: string[], role?: "hub" | "local" }} NavItem
@@ -67,7 +68,7 @@ export class OaaNav extends OaaElement {
           ${NAV_ITEMS.filter(navItemVisible).map(
             (item) => html`<a
               class="nav-item ${page === item.page ? "active" : ""}"
-              href=${item.page === "home" ? "/" : "/" + item.page}
+              href=${pagePath(item.page)}
               data-page=${item.page}
               ><span class="ico">${icon(item.icon)}</span
               ><span class="label">${t("nav." + item.page, item.label)}</span></a

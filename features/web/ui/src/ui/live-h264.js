@@ -3,8 +3,9 @@
  * Timestamp is burned into frames on the device (live + DVR).
  */
 import Hls from "hls.js/light";
+import { appUrl } from "../base.js";
 
-const LIVE_URL = "/api/dvr/live.m3u8";
+const LIVE_URL = appUrl("/api/dvr/live.m3u8");
 
 /** @type {Hls|null} */
 let hls = null;

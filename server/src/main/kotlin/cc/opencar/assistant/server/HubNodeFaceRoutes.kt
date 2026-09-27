@@ -24,7 +24,7 @@ import org.json.JSONObject
 /** Node face (8788): pairing, the car session, and OTA downloads. Nothing else. */
 internal fun Routing.nodeFaceRoutes(hub: HubContext) = with(hub) {
     get(OaaPaths.HEALTH) {
-        call.respond(mapOf("ok" to true, "face" to "node"))
+        call.respond(mapOf("ok" to true, "face" to "node", "hubId" to identity.id))
     }
 
     post(OaaPaths.NODES_PAIR) {
@@ -39,6 +39,7 @@ internal fun Routing.nodeFaceRoutes(hub: HubContext) = with(hub) {
         }
         val session = NodeSession(node.id, this, eventBus, nodeListener)
         registry.attachSession(node.id, session)
+        session.send(publicNode.frame())
         try {
             for (frame in incoming) {
                 if (frame is Frame.Text) session.handleFrame(frame.readText())
@@ -51,26 +52,35 @@ internal fun Routing.nodeFaceRoutes(hub: HubContext) = with(hub) {
     }
 
     get("${OaaPaths.NODES_ARTIFACTS}/{sha}") {
-        if (call.bearerNode(hub) == null) {
-            call.respondError(HttpStatusCode.Unauthorized, "node token required")
-            return@get
-        }
-        val sha = call.parameters["sha"].orEmpty()
-        val file = artifacts.file(sha)
-        if (file == null) {
-            call.respondError(HttpStatusCode.NotFound, "unknown artifact")
-            return@get
-        }
-        val mime = if (artifacts.isDelta(sha)) OaaOta.DELTA_MIME else OaaOta.APK_MIME
-        call.respond(LocalFileContent(file, ContentType.parse(mime)))
+        serveArtifact(call, call.parameters["sha"].orEmpty())
     }
 
     get("/{path...}") {
+        // Offers carry the public bridge's artifacts path; cars on the LAN download it from here.
+        val prefix = publicNode.artifactsPath + "/"
+        val path = "/" + call.parameters.getAll("path").orEmpty().joinToString("/")
+        if (prefix != OaaPaths.NODES_ARTIFACTS + "/" && path.startsWith(prefix)) {
+            return@get serveArtifact(call, path.removePrefix(prefix))
+        }
         call.respondError(HttpStatusCode.NotFound, "node face: pair, session and artifacts only")
     }
     post("/{path...}") {
         call.respondError(HttpStatusCode.NotFound, "node face: pair, session and artifacts only")
     }
+}
+
+private suspend fun HubContext.serveArtifact(call: ApplicationCall, sha: String) {
+    if (call.bearerNode(this) == null) {
+        call.respondError(HttpStatusCode.Unauthorized, "node token required")
+        return
+    }
+    val file = artifacts.file(sha)
+    if (file == null) {
+        call.respondError(HttpStatusCode.NotFound, "unknown artifact")
+        return
+    }
+    val mime = if (artifacts.isDelta(sha)) OaaOta.DELTA_MIME else OaaOta.APK_MIME
+    call.respond(LocalFileContent(file, ContentType.parse(mime)))
 }
 
 private fun ApplicationCall.bearerNode(hub: HubContext): NodeRecord? {
@@ -104,8 +114,8 @@ private suspend fun HubContext.handlePair(call: ApplicationCall) {
             "ok" to true,
             "nodeId" to paired.first.id,
             "token" to paired.second,
-            "publicNodeUrl" to HubConfig.publicNodeUrl,
-            "sessionPath" to HubConfig.sessionPath,
+            "publicNodeUrl" to publicNode.url,
+            "sessionPath" to publicNode.sessionPath,
             "hubId" to identity.id,
             "hubName" to identity.name,
         ),

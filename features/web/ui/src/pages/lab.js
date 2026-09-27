@@ -6,6 +6,7 @@ import "@awesome.me/webawesome/dist/components/tab-panel/tab-panel.js";
 import { session, catalog, lab } from "../store.js";
 import { t, entityLabel, entityValueLabel } from "../i18n.js";
 import { api, errText, postForm } from "../api.js";
+import { appUrl, wsUrl } from "../base.js";
 import { fmt } from "../format.js";
 import { segmentToggle } from "../ui/cards/choice.js";
 import { OaaElement } from "../lit/oaa-element.js";
@@ -67,9 +68,7 @@ function probeRows(tab, query, bound) {
 }
 
 function logStreamUrl(token) {
-  const loc = window.location;
-  let url =
-    (loc.protocol === "https:" ? "wss:" : "ws:") + "//" + loc.host + "/debug/logs/stream?token=" + encodeURIComponent(token);
+  let url = wsUrl("/debug/logs/stream?token=" + encodeURIComponent(token));
   if (session.role === "hub" && session.selectedNodeId) {
     url += "&node=" + encodeURIComponent(session.selectedNodeId);
   }
@@ -345,7 +344,7 @@ class OaaPageLab extends OaaPage {
         <wa-button variant="brand" ?loading=${this.probing} @click=${() => this.reprobe()}
           >${t("lab.probe", "Re-probe")}</wa-button
         >
-        <wa-button appearance="outlined" href=${"/debug/export?token=" + encodeURIComponent(token)}
+        <wa-button appearance="outlined" href=${appUrl("/debug/export?token=" + encodeURIComponent(token))}
           >${t("lab.export", "Export zip")}</wa-button
         >
         <wa-input

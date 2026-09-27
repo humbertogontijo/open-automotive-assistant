@@ -32,7 +32,7 @@ info:
     Signaling frames and data-channel JSON carry `v: 1`; see `WebRtcSignal`,
     `DataChannelHello` and `MediaChunk` below. LAN `role=local` keeps HLS and
     direct `/api/dvr/*` HTTP.
-  version: 0.1.0
+  version: 0.1.1
 servers:
   - url: http://127.0.0.1:8787
     description: HU GeckoView / localhost (role=local)
@@ -134,6 +134,51 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PairingOffer"
+  /api/nodes/public-url:
+    post:
+      summary: Report the public node URL cars dial when away (hub only, admin)
+      description: |
+        Sent by the Home Assistant component with its Nabu Casa (or external) URL.
+        `OAA_PUBLIC_NODE_URL` still wins when set. When the effective endpoint
+        changes, connected cars get a `public_node` frame. `url` omitted or empty
+        clears the reported URL.
+      operationId: reportPublicNodeUrl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url:
+                  type: string
+                  format: uri
+                sessionPath:
+                  type: string
+                  description: Session path on `url` (default `/api/nodes/session`)
+      responses:
+        "200":
+          description: Effective public node endpoint
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  publicNodeUrl:
+                    type: string
+                    nullable: true
+                  sessionPath:
+                    type: string
+                  source:
+                    type: string
+                    nullable: true
+                    enum: [env, reported]
+        "400":
+          description: Invalid JSON or non-http(s) URL
+        "403":
+          description: Admin required
   /api/nodes/pair:
     post:
       summary: Complete pairing from a car node (hub only)
@@ -417,8 +462,8 @@ paths:
         `Authorization: Bearer <nodeToken>` (or query `token=`). Frames are
         `NodeFrame` JSON. Car→hub: `hello`, `event`, `rpc_result`,
         `ota_status`, `log`, `pong`, WebRTC answers/ICE. Hub→car: `rpc`,
-        `ota_offer`, `log_subscribe`, `log_unsubscribe`, `ping`, WebRTC
-        offers/ICE/hangup.
+        `ota_offer`, `public_node` (on connect and on change), `log_subscribe`,
+        `log_unsubscribe`, `ping`, WebRTC offers/ICE/hangup.
       operationId: nodeSessionWebSocket
       responses:
         "101":
@@ -1024,6 +1069,19 @@ components:
         nodeUrl:
           type: string
           nullable: true
+          description: The node-face URL the session is using or trying (localNodeUrl or publicNodeUrl).
+        localNodeUrl:
+          type: string
+          nullable: true
+          description: Node face on the hub's LAN, used whenever the hub answers there.
+        publicNodeUrl:
+          type: string
+          nullable: true
+          description: Node face from anywhere (Nabu Casa or a tunnel), used when the local one is unreachable.
+        via:
+          type: string
+          enum: [local, public]
+          nullable: true
         nodeId:
           type: string
           nullable: true
@@ -1113,7 +1171,8 @@ components:
         Frame on `/api/nodes/session`. Payload shapes: `hello` → `NodeHello`,
         `event` → `EventEnvelope`, `rpc` → `RpcRequest`, `rpc_result` →
         `RpcResult`, `ota_offer` → `OtaOffer`, `ota_status` → `OtaStatus`,
-        `log_subscribe` → `{v, token?}`, `log` → `{line}`; WebRTC frames are
+        `log_subscribe` → `{v, token?}`, `log` → `{line}`, `public_node` →
+        `{v, publicNodeUrl?, sessionPath}`; WebRTC frames are
         `WebRtcSignal`. `ping` / `pong` / `log_unsubscribe` carry no payload.
       properties:
         type:
@@ -1127,6 +1186,7 @@ components:
             - rpc_result
             - ota_offer
             - ota_status
+            - public_node
             - log_subscribe
             - log_unsubscribe
             - log

@@ -1,7 +1,8 @@
 import { html } from "lit";
 import { registerIconLibrary } from "@awesome.me/webawesome/dist/components/icon/library.js";
+import { appUrl } from "./base.js";
 
-const SPRITE = "/static/icons/sprite.svg";
+const SPRITE = appUrl("/static/icons/sprite.svg");
 
 /** Control / page names → sprite symbol ids (public/icons/sprite.svg). */
 const ICON_MAP = {

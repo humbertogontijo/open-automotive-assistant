@@ -3,6 +3,7 @@ import { session } from "../store.js";
 import { OaaElement } from "../lit/oaa-element.js";
 import { t } from "../i18n.js";
 import { errText, setUnauthorizedHandler, postJson } from "../api.js";
+import { appUrl } from "../base.js";
 
 let authBootstrapped = false;
 /** @type {(() => void)|null} */
@@ -44,7 +45,7 @@ export async function ensureHubAuth() {
   authBootstrapped = true;
   let st = null;
   try {
-    const r = await fetch("/api/auth/status", { credentials: "same-origin" });
+    const r = await fetch(appUrl("/api/auth/status"), { credentials: "same-origin" });
     if (r.ok) st = await r.json();
   } catch (e) {}
   // Network error: assume the car UI and let the API calls decide.
@@ -168,7 +169,7 @@ function hubLoginForm() {
     ${authMessage()}
     <wa-button type="submit" variant="brand">${t("auth.sign_in", "Sign in")}</wa-button>
     ${providers.homeassistant
-      ? html`<wa-button appearance="outlined" href="/api/auth/authorize?provider_id=homeassistant"
+      ? html`<wa-button appearance="outlined" href=${appUrl("/api/auth/authorize?provider_id=homeassistant")}
           >${t("auth.sign_in_ha", "Sign in with Home Assistant")}</wa-button
         >`
       : nothing}

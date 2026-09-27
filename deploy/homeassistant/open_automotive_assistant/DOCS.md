@@ -15,6 +15,17 @@ Fleet → **Nearby cars** → Add. The car's screen shows a 6-digit code; type i
 
 The app runs with host networking so it can see the cars' mDNS announcements.
 
+## Cars away from home (Nabu Casa)
+
+Cars keep their link to the hub over Home Assistant Cloud:
+
+1. Enable Nabu Casa **Remote access**.
+2. Install the HACS integration (`homeassistant/custom_components/open_automotive_assistant`) and add the hub with its system token (hub UI as admin → `GET /api/auth/system-token`).
+
+The integration reports your Nabu Casa URL to the hub, and the hub hands it to every car: at pairing, and each time a car connects, so cars paired before still pick it up. Pair at home as usual; nothing else to configure.
+
+To pin a URL instead (e.g. your own domain in front of Home Assistant), set the `public_node_url` option. It wins over the reported one.
+
 ## Remote Cameras (WebRTC)
 
 Live preview, playback and downloads from the hub UI use WebRTC directly between the car and your browser; video never passes through this app. Public STUN works for most networks. For cars on cellular, point these options at your own TURN server (coturn with `use-auth-secret`):

@@ -3,6 +3,8 @@
  * `alias` pages render their target; `load` pages ship as separate chunks fetched on first entry.
  */
 
+import { appUrl, stripBase } from "../base.js";
+
 /** @typedef {{ tag: string, group?: string, load?: () => Promise<unknown> }} PageDef */
 
 /** @type {Record<string, PageDef | { alias: string }>} */
@@ -46,15 +48,14 @@ export function isKnownPage(id) {
   return !!id && Object.prototype.hasOwnProperty.call(PAGES, id);
 }
 
-/** Pathname for a page id (`home` → `/`). */
+/** Browser pathname for a page id (`home` → BASE_PATH, `cameras` → BASE_PATH + `cameras`). */
 export function pagePath(id) {
-  if (!id || id === "home") return "/";
-  return "/" + id;
+  return appUrl(!id || id === "home" ? "/" : "/" + id);
 }
 
-/** Page id from pathname (`/cameras` → `cameras`). Unknown → `home`. */
+/** Page id from a browser pathname (`/cameras` → `cameras`). Unknown → `home`. */
 export function pathToPage(pathname) {
-  var path = pathname || "/";
+  var path = stripBase(pathname);
   if (path.length > 1 && path.charAt(path.length - 1) === "/") {
     path = path.slice(0, -1);
   }

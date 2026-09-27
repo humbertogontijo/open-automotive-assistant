@@ -6,6 +6,7 @@
  */
 import { session } from "../store.js";
 import { api } from "../api.js";
+import { appUrl } from "../base.js";
 import {
   startWebRtcLive,
   stopWebRtcLive,
@@ -28,7 +29,7 @@ async function loadHlsLive() {
 }
 
 function recordingUrl(name) {
-  return "/api/dvr/recordings/" + encodeURIComponent(name) + "?inline=1&t=" + Date.now();
+  return appUrl("/api/dvr/recordings/" + encodeURIComponent(name) + "?inline=1&t=" + Date.now());
 }
 
 async function responseError(res, fallback) {
@@ -71,8 +72,9 @@ const local = {
   },
   stopPlayback() {},
   async cut(fromMs, toMs) {
-    const url =
-      "/api/dvr/cut?fromMs=" + encodeURIComponent(String(fromMs)) + "&toMs=" + encodeURIComponent(String(toMs));
+    const url = appUrl(
+      "/api/dvr/cut?fromMs=" + encodeURIComponent(String(fromMs)) + "&toMs=" + encodeURIComponent(String(toMs)),
+    );
     const res = await fetch(url, { credentials: "same-origin" });
     const ctype = (res.headers.get("content-type") || "").toLowerCase();
     if (!res.ok || ctype.indexOf("json") >= 0) throw await responseError(res, "cut failed");

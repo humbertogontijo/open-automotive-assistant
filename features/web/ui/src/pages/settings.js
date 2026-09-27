@@ -225,6 +225,12 @@ class OaaPageSettings extends OaaPage {
     }
   }
 
+  hubEndpoint(hub, via, url, label) {
+    if (!url) return nothing;
+    const active = hub.online && hub.via === via;
+    return html`<p class="hint mono">${label} ${url}${active ? " · " + t("hub.in_use", "in use") : ""}</p>`;
+  }
+
   hubCard() {
     const hub = (session.status && session.status.hub) || session.hubJoin || {};
     const url = this.hubUrl != null ? this.hubUrl : hub.hubUrl || "";
@@ -244,7 +250,8 @@ class OaaPageSettings extends OaaPage {
               )}
           ${hub.lastError ? " · " + hub.lastError : ""}
         </p>
-        ${hub.nodeUrl ? html`<p class="hint mono">${t("hub.node_url", "Dial-out:")} ${hub.nodeUrl}</p>` : nothing}
+        ${this.hubEndpoint(hub, "local", hub.localNodeUrl, t("hub.local_url", "Local:"))}
+        ${this.hubEndpoint(hub, "public", hub.publicNodeUrl, t("hub.public_url", "Public:"))}
         ${paired
           ? html`<div class="pref-actions">
               <wa-button

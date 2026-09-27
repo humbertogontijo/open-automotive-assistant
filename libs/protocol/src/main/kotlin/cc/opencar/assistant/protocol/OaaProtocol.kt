@@ -53,6 +53,8 @@ object OaaPaths {
     const val NODES_DISCOVERED = "/api/nodes/discovered"
     /** Hub: start pairing a car (`POST`), then `POST {id}/confirm` with the car's code. */
     const val NODES_INVITE = "/api/nodes/invite"
+    /** Hub (admin): the HA component reports its public node URL (`POST {url, sessionPath}`). */
+    const val NODES_PUBLIC_URL = "/api/nodes/public-url"
 
     const val AUTH_STATUS = "/api/auth/status"
     /** Car: a device or hub asks for access; the head unit shows a code. */
@@ -129,6 +131,8 @@ object OaaFrames {
     const val LOG_SUBSCRIBE = "log_subscribe"
     const val LOG_UNSUBSCRIBE = "log_unsubscribe"
     const val LOG = "log"
+    /** Hub → car: the public node endpoint to dial when away (`{v, publicNodeUrl?, sessionPath}`). */
+    const val PUBLIC_NODE = "public_node"
 
     fun frame(type: String, payload: JSONObject? = null): String {
         val o = JSONObject().put("type", type)

@@ -109,15 +109,16 @@ internal fun Routing.authRoutes(hub: HubContext) = with(hub) {
         }
         val session = auth.loginHa(identity.id, identity.name, identity.name, identity.isAdmin)
         call.setSessionCookie(session.token)
-        call.respondRedirect("/")
+        call.respondRedirect(call.ingressPrefix() + "/")
     }
 }
+
+private fun ApplicationCall.ingressPrefix(): String = request.header(OaaHeaders.INGRESS_PATH)?.trimEnd('/') ?: ""
 
 private suspend fun ApplicationCall.jsonBody(): JSONObject? = runCatching { JSONObject(receiveText()) }.getOrNull()
 
 private fun ApplicationCall.oauthRedirectUri(): String {
     val proto = request.header(HttpHeaders.XForwardedProto) ?: "http"
     val host = request.header(HttpHeaders.XForwardedHost) ?: request.header(HttpHeaders.Host) ?: request.local.serverHost
-    val ingress = request.header(OaaHeaders.INGRESS_PATH)?.trimEnd('/') ?: ""
-    return "$proto://$host$ingress${OaaPaths.AUTH_HA_CALLBACK}"
+    return "$proto://$host${ingressPrefix()}${OaaPaths.AUTH_HA_CALLBACK}"
 }

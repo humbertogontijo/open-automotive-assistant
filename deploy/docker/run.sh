@@ -17,6 +17,11 @@ export_opt() {
   value="$(opt "$2")"
   if [ -n "$value" ]; then export "$1=$value"; fi
 }
+export_opt OAA_PUBLIC_NODE_URL public_node_url
+# The app's public URL is Home Assistant's; cars reach the node face through the HACS bridge.
+if [ -n "$(opt public_node_url)" ] && [ -z "${OAA_SESSION_PATH:-}" ]; then
+  export OAA_SESSION_PATH=/api/oaa_node/session
+fi
 export_opt OAA_STUN_URLS stun_urls
 export_opt OAA_TURN_URLS turn_urls
 export_opt OAA_TURN_SECRET turn_secret

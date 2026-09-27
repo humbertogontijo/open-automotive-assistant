@@ -20,7 +20,7 @@ export function createRouter(host, hooks) {
   let lastPage = pathToPage(window.location.pathname || "/");
   const route = (page) => ({
     name: page,
-    path: pagePath(page),
+    path: pagePath(page).replace(/[:*?+(){}\\]/g, "\\$&"),
     enter: async () => {
       const prev = lastPage;
       lastPage = page;
@@ -42,9 +42,8 @@ export function createRouter(host, hooks) {
 export function gotoPage(page, options) {
   if (!isKnownPage(page)) page = "home";
   const path = pagePath(page);
-  let current = window.location.pathname || "/";
-  if (current.length > 1 && current.endsWith("/")) current = current.slice(0, -1) || "/";
-  if (path !== current) {
+  const current = window.location.pathname || "/";
+  if (current !== path && current !== path + "/") {
     if (options && options.replace) window.history.replaceState({}, "", path);
     else window.history.pushState({}, "", path);
   }

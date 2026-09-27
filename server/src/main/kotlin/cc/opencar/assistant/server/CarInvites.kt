@@ -21,6 +21,7 @@ class CarInvites(
     private val identity: HubIdentity,
     private val registry: NodeRegistry,
     private val nodePort: Int,
+    private val publicNode: PublicNode,
 ) {
     data class Invite(
         val id: String,
@@ -81,8 +82,8 @@ class CarInvites(
             .put("hubName", identity.name)
             .put("nodeToken", staged.token)
             .put("nodePort", nodePort)
-            .put("nodeUrls", JSONArray(listOfNotNull(HubConfig.publicNodeUrl)))
-            .put("sessionPath", HubConfig.sessionPath)
+            .put("nodeUrls", JSONArray(listOfNotNull(publicNode.url)))
+            .put("sessionPath", publicNode.sessionPath)
         val body = JSONObject()
             .put("requestId", invite.requestId)
             .put("code", code.trim())

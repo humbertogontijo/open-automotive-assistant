@@ -15,7 +15,9 @@ const sizeReport = process.argv.includes("--size");
 
 /** Keep in sync with "browserslist" in package.json. */
 export const TARGET = ["chrome111", "firefox115", "safari16.4"];
-const URL_BASE = "/static/";
+// Relative so the SPA also works under a path prefix (Home Assistant Ingress); chunks
+// import each other relatively, and src/base.js resolves runtime URLs.
+const URL_BASE = "static/";
 const JS_ENTRY = "src/app.js";
 const CSS_ENTRY = "src/css/index.css";
 const COMPRESSIBLE = /\.(js|css|html|svg|json)$/;
@@ -43,7 +45,6 @@ const options = {
   entryNames: "assets/[name]-[hash]",
   chunkNames: "assets/[name]-[hash]",
   assetNames: "assets/[name]-[hash]",
-  publicPath: URL_BASE,
   loader: { ".svg": "file", ".woff2": "file", ".png": "file" },
   logLevel: watch ? "info" : "warning",
 };

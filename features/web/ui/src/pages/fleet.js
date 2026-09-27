@@ -44,7 +44,8 @@ export async function loadFleet() {
 /** Node-face URL to type on the car: the published one, else this host on the node port. */
 function nodeDialUrl(offer) {
   const hub = session.hubJoin || {};
-  const published = (offer && offer.publicNodeUrl) || hub.publicNodeUrl;
+  const published =
+    (offer && (offer.publicDialUrl || offer.publicNodeUrl)) || hub.publicDialUrl || hub.publicNodeUrl;
   if (published) return published;
   const host = window.location.hostname;
   const loopback = host === "localhost" || host === "127.0.0.1" || host === "::1" || host === "[::1]";

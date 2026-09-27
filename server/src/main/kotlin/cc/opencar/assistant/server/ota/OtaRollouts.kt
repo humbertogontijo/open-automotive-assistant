@@ -2,7 +2,7 @@ package cc.opencar.assistant.server.ota
 
 import cc.opencar.assistant.protocol.OaaFrames
 import cc.opencar.assistant.protocol.OaaOta
-import cc.opencar.assistant.server.HubConfig
+import cc.opencar.assistant.protocol.OaaPaths
 import cc.opencar.assistant.server.NodeRegistry
 import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
@@ -36,6 +36,8 @@ class OtaRollouts(
     dataDir: File,
     private val registry: NodeRegistry,
     private val artifacts: ArtifactStore,
+    /** Path prefix cars download artifacts from (the public bridge's when one is published). */
+    private val artifactsPath: () -> String = { OaaPaths.NODES_ARTIFACTS },
 ) {
     private val gson = GsonBuilder().setPrettyPrinting().create()
     private val storeFile = File(dataDir, "ota.json")
@@ -134,7 +136,7 @@ class OtaRollouts(
             .put("package", artifact.packageName)
             .put("versionName", artifact.versionName)
             .put("versionCode", artifact.versionCode)
-            .put("path", "${HubConfig.artifactsPath}/${artifact.sha256}")
+            .put("path", "${artifactsPath()}/${artifact.sha256}")
         val installed = registry.get(nodeId)?.app?.apkSha256?.lowercase()
         val delta = installed?.let { withContext(Dispatchers.IO) { artifacts.delta(it, artifact.sha256) } }
         if (delta != null) {
@@ -144,7 +146,7 @@ class OtaRollouts(
                     .put("from", delta.from)
                     .put("sha256", delta.sha256)
                     .put("size", delta.size)
-                    .put("path", "${HubConfig.artifactsPath}/${delta.sha256}"),
+                    .put("path", "${artifactsPath()}/${delta.sha256}"),
             )
         }
         if (node.send(OaaFrames.frame(OaaFrames.OTA_OFFER, payload))) {

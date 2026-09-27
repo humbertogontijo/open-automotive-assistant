@@ -3,6 +3,7 @@
  * `oaa_node` cookie so plain links (`/debug/export`, the /debug pages) reach
  * the same car as `X-Oaa-Node` API calls.
  */
+import { BASE_PATH } from "./base.js";
 import { session } from "./store.js";
 
 const STORAGE_KEY = "oaa_selected_node";
@@ -28,8 +29,8 @@ export function rememberNode(id) {
     else localStorage.removeItem(STORAGE_KEY);
   } catch (e) {}
   document.cookie = v
-    ? COOKIE + "=" + encodeURIComponent(v) + "; path=/; SameSite=Lax"
-    : COOKIE + "=; path=/; Max-Age=0; SameSite=Lax";
+    ? COOKIE + "=" + encodeURIComponent(v) + "; path=" + BASE_PATH + "; SameSite=Lax"
+    : COOKIE + "=; path=" + BASE_PATH + "; Max-Age=0; SameSite=Lax";
 }
 
 /** What a new selection triggers app-wide (events reconnect, navigation, refresh). */

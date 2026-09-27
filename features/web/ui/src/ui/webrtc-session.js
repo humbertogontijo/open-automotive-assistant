@@ -8,6 +8,7 @@
  */
 import { session } from "../store.js";
 import { api } from "../api.js";
+import { wsUrl } from "../base.js";
 import { t } from "../i18n.js";
 import { MsePlayback } from "./mse-playback.js";
 
@@ -166,9 +167,7 @@ class MediaSession {
 
   _openSignal() {
     const self = this;
-    const loc = window.location;
-    const proto = loc.protocol === "https:" ? "wss:" : "ws:";
-    const url = proto + "//" + loc.host + "/api/webrtc/signal?node=" + encodeURIComponent(this.nodeId);
+    const url = wsUrl("/api/webrtc/signal?node=" + encodeURIComponent(this.nodeId));
     return new Promise(function (resolve, reject) {
       let opened = false;
       const ws = new WebSocket(url);

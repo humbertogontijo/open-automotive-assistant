@@ -164,9 +164,12 @@ class HubServerTest {
 
     @Test
     fun dualPortsHealthAndFaceSeparation() {
-        startHub(18787, 18788)
+        val hub = startHub(18787, 18788)
         assertEquals(200, http("http://127.0.0.1:18787/api/health").code)
-        assertEquals(200, http("http://127.0.0.1:18788/api/health").code)
+        val nodeHealth = http("http://127.0.0.1:18788/api/health")
+        assertEquals(200, nodeHealth.code)
+        assertEquals("node", nodeHealth.json().getString("face"))
+        assertEquals(hub.hub.identity.id, nodeHealth.json().getString("hubId"))
         assertEquals(401, http("http://127.0.0.1:18787/api/nodes").code)
         assertEquals(401, http("http://127.0.0.1:18787/api/webrtc/ice").code)
         assertEquals(401, http("http://127.0.0.1:18787/debug/export").code)
@@ -180,7 +183,7 @@ class HubServerTest {
         val index = http("http://127.0.0.1:18827/")
         assertEquals(200, index.code)
         assertEquals("no-store", index.header("Cache-Control"))
-        val entry = Regex("""/static/(assets/app-[A-Z0-9]+\.js)""").find(index.text())?.groupValues?.get(1)
+        val entry = Regex(""""static/(assets/app-[A-Z0-9]+\.js)""").find(index.text())?.groupValues?.get(1)
         assertNotNull(entry, "hashed entry in index.html")
         val br = http("http://127.0.0.1:18827/static/$entry", headers = mapOf("Accept-Encoding" to "gzip, br"))
         assertEquals(200, br.code)
@@ -290,6 +293,44 @@ class HubServerTest {
         assertEquals(200, rollout.code, rollout.text())
         val target = rollout.json().getJSONObject("rollout").getJSONObject("targets").getJSONObject("car1")
         assertEquals(OaaOta.STATE_PENDING, target.getString("state"), "car1 is offline, offer waits for hello")
+    }
+
+    @Test
+    fun reportedPublicNodeReachesCarsAndServesBridgeArtifactPath() {
+        val hub = startHub(18837, 18838)
+        val base = "http://127.0.0.1:18837"
+        val admin = mapOf("Authorization" to "Bearer ${setupAdmin(base)}", "Content-Type" to "application/json")
+        val registry = hub.hub.registry
+        val (_, token) = registry.pair(registry.createPairingCode().code, "car1", "Car", null)!!
+        val car = FakeNode("car1")
+        registry.attachSession("car1", car)
+
+        val report = """{"url":"https://x.ui.nabu.casa/","sessionPath":"/api/oaa_node/session"}""".toByteArray()
+        val user = hub.hub.auth.loginHa("ha-user", "bob", "Bob")
+        assertEquals(403, http("$base${OaaPaths.NODES_PUBLIC_URL}", "POST", mapOf("Authorization" to "Bearer ${user.token}"), report).code)
+        assertEquals(400, http("$base${OaaPaths.NODES_PUBLIC_URL}", "POST", admin, """{"url":"ftp://x"}""".toByteArray()).code)
+
+        val res = http("$base${OaaPaths.NODES_PUBLIC_URL}", "POST", admin, report)
+        assertEquals(200, res.code, res.text())
+        assertEquals("https://x.ui.nabu.casa", res.json().getString("publicNodeUrl"))
+        assertEquals("reported", res.json().getString("source"))
+        val frame = car.sent.single()
+        assertEquals(OaaFrames.PUBLIC_NODE, frame.getString("type"))
+        assertEquals("https://x.ui.nabu.casa", frame.getJSONObject("payload").getString("publicNodeUrl"))
+        assertEquals("/api/oaa_node/session", frame.getJSONObject("payload").getString("sessionPath"))
+
+        http("$base${OaaPaths.NODES_PUBLIC_URL}", "POST", admin, report)
+        assertEquals(1, car.sent.size, "unchanged URL is not re-sent")
+        val status = http("$base/api/status", headers = admin).json().getJSONObject("hub")
+        assertEquals("https://x.ui.nabu.casa", status.getString("publicNodeUrl"))
+        assertEquals("https://x.ui.nabu.casa/api/oaa_node", status.getString("publicDialUrl"))
+
+        val apk = ByteArray(2048) { it.toByte() }
+        val sha = hub.hub.artifacts.put(apk.inputStream(), "cc.opencar.assistant", "0.1.0", 2).sha256
+        val lan = http("http://127.0.0.1:18838/api/oaa_node/artifacts/$sha", headers = mapOf("Authorization" to "Bearer $token"))
+        assertEquals(200, lan.code, "LAN cars download offers that carry the bridge path")
+        assertArrayEquals(apk, lan.body)
+        assertEquals(401, http("http://127.0.0.1:18838/api/oaa_node/artifacts/$sha").code)
     }
 
     @Test

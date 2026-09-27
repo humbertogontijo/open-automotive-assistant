@@ -3,6 +3,7 @@
  */
 import { session, catalog } from "./store.js";
 import { heldTransportValue, reloadEntities, reloadStatus } from "./actions.js";
+import { wsUrl as appWsUrl } from "./base.js";
 
 let socket = null;
 let reconnectTimer = 0;
@@ -89,9 +90,7 @@ function handleMessage(raw) {
 }
 
 function wsUrl() {
-  const loc = window.location;
-  const proto = loc.protocol === "https:" ? "wss:" : "ws:";
-  return proto + "//" + loc.host + "/api/events" +
+  return appWsUrl("/api/events") +
     (session.role === "hub" && session.selectedNodeId
       ? "?node=" + encodeURIComponent(session.selectedNodeId)
       : "");

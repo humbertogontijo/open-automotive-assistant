@@ -80,4 +80,5 @@ dependencies {
     // whose org.webrtc classes clash with the ones GeckoView embeds.
     implementation(files(oaartcBinding.map { it.file("classes.jar") }).builtBy(":oaartc:unpackBinding"))
     testImplementation(libs.junit)
+    testImplementation(libs.org.json)
 }

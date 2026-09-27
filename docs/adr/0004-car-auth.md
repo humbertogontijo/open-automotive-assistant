@@ -53,7 +53,7 @@ The hub is the primary place to add cars:
 2. The hub browses for them (`GET /api/nodes/discovered`, admin, paired cars hidden). Admins can also add by address.
 3. `POST /api/nodes/invite {nodeId | host, port?}`: the hub calls the car's `pair/request` with `kind=hub`, its name and its stable id (`data/hub.json`).
 4. The admin types the car's code: `POST /api/nodes/invite/{id}/confirm {code}`. The hub pre-registers a node token and sends it in the car's `pair/confirm` as `hub {hubId, hubName, nodeToken, nodePort, nodeUrls, sessionPath}`. A failed confirm restores the previous registry entry.
-5. The car stores the link, with the hub's source address on `nodePort` first and the published node URLs next, and dials the node face as in ADR-0003. The session rotates to the next URL when one never opens. The hub keeps the car's token and LAN URL for later direct calls.
+5. The car stores the link, with the hub's source address on `nodePort` as its local URL and the first published node URL as its public URL, and dials the node face as in ADR-0003: local whenever the hub answers a health probe there, public otherwise ([hub.md](../hub.md#local-and-public-url-on-the-car)). The hub keeps the car's token and LAN URL for later direct calls.
 
 The manual flow (code from the hub typed on the car) stays for cars that are not on the hub's network; that hub is also listed under trusted devices.
 

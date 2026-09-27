@@ -13,14 +13,8 @@ object HubConfig {
     /** Path on publicNodeUrl for the node WebSocket (HA Cloud uses /api/oaa_node/session). */
     val sessionPath: String get() = env("OAA_SESSION_PATH") ?: OaaPaths.NODES_SESSION
 
-    /**
-     * Path on publicNodeUrl for OTA downloads. Defaults to the session path's sibling,
-     * so `OAA_SESSION_PATH=/api/oaa_node/session` (HA Cloud) yields `/api/oaa_node/artifacts`.
-     */
-    val artifactsPath: String
-        get() = env("OAA_ARTIFACTS_PATH")?.trimEnd('/')
-            ?: sessionPath.takeIf { it.endsWith("/session") }?.let { it.removeSuffix("session") + "artifacts" }
-            ?: OaaPaths.NODES_ARTIFACTS
+    /** Explicit OTA path on publicNodeUrl; [PublicNode.artifactsPath] derives one otherwise. */
+    val artifactsPathOverride: String? get() = env("OAA_ARTIFACTS_PATH")?.trimEnd('/')
 
     val homeAssistantUrl: String? get() = env("OAA_HA_URL")
 
