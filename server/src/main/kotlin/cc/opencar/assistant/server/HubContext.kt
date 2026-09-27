@@ -16,6 +16,7 @@ import io.ktor.websocket.Frame
 import io.ktor.websocket.WebSocketSession
 import org.json.JSONObject
 import java.io.File
+import java.util.logging.Logger
 
 /** Hub components plus the per-call helpers every route file shares. */
 class HubContext(
@@ -50,6 +51,7 @@ class HubContext(
                 )
             }
             registry.updateHello(nodeId, payload.optString("name"), payload.optString("integration"), app)
+            registry.setVia(nodeId, payload.optString("via").takeIf { it == "local" || it == "public" })
             rollouts.onHello(nodeId, app?.apkSha256)
             logs.onHello(nodeId)
         }
@@ -74,14 +76,23 @@ class HubContext(
             )
         },
         "ota" to rollouts.stateFor(n.id),
+        "via" to registry.via(n.id),
     )
 
-    fun fleet(): Map<String, Any?> = mapOf("nodes" to registry.all().map { nodeSummary(it) })
+    fun fleet(): Map<String, Any?> = mapOf(
+        "nodes" to registry.all().map { nodeSummary(it) },
+        "publicNode" to mapOf(
+            "url" to publicNode.url,
+            "dialUrl" to publicNode.dialUrl,
+            "source" to publicNode.source,
+        ),
+    )
 
     /** Tell every connected car where to dial when away; call after [PublicNode.report] changed it. */
     suspend fun broadcastPublicNode() {
         val frame = publicNode.frame()
-        registry.all().forEach { registry.session(it.id)?.send(frame) }
+        val sent = registry.all().count { registry.session(it.id)?.send(frame) == true }
+        log.info("public node URL -> ${publicNode.dialUrl ?: "none"} (${publicNode.source ?: "unset"}), sent to $sent connected car(s)")
     }
 
     // --- per-call helpers ---
@@ -157,6 +168,10 @@ class HubContext(
         "displayName" to u.displayName,
         "role" to u.role.wire,
     )
+
+    private companion object {
+        val log: Logger = Logger.getLogger("oaa.hub")
+    }
 }
 
 /** Answer `{"type":"ping"}` from a viewer socket; true when [text] was a ping. */

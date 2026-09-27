@@ -388,6 +388,7 @@ class HubClient(
                 .put("name", prefs.getString(PREF_NAME, "").orEmpty())
                 .put("version", OaaBuild.VERSION)
                 .put("app", app)
+                .put("via", via?.wire)
             webSocket.send(OaaFrames.frame(OaaFrames.HELLO, hello))
             eventsJob?.cancel()
             eventsJob = scope.launch {

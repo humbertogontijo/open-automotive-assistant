@@ -47,6 +47,8 @@ class NodeRegistry(dataDir: File) {
     private val tokenIndex = ConcurrentHashMap<String, String>()
     private val pairing = ConcurrentHashMap<String, PairingCode>()
     private val sessions = ConcurrentHashMap<String, NodeTransport>()
+    /** Which of its hub URLs (`local` / `public`) each connected car dialed, from its `hello`. */
+    private val dialedVia = ConcurrentHashMap<String, String>()
     private val random = SecureRandom()
 
     init {
@@ -161,6 +163,7 @@ class NodeRegistry(dataDir: File) {
     fun detachSession(nodeId: String, session: NodeTransport): Boolean {
         val removed = sessions.remove(nodeId, session)
         if (removed) {
+            dialedVia.remove(nodeId)
             session.close()
             nodes[nodeId]?.lastSeenMs = System.currentTimeMillis()
         }
@@ -178,6 +181,13 @@ class NodeRegistry(dataDir: File) {
     }
 
     fun session(nodeId: String): NodeTransport? = sessions[nodeId]
+
+    fun setVia(nodeId: String, via: String?) {
+        if (via == null) dialedVia.remove(nodeId) else dialedVia[nodeId] = via
+    }
+
+    /** Null while offline, or for cars older than 0.1.1 that do not report it. */
+    fun via(nodeId: String): String? = dialedVia[nodeId]?.takeIf { isOnline(nodeId) }
 
     @Synchronized
     private fun load() {

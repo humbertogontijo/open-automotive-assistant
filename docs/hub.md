@@ -52,6 +52,8 @@ The hub publishes one public node endpoint to cars:
 
 Cars get it when they pair and in a `public_node` frame on every connect and whenever it changes, so cars paired earlier pick it up the next time they are online. A new URL replaces the previously published one; the car never drops it on "none", since that could strand a car that is away. OTA offers use the endpoint's artifacts path (`/api/oaa_node/artifacts`); the node face serves that path too, so cars on the LAN download the same offer. Override with `OAA_ARTIFACTS_PATH` only for custom proxies.
 
+To check it: Fleet → **Away from home** shows the public URL and whether it came from the app option or Home Assistant (or a warning when there is none), and each online car says whether it is connected over the local network or the public URL. The hub logs `public node URL: …` on start and `public node URL -> …, sent to N connected car(s)` on each change.
+
 ### Local and public URL on the car
 
 Like the Home Assistant app's internal and external URLs, each car keeps two node-face URLs, shown under Settings → Hub:

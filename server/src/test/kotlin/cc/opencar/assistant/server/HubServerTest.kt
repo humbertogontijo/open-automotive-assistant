@@ -325,6 +325,14 @@ class HubServerTest {
         assertEquals("https://x.ui.nabu.casa", status.getString("publicNodeUrl"))
         assertEquals("https://x.ui.nabu.casa/api/oaa_node", status.getString("publicDialUrl"))
 
+        runBlocking { hub.hub.nodeListener.onHello("car1", JSONObject().put("name", "Car").put("via", "public")) }
+        val fleet = http("$base${OaaPaths.NODES}", headers = admin).json()
+        assertEquals("https://x.ui.nabu.casa/api/oaa_node", fleet.getJSONObject("publicNode").getString("dialUrl"))
+        assertEquals("reported", fleet.getJSONObject("publicNode").getString("source"))
+        assertEquals("public", fleet.getJSONArray("nodes").getJSONObject(0).getString("via"))
+        registry.detachSession("car1", car)
+        assertNull(hub.hub.nodeSummary(registry.get("car1")!!)["via"], "no connection type while offline")
+
         val apk = ByteArray(2048) { it.toByte() }
         val sha = hub.hub.artifacts.put(apk.inputStream(), "cc.opencar.assistant", "0.1.0", 2).sha256
         val lan = http("http://127.0.0.1:18838/api/oaa_node/artifacts/$sha", headers = mapOf("Authorization" to "Bearer $token"))

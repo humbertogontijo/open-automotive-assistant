@@ -65,6 +65,7 @@ class OaaHubServer(
             }
         }
         log.info("human face listening on :$humanPort (data=${hub.dataDir.absolutePath})")
+        log.info("public node URL: ${hub.publicNode.dialUrl ?: "none"} (${hub.publicNode.source ?: "unset"})")
         humanEngine?.start(wait = wait)
     }
 

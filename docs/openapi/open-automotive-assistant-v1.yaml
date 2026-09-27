@@ -32,7 +32,7 @@ info:
     Signaling frames and data-channel JSON carry `v: 1`; see `WebRtcSignal`,
     `DataChannelHello` and `MediaChunk` below. LAN `role=local` keeps HLS and
     direct `/api/dvr/*` HTTP.
-  version: 0.1.1
+  version: 0.1.2
 servers:
   - url: http://127.0.0.1:8787
     description: HU GeckoView / localhost (role=local)
@@ -817,6 +817,22 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/NodeSummary"
+        publicNode:
+          type: object
+          description: The public node endpoint the hub hands cars (all null when there is none)
+          properties:
+            url:
+              type: string
+              nullable: true
+            dialUrl:
+              type: string
+              nullable: true
+              description: What to type on a car for manual pairing (url plus any bridge prefix)
+            source:
+              type: string
+              nullable: true
+              enum: [env, reported]
+              description: "`env`: the app's public_node_url option; `reported`: sent by the Home Assistant integration"
     NodeSummary:
       type: object
       required: [id, name, online]
@@ -846,6 +862,11 @@ components:
           allOf:
             - $ref: "#/components/schemas/OtaTargetState"
           description: Latest rollout state for this car
+        via:
+          type: string
+          nullable: true
+          enum: [local, public]
+          description: Hub URL the connected car dialed, from its `hello`; null while offline or for cars before 0.1.1
     PairingOffer:
       type: object
       required: [code, expiresAtMs]
@@ -1215,6 +1236,10 @@ components:
           description: Protocol / app version (0.1.0)
         app:
           $ref: "#/components/schemas/AppInfo"
+        via:
+          type: string
+          enum: [local, public]
+          description: Which of its hub URLs the car dialed for this session
     AppInfo:
       type: object
       properties:

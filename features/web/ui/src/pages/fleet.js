@@ -41,15 +41,37 @@ export async function loadFleet() {
   }
 }
 
+/** The public node endpoint the hub hands cars: `{ url, dialUrl, source }`, fields null when there is none. */
+function publicNode() {
+  const fromFleet = session.fleet && session.fleet.publicNode;
+  if (fromFleet) return fromFleet;
+  const hub = session.hubJoin || {};
+  return { url: hub.publicNodeUrl || null, dialUrl: hub.publicDialUrl || null, source: hub.publicNodeSource || null };
+}
+
+/** A browser host a car on the same network can dial too (not a Nabu Casa / tunnel name). */
+function isLanHost(host) {
+  return (
+    /^(10|127)\.|^192\.168\.|^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
+    host.endsWith(".local") ||
+    (host.indexOf(".") < 0 && host.indexOf(":") < 0 && host !== "localhost")
+  );
+}
+
 /** Node-face URL to type on the car: the published one, else this host on the node port. */
 function nodeDialUrl(offer) {
-  const hub = session.hubJoin || {};
-  const published =
-    (offer && (offer.publicDialUrl || offer.publicNodeUrl)) || hub.publicDialUrl || hub.publicNodeUrl;
+  const published = (offer && (offer.publicDialUrl || offer.publicNodeUrl)) || publicNode().dialUrl || publicNode().url;
   if (published) return published;
   const host = window.location.hostname;
-  const loopback = host === "localhost" || host === "127.0.0.1" || host === "::1" || host === "[::1]";
-  return "http://" + (loopback ? "<hub-LAN-IP>" : host) + ":" + (hub.nodePort || 8788);
+  const port = (session.hubJoin && session.hubJoin.nodePort) || 8788;
+  return "http://" + (isLanHost(host) ? host : "<hub-LAN-IP>") + ":" + port;
+}
+
+function viaLine(n) {
+  if (!n.online || n.integration === "demo") return "";
+  if (n.via === "local") return t("fleet.via_local", "Connected over the local network");
+  if (n.via === "public") return t("fleet.via_public", "Connected over the public URL");
+  return t("fleet.via_unknown", "This car's app is too old to switch to the public URL away from home; update it.");
 }
 
 function appLine(app) {
@@ -80,6 +102,7 @@ async function forget(n) {
 function nodeCard(n) {
   const online = !!n.online;
   const app = appLine(n.app);
+  const via = viaLine(n);
   return prefCard({
     icon: "sensor",
     title: n.name || n.id,
@@ -87,6 +110,7 @@ function nodeCard(n) {
       <p class="hint">
         ${online ? t("fleet.online", "Online") : t("fleet.offline", "Offline")} ${n.integration ? " · " + n.integration : ""}
       </p>
+      ${via ? html`<p class="hint">${via}</p>` : nothing}
       ${app ? html`<p class="hint mono">${app}</p>` : nothing}
       ${n.ota
         ? n.ota.state === "failed"
@@ -283,6 +307,28 @@ class OaaPageFleet extends OaaPage {
     });
   }
 
+  publicUrlCard() {
+    const pub = publicNode();
+    const url = pub.dialUrl || pub.url;
+    return prefCard({
+      icon: "about",
+      title: t("fleet.public_title", "Away from home"),
+      body: url
+        ? html`<p class="hint">
+              ${pub.source === "env"
+                ? t("fleet.public_env", "Cars off this network dial this public URL, set in the app options:")
+                : t("fleet.public_reported", "Cars off this network dial this public URL, reported by Home Assistant:")}
+            </p>
+            <p class="hint mono">${url}</p>`
+        : html`<wa-callout variant="warning" size="small">
+            ${t(
+              "fleet.public_none",
+              "No public URL: cars only reach the hub on this network. Enable Nabu Casa remote access and add this hub in the Open Automotive Assistant integration, or set public_node_url in the app options.",
+            )}
+          </wa-callout>`,
+    });
+  }
+
   render() {
     const nodes = (session.fleet && session.fleet.nodes) || [];
     const offer = this.offer;
@@ -302,6 +348,7 @@ class OaaPageFleet extends OaaPage {
                 ${t("fleet.empty_hint_invite", "Add a car from Nearby cars, or pair manually from the car's Settings → Hub.")}
               </p>`,
             })}
+        ${this.publicUrlCard()}
         ${prefCard({
           cls: "form-card",
           icon: "plugins",

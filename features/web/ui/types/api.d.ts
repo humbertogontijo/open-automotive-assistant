@@ -615,6 +615,17 @@ export interface components {
         };
         Fleet: {
             nodes?: components["schemas"]["NodeSummary"][];
+            /** @description The public node endpoint the hub hands cars (all null when there is none) */
+            publicNode?: {
+                url?: string | null;
+                /** @description What to type on a car for manual pairing (url plus any bridge prefix) */
+                dialUrl?: string | null;
+                /**
+                 * @description `env`: the app's public_node_url option; `reported`: sent by the Home Assistant integration
+                 * @enum {string|null}
+                 */
+                source?: "env" | "reported" | null;
+            };
         };
         NodeSummary: {
             id: string;
@@ -627,6 +638,11 @@ export interface components {
             app?: components["schemas"]["AppInfo"] | null;
             /** @description Latest rollout state for this car */
             ota?: components["schemas"]["OtaTargetState"] | null;
+            /**
+             * @description Hub URL the connected car dialed, from its `hello`; null while offline or for cars before 0.1.1
+             * @enum {string|null}
+             */
+            via?: "local" | "public" | null;
         };
         PairingOffer: {
             /** @description Short numeric/alphanumeric code shown in hub UI */
@@ -840,6 +856,11 @@ export interface components {
             /** @description Protocol / app version (0.1.0) */
             version?: string;
             app?: components["schemas"]["AppInfo"];
+            /**
+             * @description Which of its hub URLs the car dialed for this session
+             * @enum {string}
+             */
+            via?: "local" | "public";
         };
         AppInfo: {
             package?: string;
