@@ -60,12 +60,14 @@ internal object VhalProto {
         val int64: List<Long> = emptyList(),
         val string: String? = null,
         val status: Int = 0,
+        val bytes: ByteArray? = null,
     ) {
         fun primary(): Any? = when {
             float.isNotEmpty() -> float[0]
             int32.isNotEmpty() -> int32[0]
             int64.isNotEmpty() -> int64[0]
             string != null -> string
+            bytes != null -> bytes
             else -> null
         }
     }
@@ -139,6 +141,7 @@ internal object VhalProto {
         val float = ArrayList<Float>()
         val int64 = ArrayList<Long>()
         var string: String? = null
+        var bytes: ByteArray? = null
         while (i < end) {
             val (key, ni) = readVarint(buf, i)
             i = ni
@@ -186,6 +189,7 @@ internal object VhalProto {
                             }
                         }
                         8 -> string = String(buf, i, len.toInt(), Charsets.UTF_8)
+                        9 -> bytes = buf.copyOfRange(i, e)
                     }
                     i = e
                 }
@@ -198,7 +202,7 @@ internal object VhalProto {
                 else -> return null
             }
         }
-        return CachedProp(propId, areaId, int32, float, int64, string, status)
+        return CachedProp(propId, areaId, int32, float, int64, string, status, bytes)
     }
 
     private fun writeVarintField(out: ByteArrayOutputStream, field: Int, value: Long) {
@@ -238,7 +242,7 @@ internal object VhalProto {
         }
     }
 
-    private fun readVarint(buf: ByteArray, start: Int): Pair<Long, Int> {
+    internal fun readVarint(buf: ByteArray, start: Int): Pair<Long, Int> {
         var result = 0L
         var shift = 0
         var i = start

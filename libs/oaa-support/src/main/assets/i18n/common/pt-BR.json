@@ -252,6 +252,8 @@
     "opt.ignition.5": "Start",
     "opt.charge_plug.0": "Desconectado",
     "opt.charge_plug.1": "Conectado",
+    "opt.navi_active.0": "Inativa",
+    "opt.navi_active.1": "Em rota",
     "opt.parking_brake.off": "Solto",
     "opt.parking_brake.on": "Acionado",
     "control.drive_mode": "Modo de direção",
@@ -820,6 +822,7 @@
     "section.charge.title": "Carregamento",
     "section.hybrid.title": "Energia híbrida",
     "section.telemetry.title": "Telemetria",
+    "section.navigation.title": "Navegação",
     "section.obd2.title": "OBD-II",
     "section.other.title": "Outros",
     "control.0x21100104": "0x21100104",
@@ -1838,6 +1841,16 @@
     "control.ev_battery_percent.hint": "Vehicle property ev_battery_percent (telemetry).",
     "control.range_km": "Range Km",
     "control.range_km.hint": "Vehicle property range_km (telemetry).",
+    "control.navi_active": "Navegação",
+    "control.navi_active.hint": "Orientação de rota publicada por um app de navegação (ex.: Waze no HUD)",
+    "control.navi_eta_min": "Tempo até o destino",
+    "control.navi_eta_min.hint": "Tempo restante da rota ativa",
+    "control.navi_eta_distance": "Distância até o destino",
+    "control.navi_eta_distance.hint": "Distância restante da rota ativa",
+    "control.navi_next_turn_distance": "Próxima manobra",
+    "control.navi_next_turn_distance.hint": "Distância até a próxima conversão",
+    "control.navi_road_name": "Próxima via",
+    "control.navi_road_name.hint": "Nome da via da próxima manobra",
     "auth.setup_title": "Criar administrador do hub",
     "auth.setup_sub": "Configuração inicial. Não há recuperação de senha — apague o armazenamento de autenticação ou reconstrua para redefinir.",
     "auth.username": "Usuário",
@@ -1974,6 +1987,10 @@
     "charge_plug": {
       "0": "opt.charge_plug.0",
       "1": "opt.charge_plug.1"
+    },
+    "navi_active": {
+      "0": "opt.navi_active.0",
+      "1": "opt.navi_active.1"
     },
     "parking_brake": {
       "0": "opt.parking_brake.off",

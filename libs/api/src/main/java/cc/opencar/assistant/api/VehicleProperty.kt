@@ -23,6 +23,21 @@ sealed class PropertyValue {
             other is BytesVal && value.contentEquals(other.value)
 
         override fun hashCode(): Int = value.contentHashCode()
+
+        /** Lowercase hex of the first [maxBytes] bytes, `…` appended when truncated. */
+        fun hex(maxBytes: Int = 256): String {
+            val sb = StringBuilder(minOf(value.size, maxBytes) * 2 + 1)
+            for (i in 0 until minOf(value.size, maxBytes)) {
+                val b = value[i].toInt() and 0xff
+                sb.append(HEX[b ushr 4]).append(HEX[b and 0xf])
+            }
+            if (value.size > maxBytes) sb.append('…')
+            return sb.toString()
+        }
+
+        private companion object {
+            const val HEX = "0123456789abcdef"
+        }
     }
 
     fun asInt(): Int? = when (this) {

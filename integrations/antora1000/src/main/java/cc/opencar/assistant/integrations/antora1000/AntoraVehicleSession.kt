@@ -5,6 +5,7 @@ import android.util.Log
 import cc.opencar.assistant.api.CatalogEntry
 import cc.opencar.assistant.api.PlatformVariant
 import cc.opencar.assistant.api.PropertyValue
+import cc.opencar.assistant.api.ReadOutcome
 import cc.opencar.assistant.api.TelemetrySnapshot
 import cc.opencar.assistant.api.VehicleEvent
 import cc.opencar.assistant.api.VehicleProperty
@@ -39,6 +40,10 @@ class AntoraVehicleSession(
     private val wheelHardKeys: Map<String, Int> = basePlatform.properties
         .filter { it.key.startsWith("WHEEL_HARD_KEY_") }
         .associate { p -> p.key.removePrefix("WHEEL_HARD_KEY_").lowercase() to p.id }
+
+    private val naviTbtId: Int? = propsByKey[NaviSensors.TBT_SOURCE]?.id
+    private val naviEtaId: Int? = propsByKey[NaviSensors.ETA_SOURCE]?.id
+    private val naviLastEmitted = HashMap<String, String?>()
 
     val accessMode: PropertyAccessMode get() = backend.mode
 
@@ -96,10 +101,61 @@ class AntoraVehicleSession(
 
     override fun onObserve(observe: Flow<PropertyUpdate>) {
         scope.launch { observeWheelKeys(observe) }
+        scope.launch { observeNavi(observe) }
     }
 
     override fun onPollMode() {
         scope.launch { pollWheelKeys() }
+        scope.launch { pollNavi() }
+    }
+
+    override fun hasBinding(property: VehicleProperty): Boolean {
+        val source = NaviSensors.SOURCES[property.key] ?: return super.hasBinding(property)
+        return propsByKey.containsKey(source)
+    }
+
+    override suspend fun get(property: VehicleProperty): PropertyValue? {
+        if (property.key !in NaviSensors.SOURCES) return super.get(property)
+        return naviValues()[property.key]
+    }
+
+    override suspend fun diagnose(property: VehicleProperty, areaId: Int?): ReadOutcome {
+        if (property.key !in NaviSensors.SOURCES) return super.diagnose(property, areaId)
+        if (!hasBinding(property) || !backend.available) return ReadOutcome.Unavailable(0)
+        val value = naviValues()[property.key] ?: return ReadOutcome.Unavailable(0)
+        return ReadOutcome.Ok(value, 0)
+    }
+
+    private fun naviValues(): Map<String, PropertyValue?> {
+        val tbt = (naviTbtId?.let { backend.read(it, 0) } as? ByteArray)?.let(NaviProto::decodeTbt)
+        val eta = (naviEtaId?.let { backend.read(it, 0) } as? ByteArray)?.let(NaviProto::decodeEta)
+        return NaviSensors.values(tbt, eta)
+    }
+
+    private suspend fun observeNavi(observe: Flow<PropertyUpdate>) {
+        val ids = setOfNotNull(naviTbtId, naviEtaId)
+        if (ids.isEmpty()) return
+        publishNavi()
+        observe.filter { it.propId in ids }.collect { publishNavi() }
+    }
+
+    private suspend fun pollNavi() {
+        if (naviTbtId == null && naviEtaId == null) return
+        while (coroutineContext.isActive) {
+            publishNavi()
+            pollDelay(AaosSessionBase.POLL_MS)
+        }
+    }
+
+    /** Emits `navi_*` entity changes; unset keys start as null so the first non-null value is sent. */
+    @Synchronized
+    private fun publishNavi() {
+        for ((key, value) in naviValues()) {
+            val display = value?.display()
+            if (naviLastEmitted[key] == display) continue
+            naviLastEmitted[key] = display
+            eventFlow.tryEmit(VehicleEvent.EntityValueChanged(key, display))
+        }
     }
 
     private fun catalogNativeId(key: String): Int? = platform.bindings[key]?.nativeId ?: propsByKey[key]?.id

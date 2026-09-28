@@ -11,6 +11,7 @@ fun toPropertyValue(raw: Any?): PropertyValue? = when (raw) {
     is Double -> PropertyValue.FloatVal(raw.toFloat())
     is Boolean -> PropertyValue.BoolVal(raw)
     is String -> PropertyValue.StringVal(raw)
+    is ByteArray -> PropertyValue.BytesVal(raw)
     is Number -> PropertyValue.IntVal(raw.toInt())
     else -> PropertyValue.StringVal(raw.toString())
 }

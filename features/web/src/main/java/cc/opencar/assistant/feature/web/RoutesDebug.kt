@@ -151,6 +151,8 @@ internal fun Routing.registerDebugRoutes(deps: OaaWebDeps) {
                         is cc.opencar.assistant.api.ReadOutcome.Unavailable -> "unavailable"
                     },
                     "value" to (outcome as? cc.opencar.assistant.api.ReadOutcome.Ok)?.value?.display(),
+                    "hex" to ((outcome as? cc.opencar.assistant.api.ReadOutcome.Ok)?.value
+                        as? cc.opencar.assistant.api.PropertyValue.BytesVal)?.hex(64),
                     "permission" to (outcome as? cc.opencar.assistant.api.ReadOutcome.Denied)?.permission,
                     "entity" to it.property.nativeId?.let { id -> session.entityBindings()[id] },
                 )
@@ -171,6 +173,8 @@ internal fun Routing.registerDebugRoutes(deps: OaaWebDeps) {
                 "name" to entry.name,
                 "outcome" to outcome.toString(),
                 "value" to (outcome as? cc.opencar.assistant.api.ReadOutcome.Ok)?.value?.display(),
+                "hex" to ((outcome as? cc.opencar.assistant.api.ReadOutcome.Ok)?.value
+                    as? cc.opencar.assistant.api.PropertyValue.BytesVal)?.hex(),
                 "writable" to entry.writable,
             ),
         )

@@ -234,7 +234,22 @@ Flyme/ECARX-style catalog keys (and similar OEM prefixes) fold into AAOS-shaped 
 | `LAMP_*` / fog / exterior enums | `light` / `switch` / `select` |
 | `INFO_*` / `PERF_*` / `EV_*` / `SENSOR_TYPE_*` / `TYPE_*` / `TRIP_*` | `info` sensors, `sensor`, `ev_battery` |
 | `OBD2_*` | Lab probe only — no product entity |
+| `VENDOR_NAVI_*` (BYTES) | Decoded into `navi_*` sensors (below); raw props are never product-bound |
 | `CB_*` / single-letter CarConfig | Never promote |
+
+### Navigation sensors (Antora)
+
+`VENDOR_NAVI_TBT_INFO` (`0x2170744f`) and `VENDOR_NAVI_ETA_INFO` (`0x21707451`) carry protobuf `navigation_proto.NaviTBTInfo` / `NaviETAInfo` messages. The session decodes them ([`NaviProto`](../integrations/antora1000/src/main/java/cc/opencar/assistant/integrations/antora1000/NaviProto.kt)) into read-only sensors in group `drive`, section `navigation`:
+
+| Entity | Source field | Notes |
+|--------|--------------|-------|
+| `navi_active` | TBT `navi_status` | 1 navigating / 0 idle (`valueMaps.navi_active`) |
+| `navi_eta_min` | ETA `navi_eta_time_min` | minutes |
+| `navi_eta_distance` | ETA `navi_eta_dist` + unit | km, 0.1 resolution |
+| `navi_next_turn_distance` | TBT `tbt_dist` + unit | m |
+| `navi_road_name` | TBT `road_name` | text |
+
+Distance units: 0 = metres, 1 = tenths of a kilometre. Values exist only while a navigation app publishes them. Today that is Waze on HUD (`com.yahooeu2k.hudcontrolhost`), which writes an idle record (status 0) when the route ends. The ETA text survives that record, so every sensor except `navi_active` reads unavailable while idle. Destination coordinates (`navi_aim_lat/lgt`) and lane data are deliberately not exposed.
 
 ---
 

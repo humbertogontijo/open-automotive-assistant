@@ -15,4 +15,5 @@ dependencies {
     // VenusVehicleServer (unprivileged Antora path)
     implementation("io.grpc:grpc-okhttp:1.68.1")
     implementation("io.grpc:grpc-stub:1.68.1")
+    testImplementation(libs.junit)
 }

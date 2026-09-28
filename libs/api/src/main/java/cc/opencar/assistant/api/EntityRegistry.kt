@@ -372,6 +372,26 @@ object EntityRegistry {
         // Drive extras
         e("SETTING_FUNC_CST_SWITCH", "drive", EntityType.SWITCH, "bool", acronym = "CST", lastKnown = true, icon = "drive"),
 
+        // Navigation — derived from VENDOR_NAVI_* while a navigation app publishes (Antora).
+        e("navi_active", "drive", EntityType.SENSOR, "sensor", section = "navigation",
+            writable = false, deviceClass = DeviceClass.ENUM, icon = "drive",
+        ),
+        e("navi_eta_min", "drive", EntityType.SENSOR, "sensor", section = "navigation",
+            writable = false, deviceClass = DeviceClass.DURATION,
+            unitOfMeasurement = UnitOfMeasurement.MINUTE, icon = "drive",
+        ),
+        e("navi_eta_distance", "drive", EntityType.SENSOR, "sensor", section = "navigation",
+            writable = false, deviceClass = DeviceClass.DISTANCE,
+            unitOfMeasurement = UnitOfMeasurement.KILOMETER, icon = "drive",
+        ),
+        e("navi_next_turn_distance", "drive", EntityType.SENSOR, "sensor", section = "navigation",
+            writable = false, deviceClass = DeviceClass.DISTANCE,
+            unitOfMeasurement = UnitOfMeasurement.METER, icon = "drive",
+        ),
+        e("navi_road_name", "drive", EntityType.SENSOR, "sensor", section = "navigation",
+            writable = false, icon = "drive",
+        ),
+
         // HVAC extras — boosts / presets, not climate modes.
         e("HVAC_MAX_DEFROST_ON", "controls", EntityType.SWITCH, "bool", lastKnown = true, icon = "climate"),
         e("HVAC_MAX_AC_ON", "controls", EntityType.SWITCH, "bool", lastKnown = true, icon = "climate"),
