@@ -46,9 +46,24 @@ HVAC extras as atomics (not climate attrs): `HVAC_MAX_DEFROST_ON`, `HVAC_MAX_AC_
 | `charger` | `charger.vehicle` | charge cluster + Wave-1 `charge_external_light` |
 | `ev_battery` | `ev_battery.main` | `ev_battery_percent`, `ev_battery_level_raw`, `battery_temp_c`, `hybrid_soc` |
 | `hud` | `hud.main` | `hud_active` / `snow` / `ar` + Wave-1 `hud_display_mode`, `hud_angle` |
-| `light` | `light.ambient` | `color` ← `ambience_main_color`, `brightness` ← `ambience_intensity` |
+| `light` | `light.ambient` | `effect` ← `SETTING_FUNC_AMBIENCE_LIGHT_MAINCOLOR`, `brightness` (0–255) ← `SETTING_FUNC_AMBIENCE_LIGHT_INTENSITY_SET`, `rgb_color` ← `SETTING_FUNC_AMBIENCE_MODE_COLOR` (packed `0xRRGGBB`) |
 | `camera` | `camera.front` / `rear` / `left` / `right` | Camera2 via `platform.json` → `cameras[]` (not VHAL); mosaic is DVR-only |
 | `seat` | *(planned)* | AAOS `SEAT_*` when position/memory is productized — see [domains.md](domains.md) |
+
+## Domain ranges
+
+Canonical ranges follow Home Assistant (`DomainDefaults` in `:integration-api`). Integrations declare native ranges in `platform.json`; the UI never hard-codes one.
+
+| Domain | Value | Canonical | Behaviour |
+|---|---|---|---|
+| `light` | `brightness` | 0–255 | fixed scale; native range is scaled (ambient 0–20 → 0–255) |
+| `light` | `rgb_color` | `[r, g, b]` | native packed `0xRRGGBB` int; write `rgb_color:r,g,b` |
+| `cover` | `position` | 0–100 | fixed scale; native range is scaled |
+| `climate` | temperature | 7–35 °C, step 0.5 | native bounds pass through; defaults only when undeclared |
+| `climate` | `fan_modes` / `fan_directions` | none | listed only when the integration declares levels / `values` |
+| `number` | value | 0–100, step 1 | native bounds pass through; defaults only when undeclared |
+
+Lights also expose `supported_color_modes` / `color_mode` (`onoff`, `brightness`, `rgb`) and the effect options (`effect:<value>`).
 
 ## Covers
 

@@ -212,6 +212,7 @@ open class DemoNodeTransport(
                 e.optString("input") != "command" && raw !in setOf("previous", "next") -> e.put("value", raw)
             }
             if (e.optString("domain") == "light" && raw == "off") attrs.put("brightness", 0)
+            if (e.optString("domain") == "light" && raw == "on") attrs.put("brightness", 128)
             if (e.optString("domain") == "cover" && attrs.has("current_position")) {
                 raw.toIntOrNull()?.let { e.put("value", if (it > 0) "open" else "closed"); attrs.put("current_position", it) }
                     ?: attrs.put("current_position", if (raw == "open") 100 else 0)
@@ -219,7 +220,8 @@ open class DemoNodeTransport(
             return true
         }
         for ((k, v) in pairs) {
-            attrs.put(k, v.toIntOrNull() ?: v.toDoubleOrNull() ?: v)
+            val list = v.split(',').takeIf { it.size > 1 }?.mapNotNull { it.trim().toIntOrNull() }
+            attrs.put(k, list?.let { JSONArray(it) } ?: v.toIntOrNull() ?: v.toDoubleOrNull() ?: v)
             when (k) {
                 "hvac_mode" -> e.put("value", v)
                 "brightness" -> e.put("value", if ((v.toDoubleOrNull() ?: 0.0) > 0) "on" else "off")

@@ -25,7 +25,7 @@ export function setNodeSelectHandler(fn) {
   onSelect = fn;
 }
 
-/** Open car [id] ("" = no car, back to the fleet). */
+/** Open car [id] ("" = no car, back to the car list). */
 export async function selectNode(id) {
   if (onSelect) await onSelect(id || "");
 }

@@ -2,3 +2,10 @@
 .light-card.is-on .ctrl-icon {
   color: var(--wa-color-brand-fill-loud);
 }
+
+.light-color {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--wa-space-s);
+}

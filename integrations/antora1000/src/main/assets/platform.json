@@ -715,7 +715,10 @@
         1024,
         65536,
         131072
-      ]
+      ],
+      "min": 0,
+      "max": 100,
+      "step": 1
     },
     {
       "id": "0x13400bc1",
@@ -807,7 +810,10 @@
       "areas": [
         5,
         117
-      ]
+      ],
+      "min": 0,
+      "max": 9,
+      "step": 1
     },
     {
       "id": "0x15400501",
@@ -816,6 +822,16 @@
       "changeMode": "on_change",
       "areas": [
         1
+      ],
+      "values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
       ]
     },
     {
@@ -911,7 +927,10 @@
       "changeMode": "on_change",
       "areas": [
         1
-      ]
+      ],
+      "min": 15.5,
+      "max": 28.5,
+      "step": 0.5
     },
     {
       "id": "0x16200b02",
@@ -4481,11 +4500,19 @@
     {
       "id": "0x2141767a",
       "key": "SETTING_FUNC_AMBIENCE_MODE_COLOR",
-      "access": "r",
+      "access": "rw",
       "changeMode": "on_change",
       "areas": [
         0
-      ]
+      ],
+      "vector": {
+        "read": 1,
+        "write": [
+          1,
+          4,
+          5
+        ]
+      }
     },
     {
       "id": "0x21417685",
@@ -5663,7 +5690,10 @@
       "changeMode": "on_change",
       "areas": [
         5
-      ]
+      ],
+      "min": 0,
+      "max": 20,
+      "step": 1
     },
     {
       "id": "0x2540723c",

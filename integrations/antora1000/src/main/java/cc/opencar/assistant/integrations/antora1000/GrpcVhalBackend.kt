@@ -183,6 +183,17 @@ class GrpcVhalBackend(
     override fun writeBoolean(propId: Int, areaId: Int, value: Boolean): Boolean =
         writeInt(propId, areaId, if (value) 1 else 0)
 
+    override fun readIntVector(propId: Int, areaId: Int): List<Int>? {
+        if (!connected.get()) return null
+        return cache[cacheKey(propId, areaId)]?.int32?.takeIf { it.isNotEmpty() }
+    }
+
+    override fun writeIntVector(propId: Int, areaId: Int, values: List<Int>): Boolean =
+        writeBytes(VhalProto.encodeSetIntVector(propId, areaId, values), propId, areaId) {
+            cache[cacheKey(propId, areaId)] = VhalProto.CachedProp(propId, areaId, int32 = values)
+            updates.tryEmit(PropertyUpdate(propId, areaId, values.firstOrNull()))
+        }
+
     private fun writeBytes(payload: ByteArray, propId: Int, areaId: Int, onOk: () -> Unit): Boolean {
         if (!connected.get() || !streamAlive.get()) return false
         val obs = setRequestObserver ?: return false

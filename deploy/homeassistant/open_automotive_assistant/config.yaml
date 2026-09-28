@@ -16,7 +16,7 @@ panel_icon: mdi:car-connected
 panel_title: OAA
 # Same multi-arch image as docker compose (deploy/docker/Dockerfile, publish-hub.yml).
 image: "ghcr.io/humbertogontijo/open-automotive-assistant"
-# Host networking so the hub sees cars' mDNS announcements (Fleet → Nearby cars) and
+# Host networking so the hub sees cars' mDNS announcements (Cars → Nearby cars) and
 # reaches the car's LAN API to ask for a pairing code. The ports below stay the same.
 host_network: true
 ports:

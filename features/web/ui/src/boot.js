@@ -74,7 +74,7 @@ export async function refresh() {
     session.fleet = fleet;
     if (selectedNodeId && !(car && car.online)) {
       await loadI18n();
-      return backToFleet(
+      return backToCars(
         car
           ? t("fleet.car_offline", "{name} is offline").replace("{name}", carName)
           : t("fleet.car_unknown", "That car is not paired with this hub"),
@@ -100,7 +100,7 @@ export async function refresh() {
     const carStatus = await api("/api/status").catch(() => null);
     if (!carStatus || carStatus.ok === false) {
       await loadI18n();
-      return backToFleet(t("fleet.car_unreachable", "{name} is not answering").replace("{name}", carName));
+      return backToCars(t("fleet.car_unreachable", "{name} is not answering").replace("{name}", carName));
     }
     status = Object.assign({}, carStatus, { fleet, hub: hubStatus.hub });
     await showRoute(route);
@@ -113,7 +113,7 @@ export async function refresh() {
   const setup = status.setup || (await api("/api/setup").catch(() => ({ complete: true })));
   const [entities, controls] = await Promise.all([api("/api/entities"), api("/api/controls")]).catch(() => [null, null]);
   if (role === "hub" && (!Array.isArray(entities) || !Array.isArray(controls))) {
-    return backToFleet(t("fleet.car_unreachable", "{name} is not answering").replace("{name}", carName));
+    return backToCars(t("fleet.car_unreachable", "{name} is not answering").replace("{name}", carName));
   }
   const optional = (path, pick) => api(path).then(pick, () => null);
   const [historyEntities, hiddenEntities, adb, prefsRes] = await Promise.all([
@@ -175,12 +175,12 @@ async function showRoute(route) {
   session.page = route.page;
 }
 
-/** The open car cannot be shown (offline, unknown, not answering): back to the fleet at `/`. */
-async function backToFleet(message) {
+/** The open car cannot be shown (offline, unknown, not answering): back to the car list at `/`. */
+async function backToCars(message) {
   toastError(message);
   rememberNode("");
   reconnectEvents();
-  await goPage("fleet", { replace: true, node: "" });
+  await goPage("cars", { replace: true, node: "" });
   return refresh();
 }
 
@@ -202,7 +202,7 @@ export async function enterPage(loc) {
 }
 
 onHubAuthenticated(refresh);
-setNodeSelectHandler((id) => goPage(id ? "home" : "fleet", { node: id }));
+setNodeSelectHandler((id) => goPage(id ? "home" : "cars", { node: id }));
 
 /** Bootstrap once over HTTP, then live updates via the `/api/events` WebSocket. */
 export function start() {

@@ -20,8 +20,11 @@ wa-card.form-card .ctrl-body {
   align-items: stretch;
   text-align: left;
 }
-/* URLs and tokens: wrap instead of widening the card */
-wa-card.form-card .ctrl-body .mono { overflow-wrap: anywhere; }
+/* URLs and tokens: wrap instead of widening or scrolling the card */
+.pref-card .ctrl-body { overflow-wrap: anywhere; }
+/* Hub car list: content-sized cards, even within a row */
+.cars-grid { align-items: stretch; }
+.cars-grid .ctrl-body > .pref-actions:last-child { margin-top: auto; }
 
 /* Form fields and button rows inside a pref card body */
 .pref-card .ctrl-body > wa-input,

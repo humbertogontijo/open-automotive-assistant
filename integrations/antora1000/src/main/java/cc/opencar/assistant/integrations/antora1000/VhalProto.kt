@@ -25,12 +25,15 @@ internal object VhalProto {
 
     fun unzigzag32(n: Int): Int = (n ushr 1) xor -(n and 1)
 
-    fun encodeSetInt(propId: Int, areaId: Int, value: Int): ByteArray {
+    fun encodeSetInt(propId: Int, areaId: Int, value: Int): ByteArray =
+        encodeSetIntVector(propId, areaId, listOf(value))
+
+    fun encodeSetIntVector(propId: Int, areaId: Int, values: List<Int>): ByteArray {
         val prop = ByteArrayOutputStream()
         writeVarintField(prop, 1, propId.toLong() and 0xffffffffL)
         writeVarintField(prop, 3, 0)
         writeVarintField(prop, 4, areaId.toLong() and 0xffffffffL)
-        writePackedVarintField(prop, 5, zigzag32(value).toLong() and 0xffffffffL)
+        writePackedVarintField(prop, 5, values.map { zigzag32(it).toLong() and 0xffffffffL })
         val req = ByteArrayOutputStream()
         writeLenField(req, 1, prop.toByteArray())
         writeVarintField(req, 2, 0) // update_status = false
@@ -203,9 +206,9 @@ internal object VhalProto {
         writeVarint(out, value)
     }
 
-    private fun writePackedVarintField(out: ByteArrayOutputStream, field: Int, value: Long) {
+    private fun writePackedVarintField(out: ByteArrayOutputStream, field: Int, values: List<Long>) {
         val packed = ByteArrayOutputStream()
-        writeVarint(packed, value)
+        for (v in values) writeVarint(packed, v)
         writeLenField(out, field, packed.toByteArray())
     }
 

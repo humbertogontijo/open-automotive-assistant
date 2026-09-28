@@ -17,9 +17,6 @@
         "recirc": "HVAC_RECIRC_ON",
         "current_temperature": "SENSOR_TYPE_TEMPERATURE_INDOOR"
       },
-      "min": 16,
-      "max": 32,
-      "step": 0.5,
       "deviceClass": "temperature",
       "unitOfMeasurement": "celsius",
       "icon": "climate",

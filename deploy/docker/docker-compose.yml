@@ -6,7 +6,7 @@ services:
     image: ghcr.io/humbertogontijo/open-automotive-assistant:latest
     container_name: oaa-hub
     restart: unless-stopped
-    # Fleet → Nearby cars needs mDNS, which does not cross the Docker bridge. For it, use
+    # Cars → Nearby cars needs mDNS, which does not cross the Docker bridge. For it, use
     # host networking (Linux only) and drop the ports list:
     #   network_mode: host
     # Bridge mode still pairs cars: "Add by address" with the car's IP, or the manual

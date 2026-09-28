@@ -29,8 +29,8 @@ class OaaMediaPlayerCard extends OaaCard {
     const sub = [mediaAttr(c, "mediaArtist", "media_artist"), mediaAttr(c, "mediaAlbum", "media_album")]
       .filter(Boolean)
       .join(" · ");
-    const volMax = finite(mediaAttr(c, "volumeMax", "volume_max"), finite(c.max, 39));
-    const volMin = finite(mediaAttr(c, "volumeMin", "volume_min"), finite(c.min, 0));
+    const volMax = finite(mediaAttr(c, "volumeMax", "volume_max"), finite(c.max, null));
+    const volMin = finite(mediaAttr(c, "volumeMin", "volume_min"), finite(c.min, null));
     const vol = finite(mediaAttr(c, "volume"), volMin);
     const transport = (cmd, name, label, cls = "") =>
       html`<wa-button
@@ -62,15 +62,17 @@ class OaaMediaPlayerCard extends OaaCard {
             : transport("play", "play", t("media_player.play", "Play"), "media-main")}
           ${transport("next", "next", t("media_player.next", "Next"))}
         </wa-button-group>
-        ${slider({
-          value: vol,
-          min: volMin,
-          max: volMax,
-          suffix: "/" + volMax,
-          label: t("media_player.volume", "Volume"),
-          disabled: locked,
-          onCommit: (v) => this.send("volume:" + Math.round(v)),
-        })}
+        ${volMin != null && volMax != null
+          ? slider({
+              value: vol,
+              min: volMin,
+              max: volMax,
+              suffix: "/" + volMax,
+              label: t("media_player.volume", "Volume"),
+              disabled: locked,
+              onCommit: (v) => this.send("volume:" + Math.round(v)),
+            })
+          : nothing}
       `,
     });
   }

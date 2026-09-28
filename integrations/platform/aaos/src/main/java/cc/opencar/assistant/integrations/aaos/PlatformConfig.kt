@@ -8,6 +8,7 @@ import cc.opencar.assistant.api.Capability
 import cc.opencar.assistant.api.CatalogEntry
 import cc.opencar.assistant.api.EntityRegistry
 import cc.opencar.assistant.api.PlatformVariant
+import cc.opencar.assistant.api.ValueRange
 import cc.opencar.assistant.api.VehicleProperty
 import org.json.JSONArray
 import org.json.JSONObject
@@ -87,9 +88,19 @@ data class PlatformConfig(
         /** Product binding key once a profile is applied. */
         val entity: String? = null,
         val functionId: Int? = null,
+        /** Native range (`min` / `max` / `step` / `values`); the web layer maps it to domain ranges. */
+        val range: ValueRange? = null,
+        /** Vector property exposed as one scalar slot. */
+        val vector: VectorSlots? = null,
     ) {
         val canWrite: Boolean get() = access == "w" || access == "rw"
     }
+
+    /**
+     * `"vector": {"read": 1, "write": [1, 4, 5]}` — reads element [read]; writes replace
+     * every [write] element and keep the rest of the vector.
+     */
+    data class VectorSlots(val read: Int, val write: List<Int>)
 
     data class AndroidSettingDef(
         val settingsKey: String,
@@ -124,6 +135,16 @@ data class PlatformConfig(
             val entity = p.entity ?: return@mapNotNull null
             entity to Binding(p.id, p.areas.firstOrNull() ?: 0, p.functionId)
         }.toMap()
+    }
+
+    /** Property key → declared native range. */
+    val ranges: Map<String, ValueRange> by lazy {
+        properties.mapNotNull { p -> p.range?.let { p.key to it } }.toMap()
+    }
+
+    /** Native id → vector slot mapping. */
+    val vectorSlots: Map<Int, VectorSlots> by lazy {
+        properties.mapNotNull { p -> p.vector?.let { p.id to it } }.toMap()
     }
 
     /** Product write allowlist (derived from [properties] with `access` `w` / `rw`). */
@@ -511,7 +532,23 @@ data class PlatformConfig(
                 areas = areas,
                 entity = o.optString("entity", null)?.takeIf { it.isNotBlank() },
                 functionId = fn,
+                range = parseRange(o),
+                vector = o.optJSONObject("vector")?.let { v ->
+                    val read = v.optInt("read", 0)
+                    val write = v.optJSONArray("write")
+                        ?.let { arr -> (0 until arr.length()).map { arr.getInt(it) } }
+                        ?: listOf(read)
+                    VectorSlots(read, write)
+                },
             )
+        }
+
+        private fun parseRange(o: JSONObject): ValueRange? {
+            fun num(key: String): Float? =
+                if (o.has(key) && !o.isNull(key)) o.optDouble(key).toFloat().takeIf { !it.isNaN() } else null
+            val values = o.optJSONArray("values")?.let { arr -> (0 until arr.length()).map { arr.getInt(it) } }
+            val range = ValueRange(min = num("min"), max = num("max"), step = num("step"), values = values)
+            return range.takeIf { it.min != null || it.max != null || it.step != null || it.values != null }
         }
 
         private fun parseAndroid(obj: JSONObject?): AndroidConfig {

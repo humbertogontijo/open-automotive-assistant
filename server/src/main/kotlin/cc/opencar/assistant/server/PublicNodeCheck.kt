@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 /**
  * Whether [PublicNode.dialUrl] leads back to this hub: an empty pair request through it must
  * reach our node face, which rejects it naming its `hubId`. Checked in the background and
- * cached, so the Fleet page can say why away cars cannot connect.
+ * cached, so the Cars page can say why away cars cannot connect.
  */
 class PublicNodeCheck(
     private val publicNode: PublicNode,

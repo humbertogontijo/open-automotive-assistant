@@ -10,6 +10,7 @@ import cc.opencar.assistant.api.PropertyValue
 import cc.opencar.assistant.api.ReadOutcome
 import cc.opencar.assistant.api.ScreenState
 import cc.opencar.assistant.api.TelemetrySnapshot
+import cc.opencar.assistant.api.ValueRange
 import cc.opencar.assistant.api.VehicleEvent
 import cc.opencar.assistant.api.VehicleProperty
 import cc.opencar.assistant.api.VehicleSession
@@ -149,7 +150,14 @@ abstract class AaosSessionBase(
 
     override suspend fun get(property: VehicleProperty): PropertyValue? {
         val (propId, areaId) = resolve(property) ?: return null
-        return redact(property, decode(property, backend.read(propId, areaId)))
+        return redact(property, decode(property, readRaw(propId, areaId)))
+    }
+
+    override fun valueRange(property: VehicleProperty): ValueRange? = platform.ranges[property.key]
+
+    private fun readRaw(propId: Int, areaId: Int): Any? {
+        val slots = platform.vectorSlots[propId] ?: return backend.read(propId, areaId)
+        return backend.readIntVector(propId, areaId)?.getOrNull(slots.read)
     }
 
     override suspend fun diagnose(property: VehicleProperty, areaId: Int?): ReadOutcome {
@@ -158,8 +166,10 @@ abstract class AaosSessionBase(
         var last: ReadOutcome = ReadOutcome.Unavailable(areas.firstOrNull() ?: 0)
         for (a in areas) {
             last = when (val d = backend.readDetailed(propId, a)) {
-                is VehiclePropertyBackend.DetailedRead.Ok ->
-                    return ReadOutcome.Ok(redact(property, decode(property, d.value)), a)
+                is VehiclePropertyBackend.DetailedRead.Ok -> {
+                    val raw = if (propId in platform.vectorSlots) readRaw(propId, a) else d.value
+                    return ReadOutcome.Ok(redact(property, decode(property, raw)), a)
+                }
                 is VehiclePropertyBackend.DetailedRead.Denied -> ReadOutcome.Denied(d.permission, a, d.message)
                 is VehiclePropertyBackend.DetailedRead.Failed -> ReadOutcome.Failed(d.message, a)
                 VehiclePropertyBackend.DetailedRead.Empty,
@@ -176,7 +186,11 @@ abstract class AaosSessionBase(
         if (propId !in allowlist) {
             return Result.failure(SecurityException("Property not on writable allowlist"))
         }
-        val ok = when (val encoded = encode(property, value)) {
+        val encoded = encode(property, value)
+        platform.vectorSlots[propId]?.let { slots ->
+            return writeSlots(propId, areaId, slots, encoded)
+        }
+        val ok = when (encoded) {
             is PropertyValue.IntVal -> backend.writeInt(propId, areaId, encoded.value)
             is PropertyValue.FloatVal -> backend.writeFloat(propId, areaId, encoded.value)
             is PropertyValue.BoolVal -> backend.writeBoolean(propId, areaId, encoded.value)
@@ -184,6 +198,25 @@ abstract class AaosSessionBase(
             else -> false
         }
         return if (ok) Result.success(Unit) else Result.failure(IllegalStateException("VHAL write failed"))
+    }
+
+    private fun writeSlots(
+        propId: Int,
+        areaId: Int,
+        slots: PlatformConfig.VectorSlots,
+        value: PropertyValue,
+    ): Result<Unit> {
+        val v = value.asInt()
+            ?: return Result.failure(IllegalArgumentException("vector slot needs an int value"))
+        val current = backend.readIntVector(propId, areaId)
+            ?: return Result.failure(IllegalStateException("vector 0x${propId.toString(16)} not readable"))
+        val next = current.toMutableList()
+        for (i in slots.write) if (i in next.indices) next[i] = v
+        return if (backend.writeIntVector(propId, areaId, next)) {
+            Result.success(Unit)
+        } else {
+            Result.failure(IllegalStateException("VHAL vector write failed"))
+        }
     }
 
     override fun catalog(): List<CatalogEntry> = catalogEntries

@@ -61,7 +61,7 @@ The hub never carries, logs or stores media. TURN relays DTLS ciphertext only. I
 
 ## Troubleshooting
 
-- **"Car is offline"**: the car's hub connection is down; check Fleet.
+- **"Car is offline"**: the car's hub connection is down; check the hub's Cars page.
 - **Stuck on connecting, then ICE failure**: no usable path; configure TURN and make sure UDP 3478 and the relay port range are reachable.
 - **Live black but playback works**: the head unit rejected pass-through H.264. The fallback second encode is documented in ADR-0003 but not built yet.
 

@@ -1,6 +1,7 @@
 package cc.opencar.assistant.integrations.aaos
 
 import cc.opencar.assistant.api.DeviceFingerprint
+import cc.opencar.assistant.api.ValueRange
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -64,6 +65,19 @@ class PlatformConfigTest {
                 props.getJSONObject(i).has("entity"),
             )
         }
+    }
+
+    @Test
+    fun antoraDeclaresNativeRangesAndVectorSlots() {
+        val cfg = loadAntora("phev")
+        assertEquals(ValueRange(0f, 20f, 1f), cfg.ranges["SETTING_FUNC_AMBIENCE_LIGHT_INTENSITY_SET"])
+        assertEquals(ValueRange(15.5f, 28.5f, 0.5f), cfg.ranges["HVAC_TEMPERATURE_SET"])
+        assertEquals((0..9).toList(), cfg.ranges.getValue("HVAC_FAN_SPEED").levels())
+        assertEquals((0..7).toList(), cfg.ranges.getValue("HVAC_FAN_DIRECTION").levels())
+        val color = cfg.properties.single { it.key == "SETTING_FUNC_AMBIENCE_MODE_COLOR" }
+        assertEquals(PlatformConfig.VectorSlots(read = 1, write = listOf(1, 4, 5)), color.vector)
+        assertTrue(color.id in cfg.writableAllowlist)
+        assertEquals(color.vector, cfg.vectorSlots[color.id])
     }
 
     @Test

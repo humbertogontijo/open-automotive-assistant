@@ -84,7 +84,7 @@ export class OaaApp extends OaaElement {
 
   updated() {
     const authGate = shouldShowHubSetup() || shouldShowHubLogin() || shouldShowCarPair();
-    document.body.classList.toggle("hub-fleet", authGate || (session.role === "hub" && !session.selectedNodeId));
+    document.body.classList.toggle("auth-gate", authGate);
     restorePageScroll(session.page);
   }
 }

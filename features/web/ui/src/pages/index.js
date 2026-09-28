@@ -14,7 +14,7 @@ import "./energy.js";
 import "./sound.js";
 import "./store.js";
 import "./plugins.js";
-import "./fleet.js";
+import "./cars.js";
 
 /** Catalog-only pages: no data of their own, just a view of the store. */
 function definePage(tag, view) {

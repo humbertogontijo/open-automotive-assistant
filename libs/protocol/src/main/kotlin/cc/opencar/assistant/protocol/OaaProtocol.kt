@@ -424,7 +424,7 @@ object OaaMdns {
 /** Path segments that serve the SPA shell (keep in sync with features/web/ui/src/pages/ids.js). */
 object OaaSpa {
     val PAGES = setOf(
-        "home", "fleet", "history", "controls", "drive", "energy", "lights", "adas",
+        "home", "cars", "history", "controls", "drive", "energy", "lights", "adas",
         "assistant", "display", "sound", "connect", "vehicle", "cameras", "store",
         "shortcuts", "plugins", "settings", "lab", "about", "login", "setup",
     )

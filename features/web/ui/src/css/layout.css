@@ -79,8 +79,8 @@ oaa-app, oaa-nav, oaa-setup-overlay, oaa-hub-auth, oaa-dialog-host, oaa-toast-st
   font-size: 0.85rem; font-weight: 600; color: var(--wa-color-brand-fill-loud);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-/* Hub top level (no car open): the car nav does not apply. */
-body.hub-fleet .sidebar { display: none; }
+/* Login, first-run setup and pairing overlays: nothing to navigate to yet. */
+body.auth-gate .sidebar { display: none; }
 .nav-list {
   flex: 1 1 auto;
   display: flex;

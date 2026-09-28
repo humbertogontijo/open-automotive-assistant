@@ -73,6 +73,9 @@ interface VehicleSession {
      */
     fun hasBinding(property: VehicleProperty): Boolean = false
 
+    /** Native range the integration declares for [property]; null when undeclared. */
+    fun valueRange(property: VehicleProperty): ValueRange? = null
+
     /**
      * Cabin volume groups from `platform.json` → `android.volumeGroups`
      * (after `extends` merge). Empty when the platform does not declare any.

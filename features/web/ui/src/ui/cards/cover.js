@@ -17,9 +17,9 @@ function currentPosition(c) {
   return isNaN(n) ? null : Math.round(n);
 }
 
-/** Position covers expose `current_position`; trunk (status-only) does not. */
+/** Position covers expose `current_position` and the position range; trunk (status-only) does not. */
 function supportsPosition(c) {
-  return currentPosition(c) != null || (c.min != null && c.max != null && !c.composite);
+  return c.min != null && c.max != null && (currentPosition(c) != null || !c.composite);
 }
 
 class OaaCoverCard extends OaaCard {
@@ -27,6 +27,8 @@ class OaaCoverCard extends OaaCard {
     const locked = this.locked;
     const open = (c.state != null ? c.state : c.value) === "open";
     const pos = currentPosition(c);
+    const min = Number(c.min);
+    const max = Number(c.max);
     return controlShell(c, {
       restore: this.restore,
       dense: true,
@@ -42,11 +44,14 @@ class OaaCoverCard extends OaaCard {
         })}
         ${supportsPosition(c)
           ? slider({
-              value: pos != null ? pos : open ? 100 : 0,
+              value: pos != null ? pos : open ? max : min,
+              min,
+              max,
+              step: c.step != null ? Number(c.step) : undefined,
               suffix: "%",
               label: t("attr.position", "Position"),
               disabled: locked,
-              onCommit: (v) => this.send(String(Math.max(0, Math.min(100, Math.round(v))))),
+              onCommit: (v) => this.send(String(Math.max(min, Math.min(max, Math.round(v))))),
             })
           : nothing}
       `,

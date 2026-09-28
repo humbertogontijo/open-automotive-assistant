@@ -18,7 +18,7 @@ The password is prompted once (or read from `OAA_HUB_PASSWORD`); the session tok
 
 Both loops send only what changed. `hub-deploy` offers the car a delta patch when its installed build is still among the hub's last 5 artifacts (see [hub.md](hub.md#app-updates-ota)). Over adb, `./tools/oaa-setup -H CAR_IP setup` (or `install`) keeps each installed APK in `~/.cache/oaa/apks`. On the next run it builds a patch against the car's installed build with `:apk-delta:diff`, pushes the patch, rebuilds the APK on the HU with `dd`, checks its hash and then runs `pm install`. `--full` (or `OAA_FULL=1`) forces a whole-APK push. Head-unit builds also skip the emulator's x86_64 libraries (`-Poaa.arm64Only`).
 
-Then open the hub UI, pick the car in Fleet and use **Lab**: re-probe, OBD2, **Export zip** and **Live logs** all go through the hub (admin only). adb is still needed for the very first install and for attaching a debugger.
+Then open the hub UI, pick the car on the Cars page and use **Lab**: re-probe, OBD2, **Export zip** and **Live logs** all go through the hub (admin only). adb is still needed for the very first install and for attaching a debugger.
 
 ## 1. Wireless ADB
 
@@ -93,7 +93,7 @@ Base: `http://CAR_IP:8787`. Every route needs a paired caller ([adr/0004-car-aut
 | `GET /debug/export?token=…` | Zip: logs, identity, capabilities, telemetry |
 | `GET /debug/adb-hint` | Wi‑Fi IP + suggested `adb connect` |
 
-Through a hub, use the same paths on the hub URL with `?node=ID` (or the `oaa_node` cookie set by Fleet); responses over 2.5 MiB return 413.
+Through a hub, use the same paths on the hub URL with `?node=ID` (or the `oaa_node` cookie set when a car is opened); responses over 2.5 MiB return 413.
 
 Token is required when Contributor mode is on. Without Contributor mode, write/debug routes refuse (probe summary may still run for Lab re-probe when mode is off).
 

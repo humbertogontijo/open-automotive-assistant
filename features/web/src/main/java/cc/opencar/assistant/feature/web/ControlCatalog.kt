@@ -3,19 +3,24 @@ package cc.opencar.assistant.feature.web
 import android.content.Context
 import cc.opencar.assistant.api.CatalogEntityFactory
 import cc.opencar.assistant.api.DeviceClass
+import cc.opencar.assistant.api.DomainDefaults
 import cc.opencar.assistant.api.EntityContract
 import cc.opencar.assistant.api.EntityDef
 import cc.opencar.assistant.api.EntityRegistry
 import cc.opencar.assistant.api.EntityType
 import cc.opencar.assistant.api.PropertyValue
 import cc.opencar.assistant.api.ReadOutcome
+import cc.opencar.assistant.api.RgbColor
 import cc.opencar.assistant.api.UnitOfMeasurement
+import cc.opencar.assistant.api.ValueRange
+import cc.opencar.assistant.api.VehicleProperty
 import cc.opencar.assistant.api.VehicleSession
 import cc.opencar.assistant.feature.dvr.DvrController
 import cc.opencar.assistant.feature.memory.SettingsMemoryController
 import cc.opencar.assistant.support.I18nBundle
 import cc.opencar.assistant.support.LastKnownStore
 import kotlinx.coroutines.flow.first
+import kotlin.math.roundToInt
 
 /**
  * Product entity API facade over [EntityRegistry].
@@ -397,15 +402,16 @@ object ControlCatalog {
     ): Result<Unit> {
         val v = raw.trim()
         if (def.domain == EntityType.LIGHT) {
+            val scale = DomainDefaults.LIGHT_BRIGHTNESS
             when (v.lowercase()) {
                 "on", "1", "true" ->
                     return writeCompositeAttr(
                         session, def, "brightness",
-                        ((def.max ?: 100f) * 0.5f).toInt().coerceAtLeast(1).toString(),
+                        ((scale.min!! + scale.max!!) / 2f).roundToInt().toString(),
                         store,
                     )
                 "off", "0", "false" ->
-                    return writeCompositeAttr(session, def, "brightness", "0", store)
+                    return writeCompositeAttr(session, def, "brightness", scale.min!!.roundToInt().toString(), store)
             }
         }
         // Trunk cover (composite): open/close via DOOR_MOVE.
@@ -419,8 +425,10 @@ object ControlCatalog {
         }
         val colon = v.indexOf(':')
         if (colon > 0) {
-            val attrKey = v.substring(0, colon).lowercase().replace('-', '_')
+            var attrKey = v.substring(0, colon).lowercase().replace('-', '_')
             val value = v.substring(colon + 1).trim()
+            // Saved shortcuts predate the HA `effect` name.
+            if (def.domain == EntityType.LIGHT && attrKey == "color") attrKey = "effect"
             if (attrKey in def.attributes) {
                 return writeCompositeAttr(session, def, attrKey, value, store)
             }
@@ -431,7 +439,7 @@ object ControlCatalog {
             EntityType.CHASSIS -> "auto_hold"
             EntityType.HUD -> "active"
             EntityType.CHARGER -> "switch"
-            EntityType.LIGHT -> "color"
+            EntityType.LIGHT -> "effect"
             EntityType.EV_BATTERY -> "percent"
             EntityType.COVER -> "move"
             else -> def.attributes.keys.firstOrNull()
@@ -455,19 +463,21 @@ object ControlCatalog {
             ?: return Result.failure(IllegalArgumentException("cover has no binding"))
         val v = raw.trim()
         val lower = v.lowercase()
+        val scale = DomainDefaults.COVER_POSITION
+        val opened = scale.max!!.roundToInt()
+        val closed = scale.min!!.roundToInt()
         val position: Int = when {
-            lower in setOf("open", "on", "true") -> 100
-            lower in setOf("closed", "close", "off", "false") -> 0
+            lower in setOf("open", "on", "true") -> opened
+            lower in setOf("closed", "close", "off", "false") -> closed
             lower.startsWith("position:") || lower.startsWith("position_") ->
                 lower.removePrefix("position").trimStart(':', '_').toFloatOrNull()?.toInt()
                     ?: return Result.failure(IllegalArgumentException("bad cover position"))
             lower.toFloatOrNull() != null -> lower.toFloat().toInt()
-            lower == "1" -> 100
-            lower == "0" -> 0
             else -> return Result.failure(IllegalArgumentException("unknown cover value: $raw"))
-        }.coerceIn(0, 100)
+        }.coerceIn(closed, opened)
+        val native = DomainDefaults.fromCanonical(position.toFloat(), declaredRange(session, prop, def), scale)
         // Venus WINDOW_POS requires int32.
-        val result = session.set(prop, PropertyValue.IntVal(position))
+        val result = session.set(prop, PropertyValue.IntVal(native.roundToInt()))
         if (result.isSuccess && def.lastKnown) {
             store?.put(def.id, if (position > 1) "open" else "closed")
             store?.put("${def.id}:position", position.toString())
@@ -492,9 +502,11 @@ object ControlCatalog {
         } else {
             session.diagnose(prop, null)
         }
+        val scale = DomainDefaults.COVER_POSITION
+        val native = declaredRange(session, prop, def)
         val position = when (outcome) {
-            is ReadOutcome.Ok -> outcome.value?.asInt()
-                ?: outcome.value?.asFloat()?.toInt()
+            is ReadOutcome.Ok -> outcome.value?.asFloat()
+                ?.let { DomainDefaults.toCanonical(it, native, scale).roundToInt() }
             else -> null
         }
         val open = (position ?: 0) > 1
@@ -523,9 +535,9 @@ object ControlCatalog {
                 "input" to "cover",
                 "icon" to def.resolvedIcon(),
                 "deviceClass" to def.deviceClass?.id,
-                "min" to (def.min ?: 0f),
-                "max" to (def.max ?: 100f),
-                "step" to (def.step ?: 1f),
+                "min" to scale.min,
+                "max" to scale.max,
+                "step" to scale.step,
                 "history" to def.history,
                 "writable" to (def.writable && status == "ok"),
                 "value" to state,
@@ -556,6 +568,19 @@ object ControlCatalog {
             return Result.failure(IllegalArgumentException("attr unbound: $attr"))
         }
         val pv = when {
+            def.domain == EntityType.LIGHT && attr == "brightness" -> {
+                val canonical = raw.toFloatOrNull()
+                    ?: return Result.failure(IllegalArgumentException("bad brightness: $raw"))
+                val native = DomainDefaults.fromCanonical(
+                    canonical.coerceIn(DomainDefaults.LIGHT_BRIGHTNESS.min!!, DomainDefaults.LIGHT_BRIGHTNESS.max!!),
+                    declaredRange(session, prop, null),
+                    DomainDefaults.LIGHT_BRIGHTNESS,
+                )
+                PropertyValue.IntVal(native.roundToInt())
+            }
+            attr == "rgb_color" -> PropertyValue.IntVal(
+                RgbColor.parse(raw) ?: return Result.failure(IllegalArgumentException("bad rgb_color: $raw")),
+            )
             // Venus WINDOW_POS scheduler only accepts int32 (float writes log
             // "Haven't int32 values" and never actuate).
             prop.key == "window_pos" ->
@@ -593,6 +618,17 @@ object ControlCatalog {
         "esc", "hdc", "auto_hold", "epb", "parking_brake", "sync_drive_mode",
         "intelligent", "lock", "fold", "auto_fold", "auto_close", "tilt",
     )
+
+    /** Integration-declared native range for [prop], then the curated [def] bounds. */
+    private fun declaredRange(session: VehicleSession?, prop: VehicleProperty?, def: EntityDef?): ValueRange? {
+        val native = prop?.let { session?.valueRange(it) }
+        val curated = def?.let { ValueRange(it.min, it.max, it.step) }
+            ?.takeIf { it.min != null || it.max != null || it.step != null }
+        return when {
+            native != null && curated != null -> native.orElse(curated)
+            else -> native ?: curated
+        }
+    }
 
     private suspend fun setClimate(
         session: VehicleSession,
@@ -739,12 +775,17 @@ object ControlCatalog {
             temperature?.let { store?.put("climate:temperature", it.toString()) }
         }
 
+        fun boundRange(attr: String): ValueRange? =
+            def.attributeProperty(attr)?.takeIf { session.hasBinding(it) }?.let { session.valueRange(it) }
+        val tempRange = (declaredRange(session, tempProp, def) ?: ValueRange())
+            .orElse(DomainDefaults.CLIMATE_TEMPERATURE)
+
         val attrs = linkedMapOf<String, Any?>(
             "hvac_modes" to listOf("off", "manual", "auto"),
             "hvac_mode" to hvacMode,
-            "fan_modes" to (0..8).toList(),
-            "fan_directions" to (0..4).toList(),
         )
+        boundRange("fan_mode")?.levels()?.let { attrs["fan_modes"] = it }
+        boundRange("fan_direction")?.levels()?.let { attrs["fan_directions"] = it }
         temperature?.let { attrs["temperature"] = it }
         currentTemp?.let { attrs["current_temperature"] = it }
         fanMode?.let { attrs["fan_mode"] = it }
@@ -753,9 +794,9 @@ object ControlCatalog {
         attrs["ac"] = if (on(ac)) 1 else 0
         attrs["auto"] = if (on(auto)) 1 else 0
         attrs["power"] = if (on(power)) 1 else 0
-        def.min?.let { attrs["min_temp"] = it }
-        def.max?.let { attrs["max_temp"] = it }
-        def.step?.let { attrs["target_temp_step"] = it }
+        attrs["min_temp"] = tempRange.min
+        attrs["max_temp"] = tempRange.max
+        attrs["target_temp_step"] = tempRange.step
 
         val status = when {
             power != null || temperature != null -> "ok"
@@ -774,9 +815,9 @@ object ControlCatalog {
                 "icon" to def.resolvedIcon(),
                 "deviceClass" to def.deviceClass?.id,
                 "unitOfMeasurement" to def.unitOfMeasurement?.id,
-                "min" to def.min,
-                "max" to def.max,
-                "step" to def.step,
+                "min" to tempRange.min,
+                "max" to tempRange.max,
+                "step" to tempRange.step,
                 "history" to def.history,
                 "writable" to (status == "ok"),
                 "value" to hvacMode,
@@ -845,13 +886,15 @@ object ControlCatalog {
             attrs["open"] = if (open) 1 else 0
         }
 
+        if (def.domain == EntityType.LIGHT) lightAttributes(session, def, attrs)
+
         val primaryAttr = when (def.domain) {
             EntityType.DRIVETRAIN -> "mode"
             EntityType.STEERING -> "assist_level"
             EntityType.CHASSIS -> "auto_hold"
             EntityType.HUD -> "active"
             EntityType.CHARGER -> "switch"
-            EntityType.LIGHT -> "color"
+            EntityType.LIGHT -> "effect"
             EntityType.EV_BATTERY -> "percent"
             EntityType.COVER -> "open"
             else -> def.attributes.keys.firstOrNull()
@@ -876,6 +919,11 @@ object ControlCatalog {
             EntityType.COVER -> "cover"
             else -> def.input
         }
+        val range = if (def.domain == EntityType.LIGHT) {
+            DomainDefaults.LIGHT_BRIGHTNESS
+        } else {
+            ValueRange(def.min, def.max, def.step)
+        }
 
         return EntityContract.enrich(
             mapOf(
@@ -889,9 +937,9 @@ object ControlCatalog {
                 "icon" to def.resolvedIcon(),
                 "deviceClass" to def.deviceClass?.id,
                 "unitOfMeasurement" to def.unitOfMeasurement?.id,
-                "min" to def.min,
-                "max" to def.max,
-                "step" to def.step,
+                "min" to range.min,
+                "max" to range.max,
+                "step" to range.step,
                 "history" to def.history,
                 "writable" to (def.writable && status == "ok"),
                 "options" to options,
@@ -908,6 +956,30 @@ object ControlCatalog {
                 EntityContract.FIELD_UPDATE to EntityContract.UPDATE_CATALOG,
             ),
         )
+    }
+
+    /**
+     * HA light shape: `brightness` on the canonical 0–255 scale, `rgb_color` as `[r, g, b]`,
+     * `supported_color_modes` / `color_mode` from the bound attributes.
+     */
+    private fun lightAttributes(session: VehicleSession, def: EntityDef, attrs: MutableMap<String, Any?>) {
+        fun bound(attr: String) = def.attributeProperty(attr)?.takeIf { session.hasBinding(it) }
+        val brightnessProp = bound("brightness")
+        (attrs["brightness"] as? Number)?.let { native ->
+            attrs["brightness"] = DomainDefaults.toCanonical(
+                native.toFloat(),
+                declaredRange(session, brightnessProp, null),
+                DomainDefaults.LIGHT_BRIGHTNESS,
+            ).roundToInt()
+        }
+        (attrs["rgb_color"] as? Number)?.let { attrs["rgb_color"] = RgbColor.toList(it.toInt()) }
+        val mode = when {
+            bound("rgb_color") != null -> "rgb"
+            brightnessProp != null -> "brightness"
+            else -> "onoff"
+        }
+        attrs["supported_color_modes"] = listOf(mode)
+        attrs["color_mode"] = mode
     }
 
     private fun enrichPersist(
@@ -967,13 +1039,18 @@ object ControlCatalog {
         // Only fall back when the live value is actually missing. Off (0) and false are
         // real states — treating them as empty made exterior_light/CST/night_mode show
         // "last known" after the user turned them off, and overwrote card descriptions.
+        val range = if (def.input == "int" || def.input == "float") {
+            (declaredRange(session, def.property(), def) ?: ValueRange()).orElse(DomainDefaults.NUMBER)
+        } else {
+            null
+        }
         if (value.isNullOrBlank() && def.lastKnown) {
             val cached = store?.get(def.id)
             if (cached != null) {
-                return baseMap(def, cached, "cached", null, stale = true, i18n = i18n)
+                return baseMap(def, cached, "cached", null, stale = true, i18n = i18n, range = range)
             }
         }
-        return baseMap(def, value, status, permission, stale = false, i18n = i18n)
+        return baseMap(def, value, status, permission, stale = false, i18n = i18n, range = range)
     }
 
     private fun optionMaps(def: EntityDef, i18n: I18nBundle?): List<Map<String, Any?>> {
@@ -1008,6 +1085,7 @@ object ControlCatalog {
         stale: Boolean,
         i18n: I18nBundle?,
         forceWritable: Boolean? = null,
+        range: ValueRange? = null,
     ): Map<String, Any?> {
         val writable = forceWritable
             ?: (def.writable && (status == "ok" || status == "cached"))
@@ -1024,9 +1102,9 @@ object ControlCatalog {
                 "icon" to def.resolvedIcon(),
                 "deviceClass" to def.deviceClass?.id,
                 "unitOfMeasurement" to def.unitOfMeasurement?.id,
-                "min" to def.min,
-                "max" to def.max,
-                "step" to def.step,
+                "min" to (range?.min ?: def.min),
+                "max" to (range?.max ?: def.max),
+                "step" to (range?.step ?: def.step),
                 "history" to def.history,
                 "writable" to writable,
                 "options" to optionMaps(def, i18n).ifEmpty { null },

@@ -7,7 +7,7 @@ docker compose up -d --build
 
 UI: `http://HOST:8787`
 
-Pair cars from the Fleet page (generate code) then Settings → Hub on each car.
+Pair cars from the Cars page (generate code) then Settings → Hub on each car.
 
 Profiles:
 

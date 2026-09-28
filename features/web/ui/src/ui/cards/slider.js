@@ -1,10 +1,12 @@
 import { html, nothing } from "lit";
+import { ifDefined } from "lit/directives/if-defined.js";
 import { OaaElement } from "../../lit/oaa-element.js";
 
 /**
  * Readout plus wa-slider. The readout follows the thumb while dragging; `oaa-commit` fires
  * once on release, since each commit is one car write. The dragged value is held until the
  * car reports a new `value`, so the thumb doesn't snap back while the write is in flight.
+ * Range comes from the entity (`min` / `max` / `step`); the UI never assumes one.
  * @fires oaa-commit - `detail.value` is the committed number
  */
 export class OaaSlider extends OaaElement {
@@ -17,20 +19,26 @@ export class OaaSlider extends OaaElement {
     label: {},
     disabled: { type: Boolean },
     lead: { attribute: false },
+    format: { attribute: false },
     drag: { state: true },
   };
 
   constructor() {
     super();
     this.value = 0;
-    this.min = 0;
-    this.max = 100;
-    this.step = 1;
+    /** @type {number | undefined} */
+    this.min = undefined;
+    /** @type {number | undefined} */
+    this.max = undefined;
+    /** @type {number | undefined} */
+    this.step = undefined;
     this.suffix = "";
     this.label = "";
     this.disabled = false;
     /** Content before the readout (e.g. a power switch). */
     this.lead = null;
+    /** @type {((v: number) => any) | null} Readout formatter (value stays in entity units). */
+    this.format = null;
     /** @type {number | null} */
     this.drag = null;
   }
@@ -44,11 +52,11 @@ export class OaaSlider extends OaaElement {
     return html`
       <div class="slider-row ${this.lead ? "has-lead" : ""}" role="group" aria-label=${this.label || nothing}>
         ${this.lead || nothing}
-        <span class="slider-readout">${shown}<span class="unit">${this.suffix}</span></span>
+        <span class="slider-readout">${this.format ? this.format(shown) : shown}<span class="unit">${this.suffix}</span></span>
         <wa-slider
-          min=${this.min}
-          max=${this.max}
-          step=${this.step}
+          min=${ifDefined(this.min)}
+          max=${ifDefined(this.max)}
+          step=${ifDefined(this.step)}
           .value=${this.value}
           ?disabled=${this.disabled}
           label=${this.label}
@@ -68,14 +76,15 @@ export class OaaSlider extends OaaElement {
 customElements.define("oaa-slider", OaaSlider);
 
 /**
- * @param {{ value: number, min?: number, max?: number, step?: number, suffix?: string, label?: string, disabled?: boolean, lead?: any, onCommit: (v: number) => void }} o
+ * @param {{ value: number, min?: number, max?: number, step?: number, format?: (v: number) => any, suffix?: string, label?: string, disabled?: boolean, lead?: any, onCommit: (v: number) => void }} o
  */
 export function slider(o) {
   return html`<oaa-slider
     .value=${o.value}
-    .min=${o.min != null ? o.min : 0}
-    .max=${o.max != null ? o.max : 100}
-    .step=${o.step != null ? o.step : 1}
+    .min=${o.min}
+    .max=${o.max}
+    .step=${o.step}
+    .format=${o.format || null}
     .suffix=${o.suffix || ""}
     .label=${o.label || ""}
     .lead=${o.lead || null}

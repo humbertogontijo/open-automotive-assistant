@@ -11,7 +11,7 @@ Self-hosted **OAA hub** as a Home Assistant OS app (add-on). Same Music Assistan
 
 ## Pair cars
 
-Fleet → **Nearby cars** → Add. The car's screen shows a 6-digit code; type it on the hub. Cars that are not on the same network can use **Add by address** (the car's IP) or the manual flow: Fleet → Generate pairing code → on the car: Settings → Hub → hub URL + code.
+Cars → **Nearby cars** → Add. The car's screen shows a 6-digit code; type it on the hub. Cars that are not on the same network can use **Add by address** (the car's IP) or the manual flow: Cars → Generate pairing code → on the car: Settings → Hub → hub URL + code.
 
 The app runs with host networking so it can see the cars' mDNS announcements.
 
@@ -25,7 +25,7 @@ Cars keep their link to the hub over Home Assistant's public URL. Nabu Casa only
 
 Cars get the public URL at pairing and each time they connect, so cars paired before still pick it up. Pair at home as usual.
 
-To check it: Fleet → **Away from home** shows the URL away cars dial and whether it reaches the hub. "HTTP 404" there means Home Assistant was not restarted yet or the integration is not added (steps 2 and 3). Each online car says whether it is connected over the local network or the public URL.
+To check it: Cars → **Away from home** shows the URL away cars dial and whether it reaches the hub. "HTTP 404" there means Home Assistant was not restarted yet or the integration is not added (steps 2 and 3). Each online car says whether it is connected over the local network or the public URL.
 
 ## Remote Cameras (WebRTC)
 

@@ -11,8 +11,6 @@ import { OaaPage } from "../lit/oaa-page.js";
 import { toast, toastError } from "../ui/toast.js";
 import { confirmDialog } from "../ui/confirm.js";
 import { loadShortcuts } from "../shortcuts-data.js";
-import { pagePath } from "./ids.js";
-
 async function updatePrefs(body) {
   const res = await postForm("/api/prefs", body);
   prefs.$patch({
@@ -292,7 +290,7 @@ class OaaPageSettings extends OaaPage {
               (hub.hubName ? " · " + hub.hubName : "")
             : t(
                 "hub.hint_invite",
-                "Add this car from the hub: Fleet → Nearby cars. The hub asks for the code this screen then shows.",
+                "Add this car from the hub: Cars → Nearby cars. The hub asks for the code this screen then shows.",
               )}
           ${hub.lastError ? " · " + hub.lastError : ""}
         </p>
@@ -312,7 +310,7 @@ class OaaPageSettings extends OaaPage {
           : nothing}
         <wa-details summary=${t("hub.manual", "Pair manually with a hub code")} ?open=${!paired && !!this.hubCode}>
           <p class="hint">
-            ${t("hub.hint", "Use the hub's node address (port 8788) and a code from the hub's Fleet page.")}
+            ${t("hub.hint", "Use the hub's node address (port 8788) and a code from the hub's Cars page.")}
           </p>
           <wa-input
             type="url"
@@ -341,10 +339,7 @@ class OaaPageSettings extends OaaPage {
   render() {
     if (isHubItself()) {
       return html`
-        <div class="page-head">
-          <h1>${t("nav.settings", "Settings")}</h1>
-          <wa-button appearance="plain" href=${pagePath("fleet", "")}>${t("nav.fleet", "Fleet")}</wa-button>
-        </div>
+        <h1>${t("nav.settings", "Settings")}</h1>
         <div class="grid">${this.integrationTokenCard()}</div>
       `;
     }

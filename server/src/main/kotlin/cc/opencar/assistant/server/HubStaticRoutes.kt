@@ -51,7 +51,7 @@ internal fun Routing.staticRoutes(
         }
         serveIndex(call, read)
     }
-    // A car's pages: `/<node>/`, `/<node>/cameras`. Unknown cars still get the SPA, which returns to the fleet.
+    // A car's pages: `/<node>/`, `/<node>/cameras`. Unknown cars still get the SPA, which returns to the car list.
     get("/{node}/") { serveNestedIndex(call, read) }
     get("/{node}/{section}") {
         if (call.parameters["section"] !in OaaSpa.PAGES) {

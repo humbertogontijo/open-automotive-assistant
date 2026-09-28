@@ -35,7 +35,7 @@ export function inputWidget(c) {
   }
 
   if (input === "int" || input === "float") {
-    const step = c.step != null ? c.step : input === "float" ? 0.5 : 1;
+    const step = c.step != null ? Number(c.step) : null;
     const num = parseFloat(val);
     const unitId = c.unitOfMeasurement || null;
     const unit = displayUnit(c);
@@ -46,7 +46,7 @@ export function inputWidget(c) {
       pin == null || match ? "" : isNaN(pinNum) ? String(pin) : formatDisplayNumber(unitId, pinNum, input);
     return stepper({
       cls: pin == null ? "" : match ? "pin-match" : "pin-diff",
-      locked,
+      locked: locked || step == null,
       value: html`${display}${unit && !isNaN(num) ? html`<span class="unit">${unit}</span>` : nothing}`,
       onMinus: () => onStep(id, -step),
       onPlus: () => onStep(id, step),

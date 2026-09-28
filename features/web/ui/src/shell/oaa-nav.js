@@ -6,12 +6,18 @@ import { icon } from "../icons.js";
 import { pagePath } from "../pages/ids.js";
 
 /**
- * @typedef {{ page: string, icon: string, label: string, cap?: string[], role?: "hub" | "local" }} NavItem
+ * @typedef {{ page: string, icon: string, label: string, cap?: string[], role?: "hub" | "local", admin?: boolean }} NavItem
  */
 
-/** @type {NavItem[]} */
+/** Hub with no car open. @type {NavItem[]} */
+const HUB_NAV_ITEMS = [
+  { page: "cars", icon: "car", label: "Cars" },
+  { page: "settings", icon: "system", label: "Settings", admin: true },
+];
+
+/** A car: on the car itself, or opened from a hub. @type {NavItem[]} */
 export const NAV_ITEMS = [
-  { page: "fleet", icon: "back", label: "Fleet", role: "hub" },
+  { page: "cars", icon: "back", label: "Cars", role: "hub" },
   { page: "home", icon: "home", label: "Início" },
   { page: "controls", icon: "cabin", label: "Controles" },
   { page: "drive", icon: "drive", label: "Condução" },
@@ -33,7 +39,16 @@ export const NAV_ITEMS = [
   { page: "about", icon: "about", label: "Sobre" },
 ];
 
-/** Role and capability gating for a nav entry (hub with no car open shows only the fleet). */
+function isHubTop() {
+  return session.role === "hub" && !session.selectedNodeId;
+}
+
+function isAdmin() {
+  const user = (session.status && session.status.user) || (session.hubAuth && session.hubAuth.user);
+  return !!(user && user.role === "admin");
+}
+
+/** Role and capability gating for a car nav entry. */
 export function navItemVisible(item) {
   const role = session.role || "local";
   if (item.role && item.role !== role) return false;
@@ -58,14 +73,17 @@ function selectedCarName() {
 export class OaaNav extends OaaElement {
   render() {
     const page = session.page;
-    const showCar = session.role === "hub" && !!session.selectedNodeId;
+    const hubTop = isHubTop();
+    const showCar = session.role === "hub" && !hubTop;
+    const items = hubTop ? HUB_NAV_ITEMS.filter((i) => !i.admin || isAdmin()) : NAV_ITEMS.filter(navItemVisible);
     const version = statusVersion.get();
     return html`
       <nav class="sidebar">
         <div class="brand">OAA</div>
         ${showCar ? html`<div class="brand-car">${selectedCarName()}</div>` : nothing}
+        ${hubTop ? html`<div class="brand-car">${t("nav.hub", "Hub")}</div>` : nothing}
         <div class="nav-list">
-          ${NAV_ITEMS.filter(navItemVisible).map(
+          ${items.map(
             (item) => html`<a
               class="nav-item ${page === item.page ? "active" : ""}"
               href=${pagePath(item.page)}

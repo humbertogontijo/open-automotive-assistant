@@ -11,7 +11,7 @@ import { session } from "../store.js";
 /** @type {Record<string, PageDef>} */
 const PAGES = {
   home: { tag: "oaa-page-home" },
-  fleet: { tag: "oaa-page-fleet" },
+  cars: { tag: "oaa-page-cars" },
   history: { tag: "oaa-page-history", load: () => import("./history.js") },
   controls: { tag: "oaa-page-controls" },
   drive: { tag: "oaa-page-drive" },
@@ -44,7 +44,7 @@ export function isKnownPage(id) {
 }
 
 /**
- * Browser pathname for a page. On the car: `/`, `/cameras`. On a hub the fleet is `/`, hub
+ * Browser pathname for a page. On the car: `/`, `/cameras`. On a hub the car list is `/`, hub
  * settings `/settings`, and a car's pages live under its id: `/<node>/`, `/<node>/cameras`.
  * [node] defaults to the open car; "" addresses the hub itself.
  * @param {string} id @param {string} [node]
@@ -52,7 +52,7 @@ export function isKnownPage(id) {
 export function pagePath(id, node) {
   if (session.role !== "hub") return appUrl(!id || id === "home" ? "/" : "/" + id);
   const car = node === undefined ? session.selectedNodeId : node;
-  if (!car || id === "fleet") return appUrl(id === "settings" && !car ? "/settings" : "/");
+  if (!car || id === "cars") return appUrl(id === "settings" && !car ? "/settings" : "/");
   return appUrl("/" + encodeURIComponent(car) + "/" + (!id || id === "home" ? "" : id));
 }
 
@@ -78,11 +78,11 @@ export function parseLocation(pathname) {
 
 /**
  * What a parsed location shows for [role]. The car ignores node segments; a hub with no car
- * open shows the fleet (or its own settings).
+ * open shows the car list (or its own settings).
  * @param {{ node: string, page: string }} loc @param {string} role
  */
 export function resolveRoute(loc, role) {
   if (role !== "hub") return { node: "", page: loc.page };
-  if (!loc.node || loc.page === "fleet") return { node: "", page: !loc.node && loc.page === "settings" ? "settings" : "fleet" };
+  if (!loc.node || loc.page === "cars") return { node: "", page: !loc.node && loc.page === "settings" ? "settings" : "cars" };
   return loc;
 }

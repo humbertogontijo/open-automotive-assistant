@@ -9,7 +9,10 @@ export function onStep(id, delta) {
   if (!c) return;
   const curRaw = c && c.value;
   let cur = parseFloat(curRaw);
-  if (isNaN(cur)) cur = c.min != null ? Number(c.min) : 0;
+  if (isNaN(cur)) {
+    if (c.min == null) return;
+    cur = Number(c.min);
+  }
   // Step in vehicle-native units; display layer converts for the UI.
   let next = cur + delta;
   if (delta < 0 && c.min != null) next = Math.max(Number(c.min), next);

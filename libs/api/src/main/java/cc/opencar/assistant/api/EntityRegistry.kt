@@ -251,8 +251,9 @@ object EntityRegistry {
         group = "lights",
         bindingKey = null,
         attributes = mapOf(
-            "color" to "SETTING_FUNC_AMBIENCE_LIGHT_MAINCOLOR",
+            "effect" to "SETTING_FUNC_AMBIENCE_LIGHT_MAINCOLOR",
             "brightness" to "SETTING_FUNC_AMBIENCE_LIGHT_INTENSITY_SET",
+            "rgb_color" to "SETTING_FUNC_AMBIENCE_MODE_COLOR",
         ),
         input = "light",
         optionKeys = listOf(
@@ -262,9 +263,6 @@ object EntityRegistry {
         ),
         icon = "light",
         lastKnown = true,
-        min = 0f,
-        max = 100f,
-        step = 1f,
         valueMapId = "ambience_main_color",
     )
 

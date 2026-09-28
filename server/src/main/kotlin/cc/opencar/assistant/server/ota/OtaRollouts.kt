@@ -78,7 +78,7 @@ class OtaRollouts(
 
     fun list(): List<Rollout> = synchronized(this) { rollouts.values.reversed() }
 
-    /** Latest rollout state for [nodeId] (Fleet display). */
+    /** Latest rollout state for [nodeId] (hub Cars page). */
     fun stateFor(nodeId: String): Map<String, Any?>? = synchronized(this) {
         rollouts.values.reversed().firstNotNullOfOrNull { r ->
             r.targets[nodeId]?.let {

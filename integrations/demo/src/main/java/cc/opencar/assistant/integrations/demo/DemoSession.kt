@@ -6,6 +6,7 @@ import cc.opencar.assistant.api.CatalogEntry
 import cc.opencar.assistant.api.PlatformVariant
 import cc.opencar.assistant.api.PropertyValue
 import cc.opencar.assistant.api.TelemetrySnapshot
+import cc.opencar.assistant.api.ValueRange
 import cc.opencar.assistant.api.VehicleEvent
 import cc.opencar.assistant.api.VehicleProperty
 import cc.opencar.assistant.api.VehicleSession
@@ -78,6 +79,8 @@ class DemoSession(
 
     override fun hasBinding(property: VehicleProperty): Boolean =
         platform.bindings.containsKey(property.key)
+
+    override fun valueRange(property: VehicleProperty): ValueRange? = platform.ranges[property.key]
 
     override fun androidVolumeGroups(): List<AndroidVolumeGroup> =
         platform.androidVolumeGroups()

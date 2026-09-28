@@ -19,6 +19,11 @@ interface VehiclePropertyBackend : AutoCloseable {
     fun writeFloat(propId: Int, areaId: Int, value: Float): Boolean
     fun writeBoolean(propId: Int, areaId: Int, value: Boolean): Boolean
 
+    /** Full int32 vector ([read] returns the first element only); null when unsupported. */
+    fun readIntVector(propId: Int, areaId: Int): List<Int>? = null
+
+    fun writeIntVector(propId: Int, areaId: Int, values: List<Int>): Boolean = false
+
     /**
      * Hot stream of property changes when the transport can push.
      * @param propIds optional interest set (CarProperty); null/empty = all (gRPC) or unavailable (CarProperty).

@@ -29,6 +29,8 @@ const ICON_MAP = {
   lab: "i-lab",
   about: "i-about",
   back: "i-back",
+  car: "i-car",
+  cars: "i-car",
   pin: "i-pin",
   hide: "i-hide",
   flip: "i-flip",

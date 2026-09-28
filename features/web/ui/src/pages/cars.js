@@ -117,7 +117,8 @@ function nodeCard(n) {
   const app = appLine(n.app);
   const via = viaLine(n);
   return prefCard({
-    icon: "sensor",
+    cls: "form-card",
+    icon: "car",
     title: n.name || n.id,
     body: html`
       <p class="hint">
@@ -138,7 +139,7 @@ function nodeCard(n) {
   });
 }
 
-class OaaPageFleet extends OaaPage {
+class OaaPageCars extends OaaPage {
   static properties = {
     offer: { state: true },
     discovered: { state: true },
@@ -344,20 +345,16 @@ class OaaPageFleet extends OaaPage {
     const nodes = (session.fleet && session.fleet.nodes) || [];
     const offer = this.offer;
     return html`
-      <div class="page-head">
-        <h1>${t("nav.fleet", "Fleet")}</h1>
-        ${isAdmin()
-          ? html`<wa-button appearance="plain" href=${pagePath("settings", "")}>${t("nav.settings", "Settings")}</wa-button>`
-          : nothing}
-      </div>
-      <p class="hint">
+      <h1>${t("nav.cars", "Cars")}</h1>
+      <p class="sub">
         ${t("fleet.hint_invite", "Open a car to control it with the same UI. Add a nearby car, then type the code its screen shows.")}
       </p>
-      <div class="grid">
+      <div class="grid cars-grid">
         ${this.invite ? this.inviteCard() : isAdmin() ? this.nearbyCard() : nothing}
         ${nodes.length
           ? nodes.map(nodeCard)
           : prefCard({
+              cls: "form-card",
               icon: "about",
               title: t("fleet.empty", "No cars paired"),
               body: html`<p class="hint">
@@ -376,11 +373,13 @@ class OaaPageFleet extends OaaPage {
                 : t("fleet.manual_hint", "For cars outside this network: generate a code and type it in the car's Settings → Hub.")}
             </p>
             <p class="hint mono">${t("fleet.cloud_url", "Cars dial:")} ${nodeDialUrl(offer)}</p>
-            <wa-button appearance="outlined" @click=${() => this.generate()}>${t("fleet.generate", "Generate pairing code")}</wa-button>
+            <div class="pref-actions">
+              <wa-button appearance="outlined" @click=${() => this.generate()}>${t("fleet.generate", "Generate pairing code")}</wa-button>
+            </div>
           `,
         })}
       </div>
     `;
   }
 }
-customElements.define("oaa-page-fleet", OaaPageFleet);
+customElements.define("oaa-page-cars", OaaPageCars);

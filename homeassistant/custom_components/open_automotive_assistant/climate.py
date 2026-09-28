@@ -38,6 +38,18 @@ class OaaClimate(OaaEntity, ClimateEntity):
     def target_temperature(self) -> float | None:
         return row_float(self._row(), "temperature", "target_temperature", "targetTemp")
 
+    @property
+    def min_temp(self) -> float:
+        return row_float(self._row(), "min_temp") or super().min_temp
+
+    @property
+    def max_temp(self) -> float:
+        return row_float(self._row(), "max_temp") or super().max_temp
+
+    @property
+    def target_temperature_step(self) -> float | None:
+        return row_float(self._row(), "target_temp_step")
+
     async def async_set_temperature(self, **kwargs) -> None:
         temp = kwargs.get(ATTR_TEMPERATURE)
         if temp is not None:

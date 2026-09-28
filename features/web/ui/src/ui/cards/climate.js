@@ -1,4 +1,4 @@
-import { html } from "lit";
+import { html, nothing } from "lit";
 import { t } from "../../i18n.js";
 import { formatDisplayNumber } from "../../units.js";
 import { icon, displayUnit, controlShell } from "./shared.js";
@@ -39,9 +39,16 @@ function climateMode(c) {
   return "off";
 }
 
-function numbers(list, fallback) {
-  const out = Array.isArray(list) ? list.map(Number).filter((n) => !isNaN(n)) : [];
-  return out.length ? out : fallback;
+function numbers(list) {
+  return Array.isArray(list) ? list.map(Number).filter((n) => !isNaN(n)) : [];
+}
+
+/** Smallest gap between declared levels (slider step). */
+function levelStep(levels) {
+  const sorted = levels.slice().sort((a, b) => a - b);
+  let step = Infinity;
+  for (let i = 1; i < sorted.length; i++) step = Math.min(step, sorted[i] - sorted[i - 1]);
+  return isFinite(step) && step > 0 ? step : undefined;
 }
 
 class OaaClimateCard extends OaaCard {
@@ -50,22 +57,25 @@ class OaaClimateCard extends OaaCard {
     const mode = climateMode(c);
     const modesRaw = climateAttr(c, "hvac_modes");
     const modes = Array.isArray(modesRaw) ? modesRaw.map(String) : ["off", "manual", "auto"];
-    const tempMin = num(climateAttr(c, "min_temp"), num(c.min, 16));
-    const tempMax = num(climateAttr(c, "max_temp"), num(c.max, 32));
-    const tempStep = num(climateAttr(c, "target_temp_step"), num(c.step, 0.5));
+    const tempMin = num(climateAttr(c, "min_temp"), num(c.min, null));
+    const tempMax = num(climateAttr(c, "max_temp"), num(c.max, null));
+    const tempStep = num(climateAttr(c, "target_temp_step"), num(c.step, null));
+    const hasTempRange = tempMin != null && tempMax != null && tempStep != null;
     const temp = num(climateAttr(c, "temperature"), null);
     const current = num(climateAttr(c, "current_temperature"), null);
-    const fan = num(climateAttr(c, "fan_mode"), 0);
-    const fanMax = Math.max.apply(null, numbers(climateAttr(c, "fan_modes"), [8]));
+    const fanModes = numbers(climateAttr(c, "fan_modes"));
+    const fanMin = fanModes.length ? Math.min.apply(null, fanModes) : null;
+    const fanMax = fanModes.length ? Math.max.apply(null, fanModes) : null;
+    const fan = num(climateAttr(c, "fan_mode"), fanMin);
     const dirRaw = climateAttr(c, "fan_direction");
     const fanDirection = num(dirRaw, null) != null ? String(Number(dirRaw)) : null;
-    const fanDirections = numbers(climateAttr(c, "fan_directions"), [0, 1, 2, 3, 4]);
+    const fanDirections = numbers(climateAttr(c, "fan_directions"));
     const acOn = Number(climateAttr(c, "ac") || 0) !== 0;
     const recircOn = Number(climateAttr(c, "recirc") || 0) !== 0;
     const unit = displayUnit(c) || "°C";
 
     const nudgeTemp = (delta) => {
-      if (temp == null) return;
+      if (temp == null || !hasTempRange) return;
       const next = Math.min(tempMax, Math.max(tempMin, temp + delta));
       this.send("temperature:" + Math.round(next / tempStep) * tempStep);
     };
@@ -95,33 +105,39 @@ class OaaClimateCard extends OaaCard {
                 class="unit"
                 >${unit}</span
               >`,
-            locked: locked || temp == null,
+            locked: locked || temp == null || !hasTempRange,
             onMinus: () => nudgeTemp(-tempStep),
             onPlus: () => nudgeTemp(tempStep),
           })}
         </div>
 
-        ${slider({
-          value: fan,
-          max: fanMax,
-          suffix: "/" + fanMax,
-          label: t("control.hvac_fan", "Fan"),
-          disabled: locked,
-          lead: icon("fan"),
-          onCommit: (v) => this.send("fan_mode:" + Math.round(v)),
-        })}
+        ${fanModes.length
+          ? slider({
+              value: fan,
+              min: fanMin,
+              max: fanMax,
+              step: levelStep(fanModes),
+              suffix: "/" + fanMax,
+              label: t("control.hvac_fan", "Fan"),
+              disabled: locked,
+              lead: icon("fan"),
+              onCommit: (v) => this.send("fan_mode:" + Math.round(v)),
+            })
+          : nothing}
 
         <div class="climate-air-row" role="group" aria-label=${t("climate.toggles", "Climate options")}>
-          ${choiceSelect({
-            options: fanDirections.map((d) => ({
-              value: String(d),
-              labelKey: "opt.hvac_fan_direction." + d,
-              label: String(d),
-            })),
-            current: fanDirection,
-            locked,
-            onSelect: (v) => this.send("fan_direction:" + v),
-          })}
+          ${fanDirections.length
+            ? choiceSelect({
+                options: fanDirections.map((d) => ({
+                  value: String(d),
+                  labelKey: "opt.hvac_fan_direction." + d,
+                  label: String(d),
+                })),
+                current: fanDirection,
+                locked,
+                onSelect: (v) => this.send("fan_direction:" + v),
+              })
+            : nothing}
           ${toggleButton({
             label: t("control.hvac_ac", "A/C"),
             icon: "snow",

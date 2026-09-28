@@ -30,7 +30,7 @@
     "error": {
       "cannot_connect": "Could not connect to the OAA server (check host, port and token)",
       "invalid_role": "That address answered, but it is not an OAA hub or car",
-      "no_cars": "The hub has no paired car yet. Pair a car in the hub's Fleet page, then try again."
+      "no_cars": "The hub has no paired car yet. Pair a car in the hub's Cars page, then try again."
     },
     "abort": {
       "already_configured": "This car is already configured"

@@ -31,7 +31,7 @@ cd deploy/docker
 docker compose up -d
 ```
 
-Open `http://HOST:8787`, complete **first-run admin setup**, then use Fleet. Data persists in `oaa-data` (`/data`).
+Open `http://HOST:8787`, complete **first-run admin setup**, then use the Cars page. Data persists in `oaa-data` (`/data`).
 
 Internet without HAOS: see [deploy/docker/REMOTE.md](../deploy/docker/REMOTE.md) (`tunnel` / `proxy` profiles, Tailscale).
 
@@ -52,7 +52,7 @@ Nabu Casa exposes Home Assistant only, so there away cars go through the integra
 
 Cars get the endpoint when they pair and in a `public_node` frame on every connect, so cars paired earlier pick it up the next time they are online. A new URL replaces the previously published one; the car never drops it on "none", since that could strand a car that is away. The node face serves the bridge's artifacts path too, so cars on the LAN download the same OTA offer.
 
-To check it: Fleet → **Away from home** shows the URL away cars dial (or a warning when there is none) and whether it works: the hub sends an empty pair request through it and expects its own node face to answer with its `hubId` (a 404 behind Home Assistant means the integration is not installed or not added). Each online car says whether it is connected over the local network or the public URL. The hub logs `public node URL: …` on start, and pings cars every 20 s, so a car that drops off the network shows offline within about 30 s.
+To check it: Cars → **Away from home** shows the URL away cars dial (or a warning when there is none) and whether it works: the hub sends an empty pair request through it and expects its own node face to answer with its `hubId` (a 404 behind Home Assistant means the integration is not installed or not added). Each online car says whether it is connected over the local network or the public URL. The hub logs `public node URL: …` on start, and pings cars every 20 s, so a car that drops off the network shows offline within about 30 s.
 
 ### Local and public URL on the car
 
@@ -75,7 +75,7 @@ There is no password recovery — wipe `/data/auth.json` (or the volume) to re-r
 
 The hub adds cars; the car confirms with a code on its own screen ([adr/0004-car-auth.md](adr/0004-car-auth.md)).
 
-1. Hub UI → Fleet → **Nearby cars** lists unpaired cars announcing `_oaa-car._tcp` on the LAN (needs host networking for the hub). Or use **Add by address** with the car's IP.
+1. Hub UI → Cars → **Nearby cars** lists unpaired cars announcing `_oaa-car._tcp` on the LAN (needs host networking for the hub). Or use **Add by address** with the car's IP.
 2. **Add** → the car shows a 6-digit code (dialog and notification) → type it on the hub.
 3. The hub registers the car and hands it a node token; the car keeps the hub's LAN address (port 8788) as its local URL and the public node URL ([above](#away-cars-public-node-url)), picks between them as in [Local and public URL on the car](#local-and-public-url-on-the-car), and stops announcing itself.
 
@@ -88,8 +88,8 @@ The hub adds cars; the car confirms with a code on its own screen ([adr/0004-car
 
 **Manual pairing** (car not on the hub's network):
 
-1. Hub UI → Fleet → Manual pairing → **Generate pairing code** (note Cloud/public node URL when shown).
-2. Car UI → Settings → Hub → *Pair manually with a hub code* → enter the hub's **node** URL shown on Fleet (`http://HUB_IP:8788`, or the tunnel / HA Cloud node URL such as `https://….ui.nabu.casa/api/oaa_node`) and the code.
+1. Hub UI → Cars → Manual pairing → **Generate pairing code** (note Cloud/public node URL when shown).
+2. Car UI → Settings → Hub → *Pair manually with a hub code* → enter the hub's **node** URL shown on the Cars page (`http://HUB_IP:8788`, or the tunnel / HA Cloud node URL such as `https://….ui.nabu.casa/api/oaa_node`) and the code.
 3. Car stores the node token. A typed LAN URL becomes its local URL; a typed tunnel or HA Cloud URL stands in as the public URL until the hub publishes its own. The hub also appears under the car's trusted devices.
 
 Removing the hub from the car's trusted devices, or Settings → Hub → Leave, drops the link; the car announces itself again.
@@ -119,7 +119,7 @@ Admins upload a signed APK and roll it out; cars download it from the node face 
 
 **Delta updates.** When a car's `hello` hash matches a stored artifact, the offer also carries `delta` (`from`, `sha256`, `size`, `path`): an OADP patch built by [`libs/apk-delta`](../libs/apk-delta/) that copies unchanged zip entries from the installed APK. The car downloads the patch, rebuilds the APK, checks it against the artifact hash and installs it. On any failure it downloads the full APK instead. Patches are built on first offer, cached under `artifacts/deltas/`, served from the same artifacts path by their own hash (so the HA Cloud proxy needs no changes), and skipped when larger than 70% of the APK. Keep the car's current build among the last 5 artifacts to get deltas.
 
-Fleet shows each car's app version and latest OTA state. From a dev checkout, `./tools/oaa-setup hub-deploy` does build → sign → upload → rollout → wait (see [contributor-debug.md](contributor-debug.md)).
+The Cars page shows each car's app version and latest OTA state. From a dev checkout, `./tools/oaa-setup hub-deploy` does build → sign → upload → rollout → wait (see [contributor-debug.md](contributor-debug.md)).
 
 ## Home Assistant entities
 

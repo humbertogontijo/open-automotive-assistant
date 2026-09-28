@@ -58,6 +58,21 @@ class AntoraVehicleSession(
         setVariant(variant)
     }
 
+    /**
+     * Power liftgate only. Opening is refused above 5 km/h; closing is always allowed.
+     * A missing speed reading does not block the write.
+     */
+    override suspend fun set(property: VehicleProperty, value: PropertyValue): Result<Unit> {
+        if (property.key == "DOOR_MOVE" && value.asInt()?.let { it != 0 } == true) {
+            val speed = readCatalog("PERF_VEHICLE_SPEED")?.asFloat()?.let { AospVehicleIds.speedMsToKmh(it) }
+            if (speed != null && speed > TRUNK_OPEN_MAX_KMH) {
+                Log.w(TAG, "refusing trunk open at ${speed} km/h")
+                return Result.failure(IllegalStateException("Refusing to open the trunk above 5 km/h"))
+            }
+        }
+        return super.set(property, value)
+    }
+
     override fun extraTelemetryPropIds(): Collection<Int> = EXTRA_TELEMETRY_KEYS.mapNotNull { catalogNativeId(it) }
 
     override fun diagnoseAreas(property: VehicleProperty, boundArea: Int, areaId: Int?): List<Int> {
@@ -271,6 +286,7 @@ class AntoraVehicleSession(
         private const val TAG = "AntoraSession"
         private const val WHEEL_POLL_MS = 100L
         private const val WHEEL_LONG_PRESS_MS = 700L
+        private const val TRUNK_OPEN_MAX_KMH = 5f
 
         /** Catalog keys read in [readSnapshot] that may sit outside the SKU allowlist. */
         private val EXTRA_TELEMETRY_KEYS = listOf(
