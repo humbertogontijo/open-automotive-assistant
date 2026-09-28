@@ -7,6 +7,12 @@ from typing import Any
 from aiohttp import ClientSession
 
 
+def fleet_cars(status: dict[str, Any]) -> list[dict[str, Any]]:
+    """Paired cars listed in a hub's /api/status."""
+    nodes = (status.get("fleet") or {}).get("nodes") or []
+    return [n for n in nodes if isinstance(n, dict) and n.get("id")]
+
+
 class OaaHubClient:
     def __init__(
         self,

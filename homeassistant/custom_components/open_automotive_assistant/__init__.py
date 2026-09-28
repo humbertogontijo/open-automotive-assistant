@@ -39,12 +39,13 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    # Before the first refresh: away cars reach the hub through this bridge even when entities fail to load.
+    node_port = int(entry.data.get(CONF_NODE_PORT) or DEFAULT_NODE_PORT)
+    await async_set_cloud_target(hass, entry.data[CONF_HOST], node_port)
+
     coordinator = OaaDataUpdateCoordinator(hass, entry)
     await coordinator.async_config_entry_first_refresh()
     hass.data[DOMAIN][entry.entry_id] = coordinator
-
-    node_port = int(entry.data.get(CONF_NODE_PORT) or DEFAULT_NODE_PORT)
-    await async_set_cloud_target(hass, entry.data[CONF_HOST], node_port)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_reload))

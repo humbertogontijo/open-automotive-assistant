@@ -21,7 +21,7 @@ Cars keep their link to the hub over Home Assistant's public URL. Nabu Casa only
 
 1. Enable Nabu Casa **Remote access** (Settings → Home Assistant Cloud), then restart this app. At start it reads Home Assistant's Nabu Casa URL (else its external URL) and publishes it to cars. To use another URL (e.g. your own domain in front of Home Assistant), set the `public_node_url` option; it wins over the detected one.
 2. Restart Home Assistant (Settings → System → ⋮ → Restart Home Assistant). This app copies the integration into `/config/custom_components/open_automotive_assistant` when it starts (and updates it with the app), and posts a notification; Home Assistant only lists the integration after a restart.
-3. Add the hub: Settings → Devices & services shows **Open Automotive Assistant** as discovered → **Add**. When it asks for the token, open this app's UI → Settings → **Integration token** → **Show and copy**, and paste it. (If it is not discovered: Add integration → Open Automotive Assistant, host `127.0.0.1`.)
+3. Add the hub: Settings → Devices & services shows **Open Automotive Assistant** as discovered → **Add**. When it asks for the token, open this app's UI → Settings → **Integration token** → **Show and copy**, and paste it. With several cars it asks which one; add the hub again for each other car. (If it is not discovered: Add integration → Open Automotive Assistant, host `127.0.0.1`.)
 
 Cars get the public URL at pairing and each time they connect, so cars paired before still pick it up. Pair at home as usual.
 

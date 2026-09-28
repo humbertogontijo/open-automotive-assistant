@@ -13,7 +13,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import CONF_NODE_ID, CONF_TOKEN, DEFAULT_PORT, DEFAULT_SCAN_INTERVAL, DOMAIN
-from .hub import OaaHubClient
+from .hub import OaaHubClient, fleet_cars
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,8 +38,23 @@ class OaaDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _async_update_data(self) -> dict[str, Any]:
         try:
             status = await self.client.get_status(self.node_id)
+            if status.get("role") == "hub" and not self.node_id:
+                self._adopt_only_car(status)
+                status = await self.client.get_status(self.node_id)
             entities = await self.client.list_entities(self.node_id)
+        except UpdateFailed:
+            raise
         except Exception as err:
             raise UpdateFailed(str(err)) from err
         by_id = {e.get("id"): e for e in entities if e.get("id")}
         return {"status": status, "entities": entities, "by_id": by_id}
+
+    def _adopt_only_car(self, status: dict[str, Any]) -> None:
+        """Entries added without a car: use the hub's only car, else ask to re-add the hub."""
+        cars = fleet_cars(status)
+        if len(cars) != 1:
+            raise UpdateFailed(
+                "the hub has no paired car" if not cars else "the hub has several cars; remove this entry and add the hub again to pick one"
+            )
+        self.node_id = cars[0]["id"]
+        self.hass.config_entries.async_update_entry(self.entry, data={**self.entry.data, CONF_NODE_ID: self.node_id})

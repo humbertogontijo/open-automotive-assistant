@@ -3,30 +3,37 @@
     "step": {
       "user": {
         "title": "Open Automotive Assistant",
-        "description": "Connect to an OAA hub (or a single car on the LAN). Use a hub API token after hub login/setup.",
+        "description": "Connect to an OAA hub (or a single car on the LAN). The token is in the hub UI → Settings → Integration token.",
         "data": {
           "host": "Host",
           "port": "Human face port",
           "node_port": "Node face port",
-          "node_id": "Node id (optional, for hub fleets)",
-          "token": "Hub API token (Bearer)"
+          "node_id": "Car id (optional; asked for when the hub has several cars)",
+          "token": "Integration token"
         }
       },
       "zeroconf_confirm": {
         "title": "OAA hub discovered",
-        "description": "Found Open Automotive Assistant at {host}",
+        "description": "Found Open Automotive Assistant at {host}. Paste the token from the hub UI → Settings → Integration token.",
         "data": {
-          "node_id": "Node id (optional)",
-          "token": "Hub API token (Bearer)"
+          "token": "Integration token"
+        }
+      },
+      "car": {
+        "title": "Choose the car",
+        "description": "This hub has several cars. Add the hub again for each other car.",
+        "data": {
+          "node_id": "Car"
         }
       }
     },
     "error": {
       "cannot_connect": "Could not connect to the OAA server (check host, port and token)",
-      "invalid_role": "That address answered, but it is not an OAA hub or car"
+      "invalid_role": "That address answered, but it is not an OAA hub or car",
+      "no_cars": "The hub has no paired car yet. Pair a car in the hub's Fleet page, then try again."
     },
     "abort": {
-      "already_configured": "This OAA host is already configured"
+      "already_configured": "This car is already configured"
     }
   }
 }

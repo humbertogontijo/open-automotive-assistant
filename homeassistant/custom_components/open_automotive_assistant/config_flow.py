@@ -13,7 +13,7 @@ from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import CONF_NODE_ID, CONF_NODE_PORT, CONF_TOKEN, DEFAULT_NODE_PORT, DEFAULT_PORT, DOMAIN
-from .hub import OaaHubClient
+from .hub import OaaHubClient, fleet_cars
 
 _PASSWORD = selector.TextSelector(selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD))
 
@@ -35,12 +35,7 @@ def _user_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
     )
 
 
-_CONFIRM_SCHEMA = vol.Schema(
-    {
-        vol.Optional(CONF_NODE_ID): selector.TextSelector(),
-        vol.Optional(CONF_TOKEN): _PASSWORD,
-    }
-)
+_CONFIRM_SCHEMA = vol.Schema({vol.Optional(CONF_TOKEN): _PASSWORD})
 
 
 class OaaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -48,6 +43,8 @@ class OaaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     def __init__(self) -> None:
         self._discovered: dict[str, Any] = {}
+        self._pending: dict[str, Any] = {}
+        self._cars: list[dict[str, Any]] = []
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         if user_input is None:
@@ -87,20 +84,44 @@ class OaaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         }
         client = OaaHubClient(async_get_clientsession(self.hass), data[CONF_HOST], data[CONF_PORT], token=data[CONF_TOKEN])
         error: str | None = None
+        status: dict[str, Any] = {}
         try:
             status = await client.get_status(data[CONF_NODE_ID])
             if status.get("role") not in ("hub", "local"):
                 error = "invalid_role"
         except Exception:  # noqa: BLE001
             error = "cannot_connect"
+        if not error and status.get("role") == "hub" and not data[CONF_NODE_ID]:
+            self._cars = fleet_cars(status)
+            if not self._cars:
+                error = "no_cars"
+            elif len(self._cars) == 1:
+                data[CONF_NODE_ID] = self._cars[0]["id"]
+            else:
+                self._pending = data
+                return await self.async_step_car()
         if error:
             return self.async_show_form(step_id="user", data_schema=_user_schema(data), errors={"base": error})
+        return await self._async_create(data)
 
+    async def async_step_car(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        if user_input is not None:
+            return await self._async_create({**self._pending, CONF_NODE_ID: user_input[CONF_NODE_ID]})
+        options = [selector.SelectOptionDict(value=c["id"], label=c.get("name") or c["id"]) for c in self._cars]
+        return self.async_show_form(
+            step_id="car",
+            data_schema=vol.Schema(
+                {vol.Required(CONF_NODE_ID): selector.SelectSelector(selector.SelectSelectorConfig(options=options))}
+            ),
+        )
+
+    async def _async_create(self, data: dict[str, Any]) -> FlowResult:
         await self.async_set_unique_id(
             _unique_id(data[CONF_HOST], data[CONF_PORT], data[CONF_NODE_ID]),
             raise_on_progress=False,
         )
         self._abort_if_unique_id_configured()
         node_id = data[CONF_NODE_ID]
-        title = f"OAA {node_id}@{data[CONF_HOST]}" if node_id else f"OAA {data[CONF_HOST]}"
+        name = next((c.get("name") for c in self._cars if c["id"] == node_id), None) or node_id
+        title = f"OAA {name}" if node_id else f"OAA {data[CONF_HOST]}"
         return self.async_create_entry(title=title, data=data)
