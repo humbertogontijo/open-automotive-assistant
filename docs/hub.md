@@ -121,6 +121,14 @@ Admins upload a signed APK and roll it out; cars download it from the node face 
 
 The Cars page shows each car's app version and latest OTA state. From a dev checkout, `./tools/oaa-setup hub-deploy` does build → sign → upload → rollout → wait (see [contributor-debug.md](contributor-debug.md)).
 
+### Hub and car versions
+
+The hub serves its own copy of the web UI for every car it opens, so the hub should run the same app version as its cars or a newer one. Update the hub first, then roll the cars out from it.
+
+- A car newer than the hub may have pages and cards the hub's UI does not know. The car's pages say so, and so does its entry on the Cars page. `hub-deploy` refuses such an APK unless given `--allow-newer`.
+- A car older than the hub reports the pages it serves (`pages` in `/api/status`), and the UI hides the rest. Cars from before that field are assumed to serve the pages every car had then. Its pages show a note to update it.
+- A card the UI cannot render falls back to a read-only value card instead of leaving a gap.
+
 ## Home Assistant entities
 
 Integration: [`homeassistant/custom_components/open_automotive_assistant`](../homeassistant/custom_components/open_automotive_assistant/), copied into `config/custom_components/` by the HAOS app at start (by hand for compose hubs; [steps](../homeassistant/custom_components/open_automotive_assistant/README.md)). Point it at the hub with the token from Settings → **Integration token**. Zeroconf discovery uses `_oaa-hub._tcp`. Devices are created per node; entities refresh from the catalog.

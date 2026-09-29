@@ -421,7 +421,10 @@ object OaaMdns {
     const val TXT_HUB_ID = "hub_id"
 }
 
-/** Path segments that serve the SPA shell (keep in sync with features/web/ui/src/pages/ids.js). */
+/**
+ * Path segments that serve the SPA shell (keep in sync with features/web/ui/src/pages/ids.js).
+ * Cars report them as `pages` in `/api/status`; a hub's newer UI hides pages the car lacks.
+ */
 object OaaSpa {
     val PAGES = setOf(
         "home", "cars", "history", "controls", "drive", "energy", "lights", "adas",

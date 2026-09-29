@@ -16,6 +16,8 @@ export OAA_HUB_USER=admin            # or OAA_HUB_TOKEN=<admin session / system 
 
 The password is prompted once (or read from `OAA_HUB_PASSWORD`); the session token is cached in `~/.config/oaa/hub-token` (mode 600). With exactly one paired car, `--node` is optional.
 
+Cars opened through the hub run the hub's copy of the web UI, so deploy the hub before the cars ([hub.md](hub.md#hub-and-car-versions)). `hub-deploy` refuses an APK whose version is newer than the hub's (`--allow-newer` overrides), and warns when both are the same version but the APK's web UI build differs from the one the hub serves.
+
 Both loops send only what changed. `hub-deploy` offers the car a delta patch when its installed build is still among the hub's last 5 artifacts (see [hub.md](hub.md#app-updates-ota)). Over adb, `./tools/oaa-setup -H CAR_IP setup` (or `install`) keeps each installed APK in `~/.cache/oaa/apks`. On the next run it builds a patch against the car's installed build with `:apk-delta:diff`, pushes the patch, rebuilds the APK on the HU with `dd`, checks its hash and then runs `pm install`. `--full` (or `OAA_FULL=1`) forces a whole-APK push. Head-unit builds also skip the emulator's x86_64 libraries (`-Poaa.arm64Only`).
 
 Then open the hub UI, pick the car on the Cars page and use **Lab**: re-probe, OBD2, **Export zip** and **Live logs** all go through the hub (admin only). adb is still needed for the very first install and for attaching a debugger.

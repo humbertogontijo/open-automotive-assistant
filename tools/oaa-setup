@@ -18,9 +18,10 @@
 #   start                launch MainActivity for the target user
 #   pair                 mint a car API token over adb for host scripts (the car's
 #                        :8787 API needs a paired device or token, ADR-0004)
-#   hub-deploy [--node ID|--all] [--no-build] [--no-wait]
+#   hub-deploy [--node ID|--all] [--no-build] [--no-wait] [--allow-newer]
 #                        build → sign → upload to the hub → OTA rollout (no adb;
-#                        needs OAA_HUB_URL and OAA_HUB_TOKEN or OAA_HUB_USER)
+#                        needs OAA_HUB_URL and OAA_HUB_TOKEN or OAA_HUB_USER).
+#                        Refuses an APK newer than the hub unless --allow-newer
 #
 set -euo pipefail
 

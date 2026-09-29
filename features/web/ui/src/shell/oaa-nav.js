@@ -4,6 +4,7 @@ import { session, statusVersion } from "../store.js";
 import { t } from "../i18n.js";
 import { icon } from "../icons.js";
 import { pagePath } from "../pages/ids.js";
+import { carServesPage } from "../compat.js";
 
 /**
  * @typedef {{ page: string, icon: string, label: string, cap?: string[], role?: "hub" | "local", admin?: boolean }} NavItem
@@ -48,20 +49,21 @@ function isAdmin() {
   return !!(user && user.role === "admin");
 }
 
-/** Role and capability gating for a car nav entry. */
+/** Role, page and capability gating for a car nav entry. */
 export function navItemVisible(item) {
   const role = session.role || "local";
   if (item.role && item.role !== role) return false;
+  if (role === "hub" && session.selectedNodeId && !carServesPage(item.page, session.status)) return false;
   if (!item.cap) return true;
   if (role === "hub" && !session.selectedNodeId) return false;
   const caps = session.capabilities || [];
   return item.cap.some((c) => caps.includes(c));
 }
 
-/** Page ids hidden by capability gating (the shell redirects away from them). */
+/** Page ids hidden by page or capability gating (the shell redirects away from them). */
 export function isPageGated(page) {
   const item = NAV_ITEMS.find((i) => i.page === page);
-  return !!item && !!item.cap && !navItemVisible(item);
+  return !!item && !item.role && !navItemVisible(item);
 }
 
 function selectedCarName() {

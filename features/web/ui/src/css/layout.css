@@ -265,6 +265,7 @@ wa-card.lab-card::part(body) { display: flex; flex-direction: column; gap: 0.6re
 .lab-row { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
 .lab-row-end { align-items: flex-end; }
 .lab-hint { margin: 0; }
+.version-notice { display: block; margin: 0 0 1rem; }
 .lab-filter { flex: 1; min-width: 10rem; }
 .lab-override { flex: 0 1 22rem; min-width: 14rem; }
 .lab-table { max-height: 520px; overflow: auto; }

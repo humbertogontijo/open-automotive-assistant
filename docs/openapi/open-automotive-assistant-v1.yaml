@@ -755,6 +755,11 @@ components:
           type: array
           items:
             type: string
+        pages:
+          type: array
+          description: SPA page ids this car serves (`role=local`). Absent on older cars.
+          items:
+            type: string
         theme:
           type: string
         webrtc:

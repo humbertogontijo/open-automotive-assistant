@@ -583,6 +583,8 @@ export interface components {
             integration?: string;
             variant?: string;
             capabilities?: string[];
+            /** @description SPA page ids this car serves (`role=local`). Absent on older cars. */
+            pages?: string[];
             theme?: string;
             /** @description Present on hubs that relay the media plane (ADR-0003) */
             webrtc?: {

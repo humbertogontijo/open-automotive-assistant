@@ -6,6 +6,7 @@ import cc.opencar.assistant.protocol.OaaBuild
 import cc.opencar.assistant.protocol.OaaHeaders
 import cc.opencar.assistant.protocol.OaaPaths
 import cc.opencar.assistant.protocol.OaaRoles
+import cc.opencar.assistant.protocol.OaaSpa
 import cc.opencar.assistant.support.I18nBundle
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
@@ -37,6 +38,7 @@ internal fun Routing.registerCoreRoutes(deps: OaaWebDeps) {
                 "integration" to session.integrationId,
                 "variant" to variantId,
                 "capabilities" to capabilities,
+                "pages" to OaaSpa.PAGES.sorted(),
                 "locale" to i18n.locale,
                 "locales" to I18nBundle.SUPPORTED,
                 "remote" to (call.caller?.remote ?: true),

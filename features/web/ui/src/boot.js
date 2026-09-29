@@ -72,6 +72,7 @@ export async function refresh() {
     carName = (car && car.name) || selectedNodeId;
     session.role = role;
     session.fleet = fleet;
+    session.hubVersion = status.version || "";
     if (selectedNodeId && !(car && car.online)) {
       await loadI18n();
       return backToCars(

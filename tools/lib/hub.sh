@@ -117,6 +117,45 @@ hub_upload() {
   printf '%s' "$res" | json_get 'd["artifact"]["sha256"]'
 }
 
+# Cars opened through the hub run the hub's copy of the web UI, so an APK newer than the
+# hub can expose pages and cards that copy does not know. Refuses that unless [allow_newer];
+# at the same version, warns when the APK's UI build differs from the one the hub serves.
+hub_check_compat() {
+  local apk="$1" allow_newer="$2" hub_ver apk_ver cmp
+  hub_ver="$(hub_curl "$(hub_base)/api/status" | json_get 'd.get("version")')" || die "Cannot read the hub version"
+  apk_ver="$(apk_meta "$apk" 'd["elements"][0].get("versionName")')"
+  if [[ -z "$hub_ver" || -z "$apk_ver" ]]; then
+    warn "Skipping the hub version check (hub '${hub_ver:-?}', APK '${apk_ver:-?}')"
+    return 0
+  fi
+  cmp="$(python3 -c '
+import re, sys
+def parts(s):
+    return [int(x) for x in re.split(r"[-+]", s)[0].split(".")]
+a, b = parts(sys.argv[1]), parts(sys.argv[2])
+n = max(len(a), len(b))
+a += [0] * (n - len(a))
+b += [0] * (n - len(b))
+print((a > b) - (a < b))
+' "$apk_ver" "$hub_ver" 2>/dev/null)" || {
+    warn "Cannot compare APK version '$apk_ver' with hub version '$hub_ver'; skipping the check"
+    return 0
+  }
+  if [[ "$cmp" == "1" ]]; then
+    local msg="APK $apk_ver is newer than the hub ($hub_ver); the hub's web UI may not know its pages and cards"
+    [[ "$allow_newer" == "1" ]] || die "$msg. Update the hub first, or pass --allow-newer."
+    warn "$msg (--allow-newer)"
+  elif [[ "$cmp" == "0" ]] && command -v unzip >/dev/null; then
+    local apk_index hub_index
+    apk_index="$(unzip -p "$apk" assets/web/index.html 2>/dev/null)" || apk_index=""
+    hub_index="$(curl -sS --fail "$(hub_base)/" 2>/dev/null)" || hub_index=""
+    if [[ -n "$apk_index" && -n "$hub_index" && "$apk_index" != "$hub_index" ]]; then
+      warn "APK and hub are both $apk_ver but ship different web UI builds; rebuild the hub if cars show missing pages or cards"
+    fi
+  fi
+  return 0
+}
+
 hub_rollout() {
   local sha="$1" targets="$2" body res
   body="$(python3 -c 'import json,sys; print(json.dumps({"artifact": sys.argv[1], "nodes": json.loads(sys.argv[2])}))' "$sha" "$targets")"
@@ -144,15 +183,16 @@ hub_wait_rollout() {
   die "Rollout $id still running after ${OAA_HUB_DEPLOY_TIMEOUT}s (offline cars get it when they reconnect)"
 }
 
-# hub_deploy [--node ID|--all] [--no-build] [--no-wait]
+# hub_deploy [--node ID|--all] [--no-build] [--no-wait] [--allow-newer]
 hub_deploy() {
-  local node="" all=0 build=1 wait=1
+  local node="" all=0 build=1 wait=1 allow_newer=0
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --node|-n) node="$2"; shift 2 ;;
       --all) all=1; shift ;;
       --no-build) build=0; shift ;;
       --no-wait) wait=0; shift ;;
+      --allow-newer) allow_newer=1; shift ;;
       *) die "hub-deploy: unknown option $1" ;;
     esac
   done
@@ -165,6 +205,7 @@ hub_deploy() {
   else
     oaa_ensure_apk
   fi
+  hub_check_compat "$OAA_APK_SIGNED" "$allow_newer"
   sha="$(hub_upload "$OAA_APK_SIGNED")"
   ok "Artifact $sha"
   id="$(hub_rollout "$sha" "$targets")"

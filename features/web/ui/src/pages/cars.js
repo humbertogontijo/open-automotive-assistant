@@ -8,6 +8,7 @@ import { prefCard } from "../ui/cards/prefs.js";
 import { confirmDialog } from "../ui/confirm.js";
 import { toast, toastError } from "../ui/toast.js";
 import { OaaPage } from "../lit/oaa-page.js";
+import { carVersionSkew } from "../compat.js";
 
 const OTA_POLL_MS = 3000;
 const DISCOVER_POLL_MS = 5000;
@@ -116,6 +117,7 @@ function nodeCard(n) {
   const online = !!n.online;
   const app = appLine(n.app);
   const via = viaLine(n);
+  const newerThanHub = carVersionSkew(n.app && n.app.versionName, session.hubVersion) === "newer";
   return prefCard({
     cls: "form-card",
     icon: "car",
@@ -126,6 +128,14 @@ function nodeCard(n) {
       </p>
       ${via ? html`<p class="hint">${via}</p>` : nothing}
       ${app ? html`<p class="hint mono">${app}</p>` : nothing}
+      ${newerThanHub
+        ? html`<wa-callout variant="warning" size="small">
+            ${t("fleet.skew.newer_than_hub", "Newer than this hub ({hub}); update the hub so every page and card shows up.").replace(
+              "{hub}",
+              session.hubVersion,
+            )}
+          </wa-callout>`
+        : nothing}
       ${n.ota
         ? n.ota.state === "failed"
           ? html`<wa-callout variant="warning" size="small">${otaLine(n.ota)}</wa-callout>`

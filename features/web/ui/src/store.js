@@ -52,6 +52,8 @@ export const session = createSlice({
   selectedNodeId: "",
   /** @type {Status | null} */
   status: null,
+  /** App version of the hub serving this UI (role=hub); `status.version` is the open car's. */
+  hubVersion: "",
   /** @type {string[]} */
   capabilities: [],
   /** @type {any} */

@@ -12,6 +12,7 @@ import "../ui/hub-auth.js";
 import "../ui/car-pair.js";
 import "../ui/confirm.js";
 import "../ui/toast.js";
+import "../ui/version-notice.js";
 
 /** Text inputs that summon the soft keyboard (native and Web Awesome hosts). */
 function isTextField(el) {
@@ -70,7 +71,10 @@ export class OaaApp extends OaaElement {
       ${session.booted && !headUnitNeedsReauth()
         ? html`<div class="shell">
             <oaa-nav></oaa-nav>
-            <main class="main" id="main">${outlet != null ? outlet : pageView(session.page)}</main>
+            <main class="main" id="main">
+              <oaa-version-notice></oaa-version-notice>
+              ${outlet != null ? outlet : pageView(session.page)}
+            </main>
           </div>`
         : html`<div class="boot-gate"><wa-spinner></wa-spinner></div>`}
       <oaa-setup-overlay></oaa-setup-overlay>
