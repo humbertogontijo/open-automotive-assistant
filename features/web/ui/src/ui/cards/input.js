@@ -4,13 +4,13 @@ import { fmt } from "../../format.js";
 import { t, entityValueLabel } from "../../i18n.js";
 import { setControl } from "../../actions.js";
 import { formatDisplayNumber } from "../../units.js";
-import { displayUnit, pinSnapshot, pinChip } from "./shared.js";
+import { displayUnit, pinSnapshot, pinChip, isLocked } from "./shared.js";
 import { boolToggle } from "./bool.js";
 import { segmentToggle, commandButtons } from "./choice.js";
 import { onStep, stepper } from "./number.js";
 
 export function inputWidget(c) {
-  const locked = c.status !== "ok" && c.status !== "cached";
+  const locked = isLocked(c);
   const val = c.value;
   const id = c.id;
   const input = c.input || "int";

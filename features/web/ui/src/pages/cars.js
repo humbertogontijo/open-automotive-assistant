@@ -55,7 +55,7 @@ function publicNode() {
 function publicCheckLine(check) {
   if (!check) return html`<p class="hint">${t("fleet.public_checking", "Checking that this URL reaches the hub…")}</p>`;
   if (check.ok) return html`<p class="hint">${t("fleet.public_ok", "Checked: this URL reaches the hub.")}</p>`;
-  return html`<wa-callout variant="warning" size="small">
+  return html`<wa-callout variant="warning" size="s">
     ${t(
       "fleet.public_failed",
       "Cars cannot reach the hub through this URL ({detail}). For a Home Assistant URL, the Open Automotive Assistant integration must be installed and added.",
@@ -129,7 +129,7 @@ function nodeCard(n) {
       ${via ? html`<p class="hint">${via}</p>` : nothing}
       ${app ? html`<p class="hint mono">${app}</p>` : nothing}
       ${newerThanHub
-        ? html`<wa-callout variant="warning" size="small">
+        ? html`<wa-callout variant="warning" size="s">
             ${t("fleet.skew.newer_than_hub", "Newer than this hub ({hub}); update the hub so every page and card shows up.").replace(
               "{hub}",
               session.hubVersion,
@@ -138,7 +138,7 @@ function nodeCard(n) {
         : nothing}
       ${n.ota
         ? n.ota.state === "failed"
-          ? html`<wa-callout variant="warning" size="small">${otaLine(n.ota)}</wa-callout>`
+          ? html`<wa-callout variant="warning" size="s">${otaLine(n.ota)}</wa-callout>`
           : html`<p class="hint">${otaLine(n.ota)}</p>`
         : nothing}
       <div class="pref-actions">
@@ -342,7 +342,7 @@ class OaaPageCars extends OaaPage {
         ? html`<p class="hint">${t("fleet.public_url", "Cars off this network dial this public URL:")}</p>
             <p class="hint mono">${url}</p>
             ${publicCheckLine(pub.check)}`
-        : html`<wa-callout variant="warning" size="small">
+        : html`<wa-callout variant="warning" size="s">
             ${t(
               "fleet.public_none",
               "No public URL (OAA_PUBLIC_NODE_URL), so cars only reach the hub on this network. The Home Assistant app sets it from Nabu Casa remote access when it starts.",

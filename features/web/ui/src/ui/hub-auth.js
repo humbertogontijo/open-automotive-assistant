@@ -114,7 +114,7 @@ async function submitAuth(ev, path, fallbackError) {
 
 function authMessage() {
   const msg = session.hubAuthMsg;
-  return msg ? html`<wa-callout variant="danger" size="small" class="auth-msg">${msg}</wa-callout>` : nothing;
+  return msg ? html`<wa-callout variant="danger" size="s" class="auth-msg">${msg}</wa-callout>` : nothing;
 }
 
 function usernameField() {

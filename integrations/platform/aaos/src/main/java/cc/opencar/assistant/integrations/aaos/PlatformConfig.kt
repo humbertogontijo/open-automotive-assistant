@@ -48,6 +48,8 @@ data class PlatformConfig(
     val profiles: List<ProfileDef> = emptyList(),
     val activeSkuId: String? = null,
     val activeProfileId: String? = null,
+    /** Property ids carry the VehiclePropertyType byte (catalog dumped from the HU's VHAL). */
+    val vhalTypedIds: Boolean = false,
 ) {
     /**
      * Build / market SKU (e.g. `p145_eu` from `antora1000_p145_eu`).
@@ -81,7 +83,7 @@ data class PlatformConfig(
     data class PropertyDef(
         val id: Int,
         val key: String,
-        /** Product access: `r`, `w`, or `rw`. Write allowlist is derived from this. */
+        /** HU access as reported by the head unit's `CarPropertyConfig`: `r`, `w`, or `rw`. */
         val access: String = "r",
         val changeMode: String? = null,
         val areas: List<Int> = listOf(0),
@@ -92,8 +94,11 @@ data class PlatformConfig(
         val range: ValueRange? = null,
         /** Vector property exposed as one scalar slot. */
         val vector: VectorSlots? = null,
+        /** HU-writable but kept off the product write allowlist (factory, power, CarConfig, …). */
+        val writeLocked: Boolean = false,
     ) {
-        val canWrite: Boolean get() = access == "w" || access == "rw"
+        val huWritable: Boolean get() = access == "w" || access == "rw"
+        val canWrite: Boolean get() = huWritable && !writeLocked
     }
 
     /**
@@ -233,6 +238,8 @@ data class PlatformConfig(
                 ),
                 name = p.key,
                 writable = p.canWrite,
+                writeLocked = p.huWritable && p.writeLocked,
+                vhalType = if (vhalTypedIds) (p.id ushr 16) and 0xff else null,
                 areaIds = p.areas.ifEmpty { listOf(0) },
             )
         }
@@ -503,6 +510,7 @@ data class PlatformConfig(
                 android = android,
                 driveModeEnum = enumMap,
                 cameras = cameras,
+                vhalTypedIds = root.optBoolean("vhalTypedIds", false),
             )
         }
 
@@ -540,6 +548,7 @@ data class PlatformConfig(
                         ?: listOf(read)
                     VectorSlots(read, write)
                 },
+                writeLocked = o.optBoolean("writeLocked", false),
             )
         }
 

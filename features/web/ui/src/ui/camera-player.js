@@ -664,8 +664,8 @@ class OaaCameraPlayer extends OaaElement {
             ? html`<div class="camera-preview-loading" aria-live="polite">${t("cameras.play.loading", "Loading…")}</div>`
             : nothing}
         </div>
-        ${err ? html`<wa-callout variant="warning" size="small">${err}</wa-callout>` : nothing}
-        ${this.lastError ? html`<wa-callout variant="danger" size="small">${this.lastError}</wa-callout>` : nothing}
+        ${err ? html`<wa-callout variant="warning" size="s">${err}</wa-callout>` : nothing}
+        ${this.lastError ? html`<wa-callout variant="danger" size="s">${this.lastError}</wa-callout>` : nothing}
       </wa-card>
     `;
   }

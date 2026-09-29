@@ -47,6 +47,7 @@ object ControlCatalog {
         val store = context?.let { LastKnownStore(it) }
         val i18n = context?.let { i18n(it, session) }
         val persist = memory?.persistSnapshot().orEmpty()
+        val lockedKeys = session.catalog().filter { it.writeLocked }.mapTo(HashSet()) { it.property.key }
         return defsFor(session).mapNotNull { def ->
             val base = when {
                 def.domain == EntityType.CAMERA -> return@mapNotNull null
@@ -58,7 +59,7 @@ object ControlCatalog {
                     coverMap(session, def, store, i18n) ?: return@mapNotNull null
                 else -> {
                     val prop = def.property() ?: return@mapNotNull null
-                    defToMap(def, session.diagnose(prop), store, i18n, session)
+                    defToMap(def, session.diagnose(prop), store, i18n, session, def.bindingKey in lockedKeys)
                 }
             }
             enrichPersist(base, def, persist[def.id])
@@ -1002,6 +1003,7 @@ object ControlCatalog {
         store: LastKnownStore?,
         i18n: I18nBundle?,
         session: VehicleSession? = null,
+        writeLocked: Boolean = false,
     ): Map<String, Any?> {
         // Write-only commands never have a lasting current value — don't surface reads.
         if (def.input == "command") {
@@ -1021,6 +1023,7 @@ object ControlCatalog {
                 stale = false,
                 i18n = i18n,
                 forceWritable = ready,
+                writeLocked = writeLocked,
             )
         }
         val (value, status, permission) = when (outcome) {
@@ -1047,10 +1050,16 @@ object ControlCatalog {
         if (value.isNullOrBlank() && def.lastKnown) {
             val cached = store?.get(def.id)
             if (cached != null) {
-                return baseMap(def, cached, "cached", null, stale = true, i18n = i18n, range = range)
+                return baseMap(
+                    def, cached, "cached", null,
+                    stale = true, i18n = i18n, range = range, writeLocked = writeLocked,
+                )
             }
         }
-        return baseMap(def, value, status, permission, stale = false, i18n = i18n, range = range)
+        return baseMap(
+            def, value, status, permission,
+            stale = false, i18n = i18n, range = range, writeLocked = writeLocked,
+        )
     }
 
     private fun optionMaps(def: EntityDef, i18n: I18nBundle?): List<Map<String, Any?>> {
@@ -1086,9 +1095,10 @@ object ControlCatalog {
         i18n: I18nBundle?,
         forceWritable: Boolean? = null,
         range: ValueRange? = null,
+        writeLocked: Boolean = false,
     ): Map<String, Any?> {
-        val writable = forceWritable
-            ?: (def.writable && (status == "ok" || status == "cached"))
+        val writable = !writeLocked &&
+            (forceWritable ?: (def.writable && (status == "ok" || status == "cached")))
         return EntityContract.enrich(
             mapOf(
                 "id" to def.id,
@@ -1107,6 +1117,7 @@ object ControlCatalog {
                 "step" to (range?.step ?: def.step),
                 "history" to def.history,
                 "writable" to writable,
+                "writeLocked" to writeLocked,
                 "options" to optionMaps(def, i18n).ifEmpty { null },
                 "value" to value,
                 "valueMapId" to def.resolvedValueMapId(),

@@ -170,7 +170,7 @@ class OaaLabLogs extends OaaElement {
           </wa-button>
           ${adbHint()}
         </div>
-        ${this.error ? html`<wa-callout variant="warning" size="small">${this.error}</wa-callout>` : nothing}
+        ${this.error ? html`<wa-callout variant="warning" size="s">${this.error}</wa-callout>` : nothing}
         ${this.on || this.text ? html`<pre class="mono lab-logs-out">${this.text || "…"}</pre>` : nothing}
       </wa-card>
     `;
@@ -291,7 +291,7 @@ class OaaPageLab extends OaaPage {
         >
       </div>
       ${this.hint
-        ? html`<wa-callout variant="warning" size="small" class="lab-hint">${this.hint}</wa-callout>`
+        ? html`<wa-callout variant="warning" size="s" class="lab-hint">${this.hint}</wa-callout>`
         : html`<p class="sub lab-hint">
             ${t("lab.override.hint", "Override applies after force-stop or reboot. Matched now: ")}<code class="mono"
               >${info.integration || "—"}</code

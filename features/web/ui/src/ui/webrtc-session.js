@@ -18,6 +18,8 @@ const FLAG_EOF = 0x01;
 const HEADER_BYTES = 10;
 const CONNECT_TIMEOUT_MS = 20000;
 const PING_MS = 25000;
+/** Car→viewer frames on /api/webrtc/signal; `pong` and anything else is unversioned. */
+const SIGNAL_TYPES = ["webrtc_answer", "webrtc_ice", "webrtc_hangup"];
 
 const REASON_TEXT = {
   offline: "Car is offline",
@@ -212,6 +214,7 @@ class MediaSession {
   }
 
   async _onSignal(msg) {
+    if (SIGNAL_TYPES.indexOf(msg.type) < 0) return;
     const p = msg.payload || {};
     if (p.sessionId && p.sessionId !== this.sessionId) return;
     if (msg.type === "webrtc_hangup") {

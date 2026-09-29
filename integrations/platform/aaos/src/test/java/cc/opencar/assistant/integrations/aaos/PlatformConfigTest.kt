@@ -168,6 +168,36 @@ class PlatformConfigTest {
     }
 
     @Test
+    fun writeLockedStaysOffAllowlist() {
+        val cfg = PlatformConfig.parse(
+            """
+            {
+              "id": "t",
+              "displayName": "T",
+              "backend": "vhal",
+              "vhalTypedIds": true,
+              "match": ["t"],
+              "capabilities": ["READ_TELEMETRY"],
+              "properties": [
+                { "id": "0x21207662", "key": "RESET_FACTORY_TRIGGER", "access": "rw", "writeLocked": true, "areas": [0] },
+                { "id": "0x2140705c", "key": "SETTING_FUNC_PCM_TIMER", "access": "rw", "areas": [0] },
+                { "id": "0x11400400", "key": "GEAR_SELECTION", "access": "r", "writeLocked": true, "areas": [0] }
+              ]
+            }
+            """.trimIndent(),
+        )
+        assertEquals(setOf(0x2140705c), cfg.writableAllowlist)
+        val entries = cfg.catalogEntries().associateBy { it.name }
+        assertFalse(entries.getValue("RESET_FACTORY_TRIGGER").writable)
+        assertTrue(entries.getValue("RESET_FACTORY_TRIGGER").writeLocked)
+        assertFalse(entries.getValue("SETTING_FUNC_PCM_TIMER").writeLocked)
+        // Not HU-writable, so there is nothing to lock.
+        assertFalse(entries.getValue("GEAR_SELECTION").writeLocked)
+        assertEquals(0x20, entries.getValue("RESET_FACTORY_TRIGGER").vhalType)
+        assertEquals(0x40, entries.getValue("SETTING_FUNC_PCM_TIMER").vhalType)
+    }
+
+    @Test
     fun extendsMergesPropertiesAndAndroid() {
         val parents = mapOf(
             "aaos" to """

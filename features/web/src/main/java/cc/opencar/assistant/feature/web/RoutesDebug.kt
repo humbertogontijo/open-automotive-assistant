@@ -142,6 +142,7 @@ internal fun Routing.registerDebugRoutes(deps: OaaWebDeps) {
                     "key" to it.property.key,
                     "id" to it.property.nativeId?.toString(16),
                     "writable" to it.writable,
+                    "writeLocked" to it.writeLocked,
                     "family" to CatalogProbe.familyOf(it.name),
                     "areas" to it.areaIds,
                     "status" to when (outcome) {
@@ -176,6 +177,7 @@ internal fun Routing.registerDebugRoutes(deps: OaaWebDeps) {
                 "hex" to ((outcome as? cc.opencar.assistant.api.ReadOutcome.Ok)?.value
                     as? cc.opencar.assistant.api.PropertyValue.BytesVal)?.hex(),
                 "writable" to entry.writable,
+                "writeLocked" to entry.writeLocked,
             ),
         )
     }

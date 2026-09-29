@@ -92,17 +92,6 @@ function pageCameras() {
   return html`
     <h1>${t("section.cameras.title", "Câmeras")}</h1>
 
-    ${cameraEntities.length
-      ? html`
-          <div class="cameras-sources" style="margin-bottom:16px">
-            <p class="sub" style="margin:0 0 8px">
-              ${t("cameras.sources", "Cameras")}
-            </p>
-            ${entityGrid(cameraEntities)}
-          </div>
-        `
-      : nothing}
-
     <div class="cameras-stage">
       <oaa-camera-player embedded .lastError=${dvr.lastError || ""}></oaa-camera-player>
 
@@ -161,6 +150,17 @@ function pageCameras() {
 
       <oaa-camera-timeline></oaa-camera-timeline>
     </div>
+
+    ${cameraEntities.length
+      ? html`
+          <div class="cameras-sources" style="margin-top:16px">
+            <p class="sub" style="margin:0 0 8px">
+              ${t("cameras.sources", "Cameras")}
+            </p>
+            ${entityGrid(cameraEntities)}
+          </div>
+        `
+      : nothing}
   `;
 }
 

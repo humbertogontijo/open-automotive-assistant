@@ -103,7 +103,7 @@ Entities are addressed by their canonical id only; composite attributes are writ
 
 `DOOR_LOCK` / `DOOR_POS` / `BCM_FUNC_REAR_MIRROR_ADJUST` stay unbound.
 
-Access values restored from the HU `CarPropertyConfig` dump when promoting (`rw` unless the HU reports read-only).
+Every catalog `access` value mirrors the HU `CarPropertyConfig` dump; `writeLocked` keeps dangerous HU-writable properties off the allowlist (see [safety.md](safety.md)).
 
 ## Wave 2 candidates (not bound)
 

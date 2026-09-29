@@ -70,4 +70,8 @@ data class CatalogEntry(
     val name: String,
     val writable: Boolean = false,
     val areaIds: List<Int> = listOf(0),
+    /** The HU accepts writes but the platform keeps this property off the write allowlist. */
+    val writeLocked: Boolean = false,
+    /** VehiclePropertyType byte (`0x20` boolean, `0x40` int32, …) when the platform ids are VHAL-encoded. */
+    val vhalType: Int? = null,
 )

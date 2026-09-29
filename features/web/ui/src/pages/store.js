@@ -125,7 +125,7 @@ class OaaPageStore extends OaaPage {
           <p class="mono sub">${detail.packageName}</p>
           <p class="sub">${detail.summary || ""}</p>
           ${!ready
-            ? html`<wa-callout variant="warning" size="small"
+            ? html`<wa-callout variant="warning" size="s"
                 >${t(
                   "store.need_mirror",
                   "Sem URL de download. Configure apkUrl em store/extras.json (espelho próprio).",

@@ -27,6 +27,7 @@ package cc.opencar.assistant.api
  * | `group` | Nav page id (`home`, `energy`, `controls`, …) |
  * | `section` | Subsection within the page (`climate`, `lock`, …) — not HA domain |
  * | `input` | Soft widget hint (`bool`, `choice`, `sensor`, `climate`, …); **domain** selects card family |
+ * | `writeLocked` | HU accepts writes but the platform keeps the property off the write allowlist |
  * | `composite` | `true` when one product id spans many binding keys |
  * | `update` | Live-update policy: [UPDATE_ENTITY] (default) or [UPDATE_CATALOG] |
  *
@@ -129,6 +130,7 @@ object EntityContract {
             put("stale", row["stale"])
             put("history", row["history"])
             put("writable", row["writable"])
+            if (row["writeLocked"] == true) put("write_locked", true)
             put("composite", composite)
             put("update", update)
             if (row["virtual"] == true) {

@@ -106,11 +106,26 @@ export function pinBtn(c, value) {
   });
 }
 
-/** Cached / locked note above a card body. */
-export function lockNote(c, locked) {
-  if (c.stale) return html`<div class="lock-note">${t("status.cached", "Último conhecido")}</div>`;
-  if (locked && c.status && c.status !== "ok") return html`<div class="lock-note">${statusNote(c)}</div>`;
-  return nothing;
+/** Inputs are disabled: no usable reading, or the car accepts writes but OAA keeps them locked. */
+export function isLocked(c) {
+  return !!c.writeLocked || (c.status !== "ok" && c.status !== "cached");
+}
+
+/** Write-locked / cached / unavailable note above a card body. */
+export function lockNote(c) {
+  const writeLocked = c.writeLocked
+    ? html`<div
+        class="lock-note write-locked"
+        title=${t("status.write_locked.hint", "The car accepts writes to this property, but OAA keeps it locked")}
+      >
+        ${icon("lock")}${t("status.write_locked", "Locked")}
+      </div>`
+    : nothing;
+  if (c.stale) return html`${writeLocked}<div class="lock-note">${t("status.cached", "Último conhecido")}</div>`;
+  if (c.status && c.status !== "ok" && c.status !== "cached") {
+    return html`${writeLocked}<div class="lock-note">${statusNote(c)}</div>`;
+  }
+  return writeLocked;
 }
 
 /**
@@ -154,9 +169,9 @@ export function cardShell(o) {
  * @param {{ restore?: boolean, cls?: string, bodyCls?: string, dense?: boolean, iconName?: string, glyph?: { text: string, label: string }, hint?: any, pinValue?: string|null, pinnable?: boolean, body: any }} o
  */
 export function controlShell(c, o) {
-  const locked = c.status !== "ok" && c.status !== "cached";
+  const locked = isLocked(c);
   const pinned = !!c.persistEnabled && pinSnapshot(c) != null;
-  const pinnable = o.pinnable !== false && !o.restore;
+  const pinnable = o.pinnable !== false && !o.restore && !c.writeLocked;
   return cardShell({
     cls: [o.cls || "", o.dense ? "dense" : "", locked ? "locked" : "", pinned ? "pinned" : ""].join(" "),
     id: c.id,
@@ -168,7 +183,7 @@ export function controlShell(c, o) {
     badge: c.acronym ? badge(c.acronym, "neutral", "acronym") : nothing,
     actions: html`${hideBtn(c.id, o.restore)}${pinnable ? pinBtn(c, o.pinValue) : nothing}`,
     bodyCls: o.bodyCls,
-    body: html`${lockNote(c, locked)}${o.body}`,
+    body: html`${lockNote(c)}${o.body}`,
   });
 }
 

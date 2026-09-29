@@ -32,7 +32,7 @@ object CatalogEntityFactory {
             val key = entry.property.key.ifBlank { entry.name }
             if (key.isBlank() || !seen.add(key)) continue
             val family = familyOf(key)
-            val (domain, input) = domainAndInput(key, entry.writable)
+            val (domain, input) = domainAndInput(key, entry.writable || entry.writeLocked, entry.vhalType)
             out += EntityDef(
                 id = key,
                 domain = domain,
@@ -109,9 +109,10 @@ object CatalogEntityFactory {
         else -> "sensor"
     }
 
-    private fun domainAndInput(key: String, writable: Boolean): Pair<EntityType, String> {
+    private fun domainAndInput(key: String, writable: Boolean, type: Int?): Pair<EntityType, String> {
         val n = key.uppercase()
         if (!writable) return EntityType.SENSOR to "sensor"
+        if (type != null && type !in SCALAR_TYPES) return EntityType.SENSOR to "sensor"
         return when {
             n.endsWith("_ON") || n.contains("SWITCH") || n.endsWith("_ACTIVE") ||
                 n.contains("_ENABLE") || n.endsWith("_MODE") && !n.contains("SELECT") ->
@@ -123,7 +124,16 @@ object CatalogEntityFactory {
             n.contains("SELECT") || n.contains("DIRECTION") || n.contains("COLOR") ||
                 n.contains("TYPE") && n.startsWith("SETTING") ->
                 EntityType.SELECT to "choice"
+            type == TYPE_INT32 || type == TYPE_INT64 -> EntityType.NUMBER to "int"
+            type == TYPE_FLOAT -> EntityType.NUMBER to "float"
             else -> EntityType.SWITCH to "bool"
         }
     }
+
+    // VehiclePropertyType bytes ([CatalogEntry.vhalType]).
+    private const val TYPE_BOOLEAN = 0x20
+    private const val TYPE_INT32 = 0x40
+    private const val TYPE_INT64 = 0x50
+    private const val TYPE_FLOAT = 0x60
+    private val SCALAR_TYPES = setOf(TYPE_BOOLEAN, TYPE_INT32, TYPE_INT64, TYPE_FLOAT)
 }

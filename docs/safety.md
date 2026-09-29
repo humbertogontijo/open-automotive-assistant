@@ -4,6 +4,8 @@
 
 Only properties with `access` `w` or `rw` in each integration's `platform.json` may be written via memory reapply, web controls, or `/debug` POST. Comfort / ADAS / charge / hybrid energy modes only — no steering, braking, or propulsion torque writes.
 
+`access` mirrors what the head unit's `CarPropertyConfig` reports (`dumpsys car_service --hal`). HU-writable properties that must never be written from OAA carry `"writeLocked": true`: factory reset / diagnostics, user and profile CRUD, power / boot / OTA, HU→ECU feeds (`VENDOR_*`, `*_TRANSMIT`, `*_NOTICE`), steering-wheel key injection, CarConfig (`CB_*` and single-letter keys), hex-only unknowns, headlights / high beam, suspension height and seat motion commands. Locked properties stay off the write allowlist; the UI renders their real control disabled with a **Locked** note so it is clear they could be writable.
+
 ## Threat model / network
 
 - Dual faces (see [adr/0003-hub.md](adr/0003-hub.md)):

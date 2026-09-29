@@ -2,7 +2,7 @@ import { html, nothing } from "lit";
 import { OaaElement } from "../../lit/oaa-element.js";
 import { setControl } from "../../actions.js";
 import { fmt } from "../../format.js";
-import { controlShell, displayUnit } from "./shared.js";
+import { controlShell, displayUnit, isLocked } from "./shared.js";
 
 /** Entity ids whose card already logged a render failure. */
 const warned = new Set();
@@ -29,8 +29,7 @@ export class OaaCard extends OaaElement {
   }
 
   get locked() {
-    const c = this.control;
-    return c.status !== "ok" && c.status !== "cached";
+    return isLocked(this.control);
   }
 
   /** @param {string} cmd */

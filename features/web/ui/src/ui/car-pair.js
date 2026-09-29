@@ -110,7 +110,7 @@ export class OaaCarPair extends OaaElement {
                     .value=${this.code}
                     @input=${(ev) => (this.code = ev.target.value)}
                   ></wa-input>
-                  ${msg ? html`<wa-callout variant="danger" size="small" class="auth-msg">${msg}</wa-callout>` : nothing}
+                  ${msg ? html`<wa-callout variant="danger" size="s" class="auth-msg">${msg}</wa-callout>` : nothing}
                   <wa-button type="submit" variant="brand" ?loading=${this.busy}>${t("pair.pair", "Pair")}</wa-button>
                   <wa-button appearance="plain" @click=${() => (this.requestId = "")}>${t("common.cancel", "Cancel")}</wa-button>
                 </form>`
@@ -126,7 +126,7 @@ export class OaaCarPair extends OaaElement {
                     .value=${this.name}
                     @input=${(ev) => (this.name = ev.target.value)}
                   ></wa-input>
-                  ${msg ? html`<wa-callout variant="danger" size="small" class="auth-msg">${msg}</wa-callout>` : nothing}
+                  ${msg ? html`<wa-callout variant="danger" size="s" class="auth-msg">${msg}</wa-callout>` : nothing}
                   <wa-button variant="brand" ?loading=${this.busy} @click=${() => this.request()}
                     >${t("pair.show_code", "Show a code on the car")}</wa-button
                   >

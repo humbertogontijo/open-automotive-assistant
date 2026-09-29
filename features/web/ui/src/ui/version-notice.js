@@ -14,10 +14,10 @@ class OaaVersionNotice extends OaaElement {
     if (!skew) return nothing;
     const fill = (/** @type {string} */ s) => s.replace("{car}", car).replace("{hub}", hub);
     return skew === "newer"
-      ? html`<wa-callout class="version-notice" variant="warning" size="small">
+      ? html`<wa-callout class="version-notice" variant="warning" size="s">
           ${fill(t("fleet.skew.car_newer", "This car runs app {car}, newer than the hub ({hub}). Update the hub so every page and card shows up."))}
         </wa-callout>`
-      : html`<wa-callout class="version-notice" variant="neutral" size="small">
+      : html`<wa-callout class="version-notice" variant="neutral" size="s">
           ${fill(t("fleet.skew.car_older", "This car runs app {car}; the hub has {hub}. Pages the car does not have yet are hidden until you update it from the Cars page."))}
         </wa-callout>`;
   }

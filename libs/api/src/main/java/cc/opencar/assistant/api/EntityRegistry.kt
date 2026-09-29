@@ -418,6 +418,11 @@ object EntityRegistry {
         ),
 
         e("SCENE_FUNC_PARKING_COMFORT_SWITCH", "controls", EntityType.SWITCH, "bool", lastKnown = true, icon = "climate"),
+        // 3..18 = 0h30..8h00 in 30 min steps, 19 = off.
+        e("SETTING_FUNC_PCM_TIMER", "controls", EntityType.SELECT, "choice",
+            optionKeys = (3..19).map { "opt.pcm_timer.$it" to it },
+            lastKnown = true, icon = "car",
+        ),
         e("SCENE_FUNC_NAP_MODE", "controls", EntityType.SWITCH, "bool", lastKnown = true, icon = "climate"),
         e("SETTING_SPACE_CAPSULE_SWITCH", "controls", EntityType.SWITCH, "bool", lastKnown = true, icon = "climate"),
 
