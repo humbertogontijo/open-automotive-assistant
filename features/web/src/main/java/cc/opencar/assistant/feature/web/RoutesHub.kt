@@ -33,4 +33,14 @@ internal fun Routing.registerHubRoutes(deps: OaaWebDeps) {
     delete(OaaPaths.HUB_JOIN) {
         call.respond(hub.leave())
     }
+
+    get(OaaPaths.UPDATE) {
+        call.respond(hub.update())
+    }
+
+    post(OaaPaths.UPDATE) {
+        if (!call.requireHeadUnit()) return@post
+        val result = hub.requestUpdate()
+        call.respond(if (result["ok"] == true) HttpStatusCode.OK else HttpStatusCode.Conflict, result)
+    }
 }

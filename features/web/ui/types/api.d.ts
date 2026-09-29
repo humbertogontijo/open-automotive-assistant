@@ -608,6 +608,60 @@ export interface components {
                     checkedAtMs: number;
                 } | null;
             };
+            carRelease?: components["schemas"]["CarRelease"];
+        };
+        /**
+         * @description The car app built for this hub's version, fetched from its release folder
+         *     (`OAA_CAR_RELEASE_URL`, GitHub Releases by default) and announced to older cars
+         *     with `ota_available`. `mode` is the `car_updates` option (`OAA_CAR_UPDATES`).
+         */
+        CarRelease: {
+            /** @enum {string} */
+            mode: "ask" | "auto" | "off";
+            /** @enum {string} */
+            state: "ready" | "fetching" | "unavailable" | "off";
+            versionName?: string | null;
+            /** Format: int64 */
+            versionCode?: number | null;
+            /** @description Release folder holding `car-apk.json` and the APK */
+            url: string;
+            /** @description Last fetch failure while no release is stored */
+            error?: string | null;
+        };
+        /** @description The hub's app update for this car, and the progress of one in flight */
+        AppUpdate: {
+            paired: boolean;
+            online: boolean;
+            /** @description Installed build */
+            versionName?: string | null;
+            /** Format: int64 */
+            versionCode?: number | null;
+            /**
+             * @description The hub's policy from `ota_available`; null until a hub that announces updates connects
+             * @enum {string|null}
+             */
+            mode?: "ask" | "auto" | "off" | null;
+            available?: {
+                versionName?: string | null;
+                /** Format: int64 */
+                versionCode?: number;
+                /**
+                 * Format: int64
+                 * @description Full APK bytes
+                 */
+                size?: number;
+                /**
+                 * Format: int64
+                 * @description Delta patch bytes, once the hub has built one from the installed APK
+                 */
+                downloadSize?: number | null;
+            } | null;
+            /** @description `pending` after `POST`, then the `ota_status` states */
+            state?: string | null;
+            progress?: number | null;
+            error?: string | null;
+            /** @description `POST` only */
+            ok?: boolean;
         };
         NodeSummary: {
             id: string;

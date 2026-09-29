@@ -9,19 +9,14 @@ import { confirmDialog } from "../ui/confirm.js";
 import { toast, toastError } from "../ui/toast.js";
 import { OaaPage } from "../lit/oaa-page.js";
 import { carVersionSkew } from "../compat.js";
+import { OTA_DONE, otaLine } from "../ota.js";
 
 const OTA_POLL_MS = 3000;
 const DISCOVER_POLL_MS = 5000;
-const OTA_TERMINAL = ["installed", "failed"];
-const OTA_TEXT = {
-  pending: "Update queued",
-  offered: "Update offered",
-  downloading: "Downloading update",
-  verifying: "Verifying update",
-  installing: "Installing update",
-  pending_user: "Confirm the install on the car",
-  installed: "Update installed",
-  failed: "Update failed",
+const RELEASE_MODE = {
+  ask: "Each car shows an Install button in its Settings.",
+  auto: "Cars install it as soon as they connect.",
+  off: "Cars are not told about updates.",
 };
 
 function isAdmin() {
@@ -30,7 +25,7 @@ function isAdmin() {
 }
 
 function otaActive(nodes) {
-  return nodes.some((n) => n.ota && OTA_TERMINAL.indexOf(n.ota.state) < 0);
+  return nodes.some((n) => n.ota && !OTA_DONE.has(n.ota.state));
 }
 
 /** Refresh the hub's node list. */
@@ -92,14 +87,6 @@ function appLine(app) {
   if (!app || !app.versionName) return "";
   const code = app.versionCode != null ? " (" + app.versionCode + ")" : "";
   return t("fleet.app_version", "App {version}").replace("{version}", app.versionName + code);
-}
-
-function otaLine(ota) {
-  if (!ota || !ota.state) return "";
-  let text = t("fleet.ota." + ota.state, OTA_TEXT[ota.state] || ota.state);
-  if (ota.state === "downloading" && ota.progress != null) text += " · " + ota.progress + "%";
-  if (ota.state === "failed" && ota.error) text += ": " + ota.error;
-  return text;
 }
 
 async function forget(n) {
@@ -351,6 +338,33 @@ class OaaPageCars extends OaaPage {
     });
   }
 
+  /** The car app build this hub hands out, and how (the Home Assistant app's `car_updates` option). */
+  carReleaseCard() {
+    const rel = session.fleet && session.fleet.carRelease;
+    if (!rel) return nothing;
+    const mode = t("fleet.release.mode." + rel.mode, RELEASE_MODE[rel.mode] || rel.mode);
+    let line;
+    if (rel.state === "ready") {
+      line = t("fleet.release.ready", "Car app {version} ready for older cars.").replace(
+        "{version}",
+        rel.versionName + (rel.versionCode != null ? " (" + rel.versionCode + ")" : ""),
+      );
+    } else if (rel.state === "fetching") {
+      line = t("fleet.release.fetching", "Downloading the car app for this hub's version…");
+    } else if (rel.state === "off") {
+      line = t("fleet.release.off", "Car updates are off.");
+    } else {
+      line = t("fleet.release.unavailable", "No car app for this hub's version yet") + (rel.error ? " (" + rel.error + ")" : "");
+    }
+    return prefCard({
+      cls: "form-card",
+      icon: "system",
+      title: t("fleet.release.title", "Car app updates"),
+      body: html`<p class="hint">${line}</p>
+        <p class="hint">${mode}</p>`,
+    });
+  }
+
   render() {
     const nodes = (session.fleet && session.fleet.nodes) || [];
     const offer = this.offer;
@@ -371,7 +385,7 @@ class OaaPageCars extends OaaPage {
                 ${t("fleet.empty_hint_invite", "Add a car from Nearby cars, or pair manually from the car's Settings → Hub.")}
               </p>`,
             })}
-        ${this.publicUrlCard()}
+        ${this.publicUrlCard()} ${this.carReleaseCard()}
         ${prefCard({
           cls: "form-card",
           icon: "plugins",

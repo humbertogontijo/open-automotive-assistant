@@ -695,6 +695,41 @@ paths:
                 properties:
                   ok:
                     type: boolean
+  /api/update:
+    get:
+      summary: App update announced by the hub (car)
+      description: |
+        The hub sends `ota_available` after every `hello`: its policy (`ask`, `auto`,
+        `off`) and, when it holds a newer build of this car's package, that build.
+      operationId: getAppUpdate
+      responses:
+        "200":
+          description: Update state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppUpdate"
+    post:
+      summary: Install the announced build (car; head unit only)
+      description: |
+        Sends `ota_request` to the hub, which answers with `ota_offer` (a delta from
+        the installed APK when it has or can fetch that build).
+      operationId: installAppUpdate
+      responses:
+        "200":
+          description: Requested
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppUpdate"
+        "403":
+          description: Not the head unit
+        "409":
+          description: No update announced, or the hub is offline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppUpdate"
 components:
   securitySchemes:
     hubSession:
@@ -803,6 +838,90 @@ components:
                 checkedAtMs:
                   type: integer
                   format: int64
+        carRelease:
+          $ref: "#/components/schemas/CarRelease"
+    CarRelease:
+      type: object
+      description: |
+        The car app built for this hub's version, fetched from its release folder
+        (`OAA_CAR_RELEASE_URL`, GitHub Releases by default) and announced to older cars
+        with `ota_available`. `mode` is the `car_updates` option (`OAA_CAR_UPDATES`).
+      required: [mode, state, url]
+      properties:
+        mode:
+          type: string
+          enum: [ask, auto, "off"]
+        state:
+          type: string
+          enum: [ready, fetching, unavailable, "off"]
+        versionName:
+          type: string
+          nullable: true
+        versionCode:
+          type: integer
+          format: int64
+          nullable: true
+        url:
+          type: string
+          description: Release folder holding `car-apk.json` and the APK
+        error:
+          type: string
+          nullable: true
+          description: Last fetch failure while no release is stored
+    AppUpdate:
+      type: object
+      description: The hub's app update for this car, and the progress of one in flight
+      required: [paired, online]
+      properties:
+        paired:
+          type: boolean
+        online:
+          type: boolean
+        versionName:
+          type: string
+          nullable: true
+          description: Installed build
+        versionCode:
+          type: integer
+          format: int64
+          nullable: true
+        mode:
+          type: string
+          nullable: true
+          enum: [ask, auto, "off", null]
+          description: The hub's policy from `ota_available`; null until a hub that announces updates connects
+        available:
+          type: object
+          nullable: true
+          properties:
+            versionName:
+              type: string
+              nullable: true
+            versionCode:
+              type: integer
+              format: int64
+            size:
+              type: integer
+              format: int64
+              description: Full APK bytes
+            downloadSize:
+              type: integer
+              format: int64
+              nullable: true
+              description: Delta patch bytes, once the hub has built one from the installed APK
+        state:
+          type: string
+          nullable: true
+          description: "`pending` after `POST`, then the `ota_status` states"
+        progress:
+          type: integer
+          nullable: true
+        error:
+          type: string
+          nullable: true
+        ok:
+          type: boolean
+          description: "`POST` only"
     NodeSummary:
       type: object
       required: [id, name, online]

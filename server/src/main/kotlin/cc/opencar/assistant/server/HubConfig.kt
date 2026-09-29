@@ -1,5 +1,7 @@
 package cc.opencar.assistant.server
 
+import cc.opencar.assistant.protocol.OaaOta
+import cc.opencar.assistant.server.ota.CarRelease
 import java.security.SecureRandom
 
 object HubConfig {
@@ -28,6 +30,13 @@ object HubConfig {
         get() = System.getenv("OAA_DEMO_NODE") == "1" || System.getenv("OAA_DEMO_NODE") == "true"
 
     val mdnsEnabled: Boolean get() = System.getenv("OAA_MDNS") != "0"
+
+    /** Car update policy, one of [OaaOta.MODES]; see [CarRelease]. */
+    val carUpdates: String
+        get() = env("OAA_CAR_UPDATES")?.lowercase()?.takeIf { it in OaaOta.MODES } ?: OaaOta.MODE_ASK
+
+    /** Release folder holding [OaaOta.RELEASE_MANIFEST] and the car APK; `{version}` is this hub's version. */
+    val carReleaseUrl: String get() = env("OAA_CAR_RELEASE_URL") ?: CarRelease.DEFAULT_URL
 }
 
 private val random = SecureRandom()

@@ -154,7 +154,7 @@ internal fun CarAuthStore.PairRequest.wire(): Map<String, Any?> = mapOf(
     "expiresAtMs" to expiresAtMs,
 )
 
-private suspend fun ApplicationCall.requireHeadUnit(): Boolean {
+internal suspend fun ApplicationCall.requireHeadUnit(): Boolean {
     if (caller?.isHeadUnit == true) return true
     fail(HttpStatusCode.Forbidden, "head unit only")
     return false

@@ -4,6 +4,7 @@ import cc.opencar.assistant.protocol.OaaCookies
 import cc.opencar.assistant.protocol.OaaHeaders
 import cc.opencar.assistant.protocol.OaaPorts
 import cc.opencar.assistant.server.ota.ArtifactStore
+import cc.opencar.assistant.server.ota.CarRelease
 import cc.opencar.assistant.server.ota.OtaRollouts
 import io.ktor.http.Cookie
 import io.ktor.http.CookieEncoding
@@ -36,6 +37,7 @@ class HubContext(
     val logs = LogRelay(registry)
     val artifacts = ArtifactStore(dataDir)
     val rollouts = OtaRollouts(dataDir, registry, artifacts) { publicNode.artifactsPath }
+    val carRelease = CarRelease(dataDir, artifacts, rollouts, registry)
     val haOAuth: HaOAuth? = HubConfig.homeAssistantUrl?.let { url -> HubConfig.haClientId?.let { HaOAuth(url, it) } }
 
     val nodeListener = object : NodeListener {
@@ -53,10 +55,15 @@ class HubContext(
             registry.updateHello(nodeId, payload.optString("name"), payload.optString("integration"), app)
             registry.setVia(nodeId, payload.optString("via").takeIf { it == "local" || it == "public" })
             rollouts.onHello(nodeId, app?.apkSha256)
+            carRelease.onHello(nodeId)
             logs.onHello(nodeId)
         }
 
         override suspend fun onOtaStatus(nodeId: String, payload: JSONObject) = rollouts.onStatus(nodeId, payload)
+
+        override suspend fun onOtaRequest(nodeId: String, payload: JSONObject) {
+            carRelease.request(nodeId, payload)
+        }
 
         override suspend fun onLog(nodeId: String, line: String) = logs.onLog(nodeId, line)
     }
@@ -86,6 +93,7 @@ class HubContext(
             "dialUrl" to publicNode.dialUrl,
             "check" to publicCheck.toMap(),
         ),
+        "carRelease" to carRelease.toMap(),
     )
 
     // --- per-call helpers ---

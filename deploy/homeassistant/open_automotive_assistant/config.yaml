@@ -37,8 +37,12 @@ environment:
 # integration's /api/oaa_node bridge. Leave empty to use Home Assistant's Nabu Casa URL (else its
 # external URL), read at start.
 # WebRTC media plane (remote Cameras). Leave empty for public STUN only.
-options: {}
+# car_updates: how cars get the car app matching this version (from GitHub Releases): ask shows
+# an Install button in the car's Settings, auto installs when the car connects, off announces nothing.
+options:
+  car_updates: ask
 schema:
+  car_updates: "list(ask|auto|off)"
   public_node_url: "url?"
   stun_urls: "str?"
   turn_urls: "str?"

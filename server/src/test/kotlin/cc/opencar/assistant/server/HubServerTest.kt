@@ -16,7 +16,9 @@ import io.ktor.server.request.receiveText
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
+import cc.opencar.assistant.protocol.OaaBuild
 import cc.opencar.assistant.server.ota.ArtifactStore
+import cc.opencar.assistant.server.ota.CarRelease
 import cc.opencar.assistant.server.ota.OtaRollouts
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
@@ -120,7 +122,7 @@ class HubServerTest {
     }
 
     private fun startHub(human: Int, node: Int, publicNode: PublicNode = PublicNode(null)): OaaHubServer =
-        OaaHubServer(tmp, humanPort = human, nodePort = node, demoNode = ::TestNode, mdnsEnabled = false, publicNode = publicNode).also {
+        OaaHubServer(tmp, humanPort = human, nodePort = node, demoNode = ::TestNode, mdnsEnabled = false, publicNode = publicNode, fetchCarRelease = false).also {
             server = it
             it.start(wait = false)
             Thread.sleep(600)
@@ -453,6 +455,99 @@ class HubServerTest {
         val out = File(tmp, "out.apk")
         cc.opencar.assistant.apkdelta.ApkDelta.apply(base, artifacts.file(patchSha)!!, out)
         assertArrayEquals(newApk, out.readBytes())
+    }
+
+    /** In-memory release folders: `mem://rel/<version>/{car-apk.json, car.apk}`. */
+    private fun releases(vararg builds: Triple<String, Long, ByteArray>): (String) -> java.io.InputStream {
+        val files = HashMap<String, ByteArray>()
+        for ((version, code, apk) in builds) {
+            val sha = MessageDigest.getInstance("SHA-256").digest(apk).joinToString("") { "%02x".format(it) }
+            files["mem://rel/$version/car.apk"] = apk
+            files["mem://rel/$version/${OaaOta.RELEASE_MANIFEST}"] = JSONObject()
+                .put("package", "cc.opencar.assistant")
+                .put("versionName", version)
+                .put("versionCode", code)
+                .put("sha256", sha)
+                .put("size", apk.size)
+                .put("file", "car.apk")
+                .toString().toByteArray()
+        }
+        return { url -> files[url]?.inputStream() ?: throw java.io.IOException("HTTP 404 for $url") }
+    }
+
+    private fun sha(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
+
+    @Test
+    fun carReleaseAsksThenOffersDeltaFromInstalledRelease() = runBlocking {
+        val registry = NodeRegistry(tmp)
+        val artifacts = ArtifactStore(tmp)
+        val rollouts = OtaRollouts(tmp, registry, artifacts)
+        val lib = kotlin.random.Random(2).nextBytes(200_000)
+        val oldApk = storedZip("lib/a.so" to lib, "classes.dex" to "v1".toByteArray())
+        val newApk = storedZip("lib/a.so" to lib, "classes.dex" to "v2".toByteArray())
+        val release = CarRelease(
+            tmp, artifacts, rollouts, registry,
+            mode = OaaOta.MODE_ASK,
+            releaseUrl = "mem://rel/{version}",
+            open = releases(Triple("0.0.1", 1L, oldApk), Triple(OaaBuild.VERSION, 2L, newApk)),
+        )
+        registry.pair(registry.createPairingCode().code, "car1", "Car", null)
+        val car = FakeNode("car1").also { registry.attachSession("car1", it) }
+        registry.updateHello("car1", null, null, AppInfo("cc.opencar.assistant", "0.0.1", 1, sha(oldApk)))
+
+        val target = release.fetch()
+        assertEquals(sha(newApk), target.sha256)
+        assertNull(artifacts.get(sha(oldApk)), "the installed release is fetched only when a car needs it")
+
+        release.onHello("car1")!!.join()
+        val (first, second) = car.sent.map { it.getJSONObject("payload") }
+        assertEquals(listOf(OaaFrames.OTA_AVAILABLE, OaaFrames.OTA_AVAILABLE), car.sent.map { it.getString("type") })
+        assertEquals(target.sha256, first.getString("sha256"))
+        assertFalse(first.has("downloadSize"))
+        assertTrue(second.getLong("downloadSize") < newApk.size / 2, "announced again with the delta size")
+        assertNotNull(artifacts.get(sha(oldApk)), "delta base fetched from the car's own release")
+        assertTrue(rollouts.list().isEmpty(), "ask mode waits for the car")
+
+        car.sent.clear()
+        release.request("car1", OaaFrames.versioned().put("sha256", "f".repeat(64))).join()
+        assertTrue(car.sent.isNotEmpty() && car.sent.all { it.getString("type") == OaaFrames.OTA_AVAILABLE }, "stale request → fresh announcement")
+
+        car.sent.clear()
+        release.request("car1", OaaFrames.versioned().put("sha256", target.sha256)).join()
+        val offer = car.sent.single()
+        assertEquals(OaaFrames.OTA_OFFER, offer.getString("type"))
+        assertEquals(sha(oldApk), offer.getJSONObject("payload").getJSONObject("delta").getString("from"))
+    }
+
+    @Test
+    fun carReleaseAutoModeRollsOutOnceAndSkipsCurrentCars() = runBlocking {
+        val registry = NodeRegistry(tmp)
+        val artifacts = ArtifactStore(tmp)
+        val rollouts = OtaRollouts(tmp, registry, artifacts)
+        val apk = "new-build".toByteArray()
+        val release = CarRelease(
+            tmp, artifacts, rollouts, registry,
+            mode = OaaOta.MODE_AUTO,
+            releaseUrl = "mem://rel/{version}",
+            open = releases(Triple(OaaBuild.VERSION, 5L, apk)),
+        )
+        listOf("old", "current").forEach { registry.pair(registry.createPairingCode().code, it, it, null) }
+        val old = FakeNode("old").also { registry.attachSession("old", it) }
+        val current = FakeNode("current").also { registry.attachSession("current", it) }
+        registry.updateHello("old", null, null, AppInfo("cc.opencar.assistant", "dev", 4, "e".repeat(64)))
+        registry.updateHello("current", null, null, AppInfo("cc.opencar.assistant", OaaBuild.VERSION, 5, sha(apk)))
+        release.fetch()
+
+        release.onHello("old")!!.join()
+        assertEquals(listOf(OaaFrames.OTA_AVAILABLE, OaaFrames.OTA_OFFER), old.sent.map { it.getString("type") })
+        assertFalse(old.sent.last().getJSONObject("payload").has("delta"), "no published base for a dev build")
+        release.onHello("old")!!.join()
+        assertEquals(1, rollouts.list().size, "auto mode starts one rollout per build")
+
+        assertNull(release.onHello("current"))
+        val announced = current.sent.single().getJSONObject("payload")
+        assertEquals(OaaOta.MODE_AUTO, announced.getString("mode"))
+        assertFalse(announced.has("sha256"), "up to date → policy only")
     }
 
     @Test

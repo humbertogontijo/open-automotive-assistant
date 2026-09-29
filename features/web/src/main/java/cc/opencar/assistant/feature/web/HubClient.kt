@@ -17,6 +17,7 @@ import cc.opencar.assistant.protocol.OaaBuild
 import cc.opencar.assistant.protocol.OaaCarAuth
 import cc.opencar.assistant.protocol.OaaFrames
 import cc.opencar.assistant.protocol.OaaHeaders
+import cc.opencar.assistant.protocol.OaaOta
 import cc.opencar.assistant.protocol.OaaPaths
 import cc.opencar.assistant.protocol.OaaPorts
 import cc.opencar.assistant.protocol.OaaRpc
@@ -103,7 +104,16 @@ class HubClient(
 
     private val dvrRef = dvr
     private val webrtc = dvr?.let { CarWebRtc(it, ::send) }
-    private val ota = OtaUpdater(context, installer, http, scope) { send(OaaFrames.frame(OaaFrames.OTA_STATUS, it)) }
+    private val ota = OtaUpdater(context, installer, http, scope) {
+        otaState = it
+        send(OaaFrames.frame(OaaFrames.OTA_STATUS, it))
+    }
+    /** Last `ota_available` from the hub: its update policy and any newer build. */
+    @Volatile private var announced: JSONObject? = null
+    /** Progress of the update this process runs (`ota_status` payload shape). */
+    @Volatile private var otaState: JSONObject? = null
+    /** Build asked for with `ota_request`, until the hub offers it or announces something else. */
+    @Volatile private var requestedSha: String? = null
     private val advertiser = CarMdnsAdvertiser(context, localPort)
 
     val nodeId: String? get() = prefs.getString(PREF_NODE_ID, null)
@@ -272,6 +282,51 @@ class HubClient(
         return mapOf("ok" to true)
     }
 
+    /** App update as the hub announced it, plus the progress of one in flight. */
+    fun update(): Map<String, Any?> {
+        val info = runCatching { context.packageManager.getPackageInfo(context.packageName, 0) }.getOrNull()
+        val a = announced
+        val s = otaState
+        val requested = requestedSha != null
+        return mapOf(
+            "paired" to paired,
+            "online" to online,
+            "versionName" to info?.versionName,
+            "versionCode" to info?.longVersionCode,
+            "mode" to a?.optString("mode")?.takeIf { it.isNotEmpty() },
+            "available" to a?.takeIf { OaaOta.isSha256(it.optString("sha256")) }?.let {
+                mapOf(
+                    "versionName" to it.optString("versionName").takeIf { v -> v.isNotEmpty() },
+                    "versionCode" to it.optLong("versionCode"),
+                    "size" to it.optLong("size"),
+                    "downloadSize" to if (it.has("downloadSize")) it.optLong("downloadSize") else null,
+                )
+            },
+            "state" to if (requested) OaaOta.STATE_PENDING else s?.optString("state"),
+            "progress" to s?.takeIf { !requested && it.has("progress") }?.optInt("progress"),
+            "error" to s?.takeIf { !requested }?.optString("error")?.takeIf { it.isNotEmpty() },
+        )
+    }
+
+    /** Ask the hub to install the announced build; it answers with `ota_offer`. */
+    fun requestUpdate(): Map<String, Any?> {
+        val sha = announced?.optString("sha256")?.takeIf { OaaOta.isSha256(it) }
+            ?: return mapOf("ok" to false, "error" to "no update available") + update()
+        if (!ota.isBusy) {
+            if (!send(OaaFrames.frame(OaaFrames.OTA_REQUEST, OaaFrames.versioned().put("sha256", sha)))) {
+                return mapOf("ok" to false, "error" to "hub offline") + update()
+            }
+            requestedSha = sha
+            LogRingBuffer.append("OTA: asked the hub for ${announced?.optString("versionName")}")
+        }
+        return mapOf("ok" to true) + update()
+    }
+
+    private fun onAvailable(payload: JSONObject) {
+        announced = payload
+        if (requestedSha != null && requestedSha != payload.optString("sha256")) requestedSha = null
+    }
+
     /** A hub's trusted-client entry was revoked on the head unit; drop the link if it is ours. */
     fun onHubRevoked(hubId: String?) {
         val current = prefs.getString(PREF_HUB_ID, null)
@@ -290,6 +345,8 @@ class HubClient(
             .apply()
         auth.store.revokeHub(null)
         lastFailed = null
+        announced = null
+        requestedSha = null
         disconnect()
         updateAdvertising()
         return mapOf("ok" to true) + status()
@@ -413,7 +470,11 @@ class HubClient(
                 }
                 OaaFrames.PING -> webSocket.send(OaaFrames.frame(OaaFrames.PONG))
                 OaaFrames.PUBLIC_NODE -> if (OaaFrames.isCurrentVersion(payload)) applyPublicNode(payload!!)
-                OaaFrames.OTA_OFFER -> if (payload != null) ota.offer(payload, nodeUrl, token)
+                OaaFrames.OTA_OFFER -> if (payload != null) {
+                    requestedSha = null
+                    ota.offer(payload, nodeUrl, token)
+                }
+                OaaFrames.OTA_AVAILABLE -> if (OaaFrames.isCurrentVersion(payload)) onAvailable(payload!!)
                 OaaFrames.LOG_SUBSCRIBE -> startLogStream(webSocket, payload?.optString("token"))
                 OaaFrames.LOG_UNSUBSCRIBE -> stopLogStream()
                 OaaWebRtc.OFFER, OaaWebRtc.ICE, OaaWebRtc.HANGUP -> {

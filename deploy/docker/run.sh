@@ -53,5 +53,6 @@ export_opt OAA_STUN_URLS stun_urls
 export_opt OAA_TURN_URLS turn_urls
 export_opt OAA_TURN_SECRET turn_secret
 export_opt OAA_TURN_TTL turn_ttl
+export_opt OAA_CAR_UPDATES car_updates
 
 exec java -jar /app/oaa-hub.jar --data "$DATA" "$@"

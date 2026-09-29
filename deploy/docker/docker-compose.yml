@@ -31,6 +31,9 @@ services:
       - OAA_TURN_URLS=${OAA_TURN_URLS:-}
       - OAA_TURN_SECRET=${OAA_TURN_SECRET:-}
       - OAA_TURN_TTL=${OAA_TURN_TTL:-3600}
+      # Car app updates from this version's GitHub release: ask (Install button on the car),
+      # auto (install when the car connects) or off.
+      - OAA_CAR_UPDATES=${OAA_CAR_UPDATES:-ask}
 
   # coturn relay for viewers/cars behind symmetric NAT or CGNAT (typical on cellular).
   # The hub mints short-lived credentials from OAA_TURN_SECRET (coturn use-auth-secret);

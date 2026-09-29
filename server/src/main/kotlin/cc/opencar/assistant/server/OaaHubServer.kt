@@ -32,6 +32,7 @@ class OaaHubServer(
         if (HubConfig.demoNode) { bus -> DemoNodeTransport("demo", bus) } else null,
     private val mdnsEnabled: Boolean = HubConfig.mdnsEnabled,
     publicNode: PublicNode = PublicNode(),
+    private val fetchCarRelease: Boolean = true,
 ) {
     internal val hub = HubContext(dataDir, humanPort, nodePort, publicNode = publicNode)
     private var humanEngine: ApplicationEngine? = null
@@ -75,6 +76,7 @@ class OaaHubServer(
         log.info("human face listening on :$humanPort (data=${hub.dataDir.absolutePath})")
         log.info("public node URL: ${hub.publicNode.dialUrl ?: "none"}")
         hub.publicCheck.refresh()
+        if (fetchCarRelease) hub.carRelease.start()
         humanEngine?.start(wait = wait)
     }
 

@@ -79,6 +79,8 @@ object OaaPaths {
 
     /** Car-local hub join config (`role=local` only). */
     const val HUB_JOIN = "/api/hub"
+    /** Car: app update announced by the hub (`GET`); `POST` asks the hub to install it (head unit only). */
+    const val UPDATE = "/api/update"
 
     const val DEBUG = "/debug"
     const val DEBUG_LOGS_STREAM = "/debug/logs/stream"
@@ -125,6 +127,13 @@ object OaaFrames {
     const val EVENT = "event"
     const val OTA_OFFER = "ota_offer"
     const val OTA_STATUS = "ota_status"
+    /**
+     * Hub → car after `hello`: the hub's car update policy (`{v, mode}`) plus, when the hub holds a
+     * newer build for this car, `{sha256, size, versionName, versionCode}`.
+     */
+    const val OTA_AVAILABLE = "ota_available"
+    /** Car → hub: install the build announced in [OTA_AVAILABLE] (`{v, sha256}`); the hub answers with [OTA_OFFER]. */
+    const val OTA_REQUEST = "ota_request"
     const val LOG_SUBSCRIBE = "log_subscribe"
     const val LOG_UNSUBSCRIBE = "log_unsubscribe"
     const val LOG = "log"
@@ -277,6 +286,17 @@ object OaaOta {
 
     /** Offer the full APK instead when a delta exceeds this share of it. */
     const val MAX_DELTA_PERCENT = 70
+
+    /** Hub car update policy ([OaaFrames.OTA_AVAILABLE] `mode`): the car shows an Install button. */
+    const val MODE_ASK = "ask"
+    /** The hub installs its release on cars as soon as they connect. */
+    const val MODE_AUTO = "auto"
+    /** The hub announces no release. */
+    const val MODE_OFF = "off"
+    val MODES = setOf(MODE_ASK, MODE_AUTO, MODE_OFF)
+
+    /** Release asset describing the car APK: `{package, versionName, versionCode, sha256, size, file}`. */
+    const val RELEASE_MANIFEST = "car-apk.json"
 
     private val SHA256 = Regex("^[0-9a-f]{64}$")
 

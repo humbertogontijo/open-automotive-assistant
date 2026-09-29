@@ -39,6 +39,9 @@ internal class OtaUpdater(
     private val busy = AtomicBoolean(false)
     private val sessions = ConcurrentHashMap<Int, String>()
 
+    /** An offer is downloading, verifying or installing. */
+    val isBusy: Boolean get() = busy.get()
+
     init {
         scope.launch {
             InstallEvents.events.collect { e ->

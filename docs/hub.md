@@ -117,9 +117,20 @@ Admins upload a signed APK and roll it out; cars download it from the node face 
 | POST | `/api/ota/rollouts` | `{"artifact": sha256, "nodes": [...]}` or `{"artifact": sha256, "all": true}` |
 | GET | `/api/ota/rollouts[/{id}]` | Per-car state: pending → offered → downloading → verifying → installing (→ pending_user) → installed / failed |
 
-**Delta updates.** When a car's `hello` hash matches a stored artifact, the offer also carries `delta` (`from`, `sha256`, `size`, `path`): an OADP patch built by [`libs/apk-delta`](../libs/apk-delta/) that copies unchanged zip entries from the installed APK. The car downloads the patch, rebuilds the APK, checks it against the artifact hash and installs it. On any failure it downloads the full APK instead. Patches are built on first offer, cached under `artifacts/deltas/`, served from the same artifacts path by their own hash (so the HA Cloud proxy needs no changes), and skipped when larger than 70% of the APK. Keep the car's current build among the last 5 artifacts to get deltas.
+**Delta updates.** When a car's `hello` hash matches a stored artifact, the offer also carries `delta` (`from`, `sha256`, `size`, `path`): an OADP patch built by [`libs/apk-delta`](../libs/apk-delta/) that copies unchanged zip entries from the installed APK. The car downloads the patch, rebuilds the APK, checks it against the artifact hash and installs it. On any failure it downloads the full APK instead. Patches are built on first offer, cached under `artifacts/deltas/`, served from the same artifacts path by their own hash (so the HA Cloud proxy needs no changes), and skipped when larger than 70% of the APK. For builds that are not on GitHub Releases, keep the car's current build among the last 5 artifacts to get deltas.
 
 The Cars page shows each car's app version and latest OTA state. From a dev checkout, `./tools/oaa-setup hub-deploy` does build → sign → upload → rollout → wait (see [contributor-debug.md](contributor-debug.md)).
+
+### Release updates on the car
+
+Every `v*` tag attaches the car APK and `car-apk.json` (`package`, `versionName`, `versionCode`, `sha256`, `size`, `file`) to its GitHub Release (`release-car.yml`). A hub fetches the release for its own version at start (`OAA_CAR_RELEASE_URL`, default `https://github.com/humbertogontijo/open-automotive-assistant/releases/download/v{version}`), checks the APK against the manifest hash, and keeps it as an artifact. It retries every few minutes, then less often, until the release exists.
+
+After each `hello`, the hub sends `ota_available`: its policy (`OAA_CAR_UPDATES`, the Home Assistant app's `car_updates`: `ask` by default, `auto` or `off`) and, when the car runs the same package with a lower version code, the build's `sha256`, `size`, `versionName` and `versionCode`.
+
+- **ask:** the car's Settings → **App update** shows the version and an **Install** button (head unit only). It sends `ota_request {sha256}`, and the hub starts a one-car rollout.
+- **auto:** the hub starts that rollout itself, once per build and car.
+
+Cars download as little as possible. When the store lacks the car's installed APK, the hub fetches the release matching the car's `versionName` and uses it only if its hash equals the car's `hello` hash. It then builds the delta and announces again with `downloadSize` (the patch size). A car on a build that was never published (a dev APK) gets the full APK unless that APK was uploaded to the hub earlier. The car reads the announcement and progress from `GET /api/update`.
 
 ### Hub and car versions
 

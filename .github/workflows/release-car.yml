@@ -1,0 +1,85 @@
+name: Release car APK
+
+# Version tags attach the signed car APK and car-apk.json to the GitHub Release. A hub of that
+# version fetches both (OAA_CAR_RELEASE_URL) and offers the build to older cars (ota_available).
+# Same build as tools/oaa-setup: debug variant, arm64 only, community testkey.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Android SDK platform and NDK
+        run: |
+          set -euo pipefail
+          : "${ANDROID_HOME:=${ANDROID_SDK_ROOT:-$HOME/Android/Sdk}}"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
+          SDKMANAGER=$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | tail -1)
+          SDKMANAGER=${SDKMANAGER:-$(command -v sdkmanager)}
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "ndk;$(grep '^oaa.ndkVersion=' gradle.properties | cut -d= -f2 | tr -d '\r')"
+
+      - name: Cache Go toolchain
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/oaa-toolchains
+          key: oaa-toolchains-${{ hashFiles('gradle.properties', 'libs/oaartc/go.sum') }}
+
+      - name: Tag matches oaa.version
+        run: |
+          set -euo pipefail
+          version=$(grep '^oaa.version=' gradle.properties | cut -d= -f2 | tr -d '\r')
+          test "$GITHUB_REF_NAME" = "v$version" || { echo "tag $GITHUB_REF_NAME is not v$version"; exit 1; }
+          echo "OAA_VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Build and sign
+        run: |
+          set -euo pipefail
+          ./gradlew :app:assembleDebug -Poaa.arm64Only --stacktrace
+          out=app/build/outputs/apk/debug
+          unsigned="$out/$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["elements"][0]["outputFile"])' "$out/output-metadata.json")"
+          mkdir -p dist
+          apk="open-automotive-assistant-car-$OAA_VERSION.apk"
+          ./gradlew -q :signing:signApk "-Pin=$PWD/$unsigned" "-Pout=$PWD/dist/$apk" \
+            "-Pkey=$PWD/libs/signing/community.pk8" "-Pcert=$PWD/libs/signing/community.pem"
+          python3 - "$out/output-metadata.json" "dist/$apk" > dist/car-apk.json <<'EOF'
+          import hashlib, json, os, sys
+          meta = json.load(open(sys.argv[1]))
+          apk = sys.argv[2]
+          element = meta["elements"][0]
+          print(json.dumps({
+              "package": meta["applicationId"],
+              "versionName": element["versionName"],
+              "versionCode": element["versionCode"],
+              "sha256": hashlib.sha256(open(apk, "rb").read()).hexdigest(),
+              "size": os.path.getsize(apk),
+              "file": os.path.basename(apk),
+          }, indent=2))
+          EOF
+          cat dist/car-apk.json
+
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 \
+            || gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --generate-notes
+          gh release upload "$GITHUB_REF_NAME" dist/* --clobber

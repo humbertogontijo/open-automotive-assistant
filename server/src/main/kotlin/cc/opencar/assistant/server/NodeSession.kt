@@ -41,6 +41,7 @@ interface NodeListener {
     suspend fun onSignal(nodeId: String, text: String) {}
     suspend fun onHello(nodeId: String, payload: JSONObject) {}
     suspend fun onOtaStatus(nodeId: String, payload: JSONObject) {}
+    suspend fun onOtaRequest(nodeId: String, payload: JSONObject) {}
     suspend fun onLog(nodeId: String, line: String) {}
 }
 
@@ -75,6 +76,7 @@ class NodeSession(
             OaaFrames.EVENT -> payload?.let { eventBus.publish(nodeId, it.toString()) }
             OaaFrames.HELLO -> payload?.let { listener.onHello(nodeId, it) }
             OaaFrames.OTA_STATUS -> payload?.let { listener.onOtaStatus(nodeId, it) }
+            OaaFrames.OTA_REQUEST -> payload?.let { listener.onOtaRequest(nodeId, it) }
             OaaFrames.LOG -> payload?.optString("line")?.let { listener.onLog(nodeId, it) }
             OaaFrames.PING -> send(OaaFrames.frame(OaaFrames.PONG))
             else -> Unit

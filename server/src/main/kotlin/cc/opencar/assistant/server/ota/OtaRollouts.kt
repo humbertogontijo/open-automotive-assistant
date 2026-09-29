@@ -94,12 +94,26 @@ class OtaRollouts(
         }
     }
 
+    /** Whether a rollout of [sha256] ever targeted [nodeId]; [activeOnly] counts unfinished ones only. */
+    fun targets(nodeId: String, sha256: String, activeOnly: Boolean = false): Boolean = synchronized(this) {
+        rollouts.values.any { r ->
+            r.sha256.equals(sha256, ignoreCase = true) &&
+                r.targets[nodeId]?.let { !activeOnly || it.state !in OaaOta.TERMINAL } == true
+        }
+    }
+
+    /** Offer [nodeId]'s unfinished rollouts again. */
+    suspend fun reoffer(nodeId: String) {
+        active(nodeId).forEach { offer(it, nodeId) }
+    }
+
+    private fun active(nodeId: String): List<Rollout> = synchronized(this) {
+        rollouts.values.filter { r -> r.targets[nodeId]?.state?.let { it !in OaaOta.TERMINAL } == true }
+    }
+
     /** Car (re)connected: mark installed when running the target build, else re-offer. */
     suspend fun onHello(nodeId: String, apkSha256: String?) {
-        val active = synchronized(this) {
-            rollouts.values.filter { r -> r.targets[nodeId]?.state?.let { it !in OaaOta.TERMINAL } == true }
-        }
-        for (r in active) {
+        for (r in active(nodeId)) {
             if (apkSha256 != null && apkSha256.equals(r.sha256, ignoreCase = true)) {
                 update(r, nodeId, OaaOta.STATE_INSTALLED, progress = 100, error = null)
             } else {

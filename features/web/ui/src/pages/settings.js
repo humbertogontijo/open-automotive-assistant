@@ -11,6 +11,10 @@ import { OaaPage } from "../lit/oaa-page.js";
 import { toast, toastError } from "../ui/toast.js";
 import { confirmDialog } from "../ui/confirm.js";
 import { loadShortcuts } from "../shortcuts-data.js";
+import { OTA_DONE, otaLine } from "../ota.js";
+import { fmtBytes } from "../format.js";
+
+const UPDATE_POLL_MS = 2000;
 async function updatePrefs(body) {
   const res = await postForm("/api/prefs", body);
   prefs.$patch({
@@ -142,6 +146,8 @@ class OaaPageSettings extends OaaPage {
     joining: { state: true },
     clients: { state: true },
     systemToken: { state: true },
+    appUpdate: { state: true },
+    installing: { state: true },
   };
 
   constructor() {
@@ -154,11 +160,106 @@ class OaaPageSettings extends OaaPage {
     this.clients = null;
     /** @type {string | null} */
     this.systemToken = null;
+    /** @type {Record<string, any> | null} */
+    this.appUpdate = null;
+    this.installing = false;
+    this.appUpdateTimer = 0;
   }
 
   load() {
     if (isHubItself()) return Promise.resolve();
-    return Promise.all([loadShortcuts(), this.loadClients()]);
+    return Promise.all([loadShortcuts(), this.loadClients(), this.loadUpdate()]);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    clearTimeout(this.appUpdateTimer);
+  }
+
+  /** The hub's app update for this car; polled while one is in flight. */
+  async loadUpdate() {
+    clearTimeout(this.appUpdateTimer);
+    this.appUpdateTimer = 0;
+    if (session.role !== "local") return;
+    try {
+      this.appUpdate = await api("/api/update");
+    } catch (e) {
+      this.appUpdate = null;
+    }
+    const state = this.appUpdate && this.appUpdate.state;
+    if (state && !OTA_DONE.has(state) && this.isConnected) {
+      this.appUpdateTimer = window.setTimeout(() => this.loadUpdate(), UPDATE_POLL_MS);
+    }
+  }
+
+  async installUpdate() {
+    this.installing = true;
+    try {
+      const res = await api("/api/update", { method: "POST" });
+      this.appUpdate = res;
+      if (res && res.ok === false) toastError(res.error || t("update.failed", "Update failed"));
+    } catch (e) {
+      toastError(errText(e));
+    } finally {
+      this.installing = false;
+    }
+    this.loadUpdate();
+  }
+
+  appUpdateCard() {
+    const u = this.appUpdate;
+    if (!u || !u.paired) return nothing;
+    const current = t("update.current", "Installed: {version}").replace(
+      "{version}",
+      (u.versionName || "?") + (u.versionCode != null ? " (" + u.versionCode + ")" : ""),
+    );
+    const a = u.available;
+    const moving = !!u.state && !OTA_DONE.has(u.state);
+    let body;
+    if (a) {
+      const bytes = a.downloadSize != null ? a.downloadSize : a.size;
+      const size = bytes
+        ? " · " +
+          (a.downloadSize != null
+            ? t("update.download_delta", "{size} download").replace("{size}", fmtBytes(bytes))
+            : fmtBytes(bytes))
+        : "";
+      body = html`
+        <p class="hint">${t("update.available", "Version {version} is available.").replace("{version}", a.versionName || "?")}${size}</p>
+        ${u.state ? html`<p class="hint">${otaLine(u)}</p>` : nothing}
+        ${u.mode === "auto" && !u.state
+          ? html`<p class="hint">${t("update.auto", "The hub installs it automatically.")}</p>`
+          : nothing}
+        ${isHeadUnit()
+          ? html`<div class="pref-actions">
+              <wa-button
+                variant="brand"
+                ?loading=${this.installing}
+                ?disabled=${moving || !u.online}
+                @click=${() => this.installUpdate()}
+                >${u.state === "failed" ? t("update.retry", "Try again") : t("update.install", "Install")}</wa-button
+              >
+            </div>`
+          : html`<p class="hint">${t("update.on_car", "Install it from the car's screen.")}</p>`}
+      `;
+    } else if (u.mode === "off") {
+      body = html`<p class="hint">${t("update.off", "The hub does not offer updates.")}</p>`;
+    } else if (u.mode) {
+      body = html`<p class="hint">${t("update.none", "Up to date with the hub.")}</p>`;
+    } else {
+      body = html`<p class="hint">
+        ${u.online
+          ? t("update.unsupported", "This hub does not announce updates; update the hub first.")
+          : t("update.offline", "Updates arrive when the hub is connected.")}
+      </p>`;
+    }
+    return prefCard({
+      cls: "form-card",
+      icon: "system",
+      title: t("update.title", "App update"),
+      body: html`<p class="hint">${current}</p>
+        ${body}`,
+    });
   }
 
   async loadClients() {
@@ -369,7 +470,7 @@ class OaaPageSettings extends OaaPage {
           title: t("prefs.locale", "Idioma"),
           body: prefSegment("locale", localeOpts, i18n.locale),
         })}
-        ${unitDimensionCards()} ${homeCard()} ${setupCard()} ${session.role === "local" ? this.hubCard() : nothing} ${session.role === "local" ? this.trustedCard() : nothing}
+        ${unitDimensionCards()} ${homeCard()} ${setupCard()} ${session.role === "local" ? this.hubCard() : nothing} ${session.role === "local" ? this.appUpdateCard() : nothing} ${session.role === "local" ? this.trustedCard() : nothing}
         ${this.integrationTokenCard()}
       </div>
     `;
