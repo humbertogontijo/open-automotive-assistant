@@ -127,20 +127,32 @@ export const i18n = createSlice({
 });
 
 export const dvr = createSlice({
-  /** @type {{ segments: any[], recording: boolean } & Record<string, any>} */
-  timeline: { segments: [], recording: false },
+  /** Segments are recording groups: one file per camera role, sharing a wall-clock window. */
+  /** @type {{ segments: any[], recording: boolean, roles?: string[] } & Record<string, any>} */
+  timeline: { segments: [], recording: false, roles: [] },
   /** Local calendar day for the DVR scrubber: "YYYY-MM-DD". null = today. */
   /** @type {string | null} */
   timelineDay: null,
 });
 
-/** Camera player: live preview seat and DVR playback transport. */
+/** Camera player: per-camera live tracks and DVR playback transport. */
 export const camera = createSlice({
   previewActive: false,
-  previewSrc: "",
   previewError: "",
+  /** Camera roles in grid order (front, right, rear, left). */
+  /** @type {string[]} */
+  roles: [],
+  /** Role shown alone; "" = grid. */
+  focus: "",
+  /** Roles the car is sending live right now. */
+  /** @type {string[]} */
+  streaming: [],
+  /** Roles with a file in the recording group being played. */
+  /** @type {string[]} */
+  recorded: [],
   /** @type {"live" | "dvr"} */
   mode: "live",
+  /** Recording group being played. */
   playingName: "",
   paused: false,
   rate: 1,

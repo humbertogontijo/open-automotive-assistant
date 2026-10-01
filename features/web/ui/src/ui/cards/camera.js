@@ -5,7 +5,7 @@ import { OaaCard } from "./card-element.js";
 
 /**
  * Read-only camera entity card (role + idle/streaming).
- * Live mosaic remains on the /cameras DVR page.
+ * Live video (one tile per camera) is on the /cameras DVR page.
  */
 class OaaCameraCard extends OaaCard {
   renderCard(c) {

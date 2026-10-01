@@ -325,7 +325,12 @@ object OaaWebRtc {
 
     const val DC_LABEL = "oaa-media"
     const val CHUNK_MAX_BYTES = 262_144
-    const val MAX_TRANSFERS = 2
+    /** Four per-camera playbacks plus a download and a cut. */
+    const val MAX_TRANSFERS = 6
+    /** One live track per camera; the viewer offers this many recvonly video m-lines. */
+    const val MAX_VIDEO_TRACKS = 4
+    /** MediaStream id of a camera's live track is this prefix plus its role. */
+    const val STREAM_PREFIX = "oaa-cam-"
     /** Per-session cap on relayed ICE candidates (each direction). */
     const val MAX_ICE_PER_SESSION = 128
     const val PLAYBACK_CONTAINER = "fmp4"
@@ -345,9 +350,18 @@ object OaaWebRtc {
     const val MEDIA_META = "media_meta"
     const val MEDIA_ERROR = "media_error"
     const val TRANSFER_CANCEL = "transfer_cancel"
-    /** Viewer hidden / visible again: car stops or resumes feeding the live RTP track. */
+    /** Viewer hidden / visible again: car stops or resumes feeding the live RTP tracks. */
     const val LIVE_PAUSE = "live_pause"
     const val LIVE_RESUME = "live_resume"
+    /** SPA→car `{roles}`: cameras to send live (grid vs one camera); the rest stop. */
+    const val LIVE_SELECT = "live_select"
+    /** Car→SPA `{roles, streaming}`: tracks in this session and the cameras sending now. */
+    const val LIVE_TRACKS = "live_tracks"
+    /** SPA→car `{t0}`; the car answers [CLOCK] `{t0, carUtcMs}` for the viewer's clock offset. */
+    const val CLOCK_SYNC = "clock_sync"
+    const val CLOCK = "clock"
+    /** Car→SPA `{reqId, doneMs, totalMs}` while an export is re-encoding. */
+    const val MEDIA_PROGRESS = "media_progress"
 
     private val SESSION_ID = Regex("^[A-Za-z0-9_-]{8,64}$")
 

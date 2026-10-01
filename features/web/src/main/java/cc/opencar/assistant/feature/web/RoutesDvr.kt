@@ -6,20 +6,17 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
-import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondFile
 import io.ktor.server.response.respondOutputStream
-import io.ktor.server.response.respondText
 import io.ktor.server.routing.Routing
-import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 /**
- * DVR HTTP surface: mode / timeline / play / cut / clear / storage / policy / live HLS.
+ * DVR HTTP surface: mode / timeline / per-camera play / per-camera cut / clear /
+ * storage / policy. Live video is WebRTC only (see [registerWebRtcRoutes]).
  */
 internal fun Routing.registerDvrRoutes(deps: OaaWebDeps) {
     val dvr = deps.dvr
@@ -56,20 +53,27 @@ internal fun Routing.registerDvrRoutes(deps: OaaWebDeps) {
             call.respond(HttpStatusCode.BadRequest, mapOf("ok" to false, "error" to "atMs required"))
             return@get
         }
-        call.respond(withContext(Dispatchers.IO) { dvr.resolvePlayAt(atMs) })
+        val role = call.request.queryParameters["role"]?.takeIf { it.isNotEmpty() }
+        call.respond(withContext(Dispatchers.IO) { dvr.resolvePlayAt(atMs, role) })
     }
     get("/api/dvr/cut") {
-        val fromMs = call.request.queryParameters["fromMs"]?.toLongOrNull()
-        val toMs = call.request.queryParameters["toMs"]?.toLongOrNull()
-        if (fromMs == null || toMs == null) {
+        val q = call.request.queryParameters
+        val role = q["role"]
+        val fromMs = q["fromMs"]?.toLongOrNull()
+        val toMs = q["toMs"]?.toLongOrNull()
+        if (role.isNullOrEmpty() || fromMs == null || toMs == null) {
             call.respond(
                 HttpStatusCode.BadRequest,
-                mapOf("ok" to false, "error" to "fromMs and toMs required"),
+                mapOf("ok" to false, "error" to "role, fromMs and toMs required"),
             )
             return@get
         }
+        if (role !in dvr.cameraRoles()) {
+            call.respond(HttpStatusCode.BadRequest, mapOf("ok" to false, "error" to "unknown camera"))
+            return@get
+        }
         val cut = withContext(Dispatchers.IO) {
-            runCatching { dvr.cutWallClockToTemp(fromMs, toMs) }
+            runCatching { dvr.cutWallClockToTemp(role, fromMs, toMs) }
         }.getOrElse { t ->
             call.respond(
                 HttpStatusCode.BadRequest,
@@ -106,7 +110,7 @@ internal fun Routing.registerDvrRoutes(deps: OaaWebDeps) {
                 "attachment; filename=\"${file.name}\"",
             )
         }
-        call.response.header(HttpHeaders.ContentType, "video/mp4")
+        // Range requests (seeking in a <video>) are answered by the PartialContent plugin.
         call.respondFile(file)
     }
     post("/api/dvr/clear") {
@@ -115,75 +119,11 @@ internal fun Routing.registerDvrRoutes(deps: OaaWebDeps) {
         call.respond(res)
     }
     post("/api/dvr/preview/start") {
-        val ok = withContext(Dispatchers.IO) { dvr.startPreview(null) }
+        val ok = withContext(Dispatchers.IO) { dvr.startPreview() }
         call.respond(mapOf("ok" to ok, "status" to dvr.status()))
     }
     post("/api/dvr/preview/stop") {
-        dvr.stopPreview()
+        withContext(Dispatchers.IO) { dvr.stopPreview() }
         call.respond(mapOf("ok" to true, "status" to dvr.status()))
-    }
-    /**
-     * Live HLS (CMAF/fMP4). One <video> + hls.js — no clip reloads.
-     * Supports LL-HLS blocking reload via `_HLS_msn` (holds until that SN exists).
-     */
-    get("/api/dvr/live.m3u8") {
-        val started = withContext(Dispatchers.IO) { dvr.startPreview(null) }
-        if (!started) {
-            call.respond(
-                HttpStatusCode.ServiceUnavailable,
-                mapOf("error" to (dvr.lastError ?: "preview failed")),
-            )
-            return@get
-        }
-        val msn = call.request.queryParameters["_HLS_msn"]?.toLongOrNull()
-        // `_HLS_part` ignored — we publish whole segments only.
-        val body = withContext(Dispatchers.IO) {
-            if (msn != null) {
-                dvr.hlsPlaylistBlocking(msn)
-            } else {
-                var ready: String? = null
-                var waits = 0
-                while (ready == null && waits < 80) {
-                    ready = dvr.hlsPlaylist()
-                    if (ready == null) {
-                        delay(100)
-                        waits++
-                    }
-                }
-                ready
-            }
-        }
-        if (body == null) {
-            call.respond(
-                HttpStatusCode.ServiceUnavailable,
-                mapOf("error" to "hls not ready", "detail" to dvr.lastError),
-            )
-            return@get
-        }
-        call.response.header(HttpHeaders.CacheControl, "no-store")
-        call.respondText(body, ContentType.parse("application/vnd.apple.mpegurl"))
-    }
-    get("/api/dvr/live/init.mp4") {
-        val init = dvr.fmp4InitSegment()
-        if (init == null) {
-            call.respond(HttpStatusCode.NotFound, mapOf("error" to "no init"))
-            return@get
-        }
-        call.response.header(HttpHeaders.CacheControl, "no-store")
-        call.respondBytes(init, ContentType.parse("video/mp4"))
-    }
-    get("/api/dvr/live/seg/{seq}") {
-        val seq = call.parameters["seq"]?.removeSuffix(".m4s")?.toLongOrNull()
-        if (seq == null) {
-            call.respond(HttpStatusCode.BadRequest, mapOf("error" to "bad seq"))
-            return@get
-        }
-        val frag = dvr.fmp4Fragment(seq)
-        if (frag == null) {
-            call.respond(HttpStatusCode.NotFound, mapOf("error" to "seg gone"))
-            return@get
-        }
-        call.response.header(HttpHeaders.CacheControl, "no-store")
-        call.respondBytes(frag, ContentType.parse("video/iso.segment"))
     }
 }

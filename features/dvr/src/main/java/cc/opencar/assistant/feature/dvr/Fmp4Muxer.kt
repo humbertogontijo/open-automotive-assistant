@@ -4,15 +4,14 @@ import android.util.Log
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.util.Locale
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * Minimal CMAF / fMP4 for live HLS: one init segment + moof/mdat fragments.
- * DVR recordings still use [MediaMuxer].
+ * Minimal fMP4 writer: one init segment + moof/mdat fragments (~1 s or one GOP).
+ * Used to restream progressive DVR MP4s into MSE; recordings use [android.media.MediaMuxer].
  */
-class Fmp4LiveMuxer(
+class Fmp4Muxer(
     private val width: Int,
     private val height: Int,
     private val timescale: Int = 1000,
@@ -22,10 +21,7 @@ class Fmp4LiveMuxer(
         val data: ByteArray,
         val durationTicks: Long,
         val isKey: Boolean,
-        val timescale: Int,
-    ) {
-        fun durationSec(): Double = durationTicks.toDouble() / timescale.coerceAtLeast(1)
-    }
+    )
 
     private var initSegment: ByteArray? = null
     private val fragments = CopyOnWriteArrayList<Fragment>()
@@ -33,49 +29,22 @@ class Fmp4LiveMuxer(
     private var decodeTime = 0L
     private val pending = ArrayList<PendingSample>()
     private var pendingDur = 0L
-    /** Wakes LL-HLS blocking playlist waiters when a new segment is published. */
-    private val segmentLock = Object()
 
     private data class PendingSample(val avcc: ByteArray, val durationTicks: Long, val isKey: Boolean)
 
-    @Volatile private var fps: Int = 5
+    @Volatile private var fps: Int = 15
 
-    /** Target media segment length (~1s) — fewer HTTP fetches than 1-frame segments. */
     private val segmentTicks: Int
-        get() = timescale // 1 second
+        get() = timescale
 
     fun setFps(value: Int) {
-        fps = value.coerceIn(1, 30)
+        fps = value.coerceIn(1, 60)
     }
 
     fun initSegment(): ByteArray? = initSegment
     fun fragment(seq: Long): ByteArray? = fragments.firstOrNull { it.seq == seq }?.data
-    /** Highest published media sequence number, or 0 if none yet. */
+    /** Highest published fragment sequence number, or 0 if none yet. */
     fun latestSeq(): Long = fragments.lastOrNull()?.seq ?: 0L
-
-    /**
-     * LL-HLS blocking reload: hold until a segment with [msn] (or newer) exists,
-     * then return the playlist. On timeout, return whatever is available.
-     * Spec: server MUST NOT respond until playlist contains SN >= _HLS_msn.
-     */
-    fun hlsPlaylistBlocking(msn: Long?, timeoutMs: Long = BLOCK_TIMEOUT_MS): String? {
-        if (msn != null && msn > 0L) {
-            val deadline = System.currentTimeMillis() + timeoutMs.coerceAtLeast(0L)
-            synchronized(segmentLock) {
-                while (latestSeq() < msn) {
-                    val left = deadline - System.currentTimeMillis()
-                    if (left <= 0L) break
-                    try {
-                        segmentLock.wait(left)
-                    } catch (_: InterruptedException) {
-                        Thread.currentThread().interrupt()
-                        break
-                    }
-                }
-            }
-        }
-        return hlsPlaylist()
-    }
 
     fun setParameterSets(spsIn: ByteArray, ppsIn: ByteArray) {
         val sps = AnnexB.stripStartCode(spsIn)
@@ -119,46 +88,8 @@ class Fmp4LiveMuxer(
         val startsWithKey = samples.firstOrNull()?.isKey == true
         val frag = buildFragment(samples, decodeTime, startsWithKey, s)
         decodeTime += dur
-        fragments.add(Fragment(s, frag, dur, startsWithKey, timescale))
+        fragments.add(Fragment(s, frag, dur, startsWithKey))
         while (fragments.size > 30) fragments.removeAt(0)
-        synchronized(segmentLock) { segmentLock.notifyAll() }
-    }
-
-    fun hlsPlaylist(): String? {
-        if (initSegment == null) return null
-        val all = fragments.toList()
-        if (all.isEmpty()) return null
-        // Sliding window of ~6s, but always begin on a keyframe *at or before*
-        // the window start — never snap to the latest key (that left only 1–2
-        // segments and made hls.js thrash between live edge and older buffer).
-        val from = (all.size - WINDOW_SEGMENTS).coerceAtLeast(0)
-        val start = (0..from).lastOrNull { all[it].isKey } ?: from
-        val window = all.drop(start)
-        if (window.isEmpty()) return null
-        val target = window.maxOf { it.durationSec() }.let { kotlin.math.ceil(it).toInt().coerceAtLeast(1) }
-        // ~2 segments behind edge — lowLatencyMode uses HOLD-BACK when the
-        // client does not override with liveSyncDurationCount.
-        val holdBack = "%.3f".format(Locale.US, (target * 2).toDouble().coerceAtLeast(2.0))
-        val sb = StringBuilder()
-        sb.append("#EXTM3U\n")
-        sb.append("#EXT-X-VERSION:7\n")
-        sb.append("#EXT-X-TARGETDURATION:").append(target).append('\n')
-        sb.append("#EXT-X-MEDIA-SEQUENCE:").append(window.first().seq).append('\n')
-        sb.append("#EXT-X-INDEPENDENT-SEGMENTS\n")
-        sb.append("#EXT-X-SERVER-CONTROL:CAN-BLOCK-RELOAD=YES,HOLD-BACK=").append(holdBack).append('\n')
-        sb.append("#EXT-X-MAP:URI=\"/api/dvr/live/init.mp4\"\n")
-        for (f in window) {
-            sb.append("#EXTINF:").append("%.3f".format(Locale.US, f.durationSec())).append(",\n")
-            sb.append("/api/dvr/live/seg/").append(f.seq).append(".m4s\n")
-        }
-        return sb.toString()
-    }
-
-    /** Drop buffered media but keep the init segment and sequence numbering (live viewer returned). */
-    fun resetMedia() {
-        fragments.clear()
-        pending.clear()
-        pendingDur = 0
     }
 
     fun clear() {
@@ -168,7 +99,6 @@ class Fmp4LiveMuxer(
         seq.set(1)
         pending.clear()
         pendingDur = 0
-        synchronized(segmentLock) { segmentLock.notifyAll() }
     }
 
     /** Media NAL units as AVCC; parameter sets and AUDs are dropped (they live in the init segment). */
@@ -361,8 +291,5 @@ class Fmp4LiveMuxer(
 
     companion object {
         private const val TAG = "OaaFmp4"
-        private const val WINDOW_SEGMENTS = 6
-        /** Apple LL-HLS: hold blocking reloads up to ~3× target duration. */
-        private const val BLOCK_TIMEOUT_MS = 3_000L
     }
 }

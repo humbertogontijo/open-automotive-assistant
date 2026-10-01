@@ -44,8 +44,12 @@ open class DemoNodeTransport(
                 .put("capabilities", JSONArray().put("CAMERAS_DVR"))
                 .put("dvr", demoDvrStatus())
                 .toString()
-            path == "/api/dvr/timeline" ->
-                200 to JSONObject().put("recording", true).put("segments", JSONArray(demoSegments())).toString()
+            path == "/api/dvr/timeline" -> 200 to JSONObject()
+                .put("recording", true)
+                .put("mode", "dvr")
+                .put("roles", JSONArray(DEMO_ROLES))
+                .put("segments", JSONArray(demoSegments()))
+                .toString()
             path == "/api/dvr/play" -> 200 to demoPlay(query).toString()
             path == "/api/dvr/preview/start" || path == "/api/dvr/preview/stop" -> 200 to """{"ok":true}"""
             path == "/api/apps" -> 200 to """{"apps":[]}"""
@@ -143,38 +147,82 @@ open class DemoNodeTransport(
         .put("policy", JSONObject().put("maxTotalMb", 2048).put("maxAgeDays", 7))
         .put("usageBytes", 900L shl 20)
         .put("usageCount", 12)
+        .put("roles", JSONArray(DEMO_ROLES))
+        .put("maxCutMs", 10 * 60_000L)
 
-    /** Ten-minute segments: a few this morning, the last one still recording, two yesterday. */
+    /**
+     * Ten-minute recording groups, one file per camera: a few this morning, the last one still
+     * recording, two yesterday. The rear camera is missing from the first group of the morning.
+     */
     private fun demoSegments(): List<JSONObject> {
         val seg = 10 * 60_000L
         val now = System.currentTimeMillis()
         val live = now - now % seg
         val starts = listOf(live - 26 * 3_600_000L, live - 25 * 3_600_000L) +
             (6 downTo 1).map { live - it * seg - 3_600_000L } + listOf(live - seg, live)
+        val gap = live - 6 * seg - 3_600_000L
         return starts.map { start ->
             val active = start == live
+            val end = if (active) now else start + seg
+            val group = "oaa_dvr_$start"
+            val cameras = JSONObject()
+            for (role in DEMO_ROLES) {
+                if (start == gap && role == "rear") continue
+                cameras.put(
+                    role,
+                    JSONObject()
+                        .put("name", "${group}_$role.mp4")
+                        .put("startUtcMs", start)
+                        .put("endUtcMs", end)
+                        .put("durationMs", end - start),
+                )
+            }
             JSONObject()
-                .put("name", "oaa_dvr_$start.mp4")
+                .put("id", group)
                 .put("startUtcMs", start)
-                .put("endUtcMs", if (active) now else start + seg)
+                .put("endUtcMs", end)
+                .put("durationMs", end - start)
                 .put("active", active)
+                .put("locked", false)
+                .put("cameras", cameras)
         }
     }
 
     private fun demoPlay(query: String?): JSONObject {
-        val at = query?.split('&')?.firstOrNull { it.startsWith("atMs=") }?.removePrefix("atMs=")?.toLongOrNull()
-            ?: return JSONObject().put("ok", false).put("error", "atMs required")
+        val params = query?.split('&')?.associate { it.substringBefore('=') to it.substringAfter('=', "") }.orEmpty()
+        val at = params["atMs"]?.toLongOrNull() ?: return JSONObject().put("ok", false).put("error", "atMs required")
+        val role = params["role"]?.takeIf { it.isNotEmpty() }
         val closed = demoSegments().filterNot { it.getBoolean("active") }
         val seg = closed.firstOrNull { at < it.getLong("endUtcMs") } ?: return JSONObject().put("ok", true).put("live", true)
         val start = seg.getLong("startUtcMs")
         val end = seg.getLong("endUtcMs")
-        return JSONObject()
+        val atUtc = at.coerceIn(start, end - 1)
+        val files = seg.getJSONObject("cameras")
+        val cameras = JSONObject()
+        for (r in files.keys()) {
+            val f = files.getJSONObject(r)
+            cameras.put(
+                r,
+                JSONObject(f.toString()).put("offsetMs", (atUtc - f.getLong("startUtcMs")).coerceIn(0, f.getLong("durationMs"))),
+            )
+        }
+        val res = JSONObject()
             .put("ok", true)
-            .put("name", seg.getString("name"))
+            .put("group", seg.getString("id"))
+            .put("atUtcMs", atUtc)
             .put("startUtcMs", start)
             .put("endUtcMs", end)
             .put("durationMs", end - start)
-            .put("offsetMs", (at - start).coerceAtLeast(0))
+            .put("cameras", cameras)
+        if (role != null) {
+            val f = cameras.optJSONObject(role) ?: return JSONObject().put("ok", false).put("error", "no recording for $role")
+            res.put("role", role)
+                .put("name", f.getString("name"))
+                .put("offsetMs", f.getLong("offsetMs"))
+                .put("fileStartUtcMs", f.getLong("startUtcMs"))
+                .put("fileDurationMs", f.getLong("durationMs"))
+        }
+        return res
     }
 
     /** A day of samples: battery drains and recharges, lane assist cycles through its modes. */
@@ -235,5 +283,7 @@ open class DemoNodeTransport(
         val DEMO_ZIP = byteArrayOf(0x50, 0x4b, 0x05, 0x06, 0xff.toByte(), 0xfe.toByte(), 0x00, 0x80.toByte())
 
         private val AUTOMATION_PATH = Regex("^/api/(shortcuts|routines|scenes)(/.*)?$")
+
+        private val DEMO_ROLES = listOf("front", "right", "rear", "left")
     }
 }

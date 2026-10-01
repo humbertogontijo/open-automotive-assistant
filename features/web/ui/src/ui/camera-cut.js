@@ -1,16 +1,25 @@
 /**
- * Clip range on the DVR scrubber: a draggable [from, to] wall-clock window
- * exported through the media transport (/api/dvr/cut or cut_request).
+ * Clip range on the DVR scrubber: a draggable [from, to] wall-clock window and
+ * a camera picker. Each picked camera downloads as its own MP4 (the car burns
+ * the timestamp in) through the media transport (cut_request or /api/dvr/cut).
  * A reactive controller owned by <oaa-camera-timeline>.
  */
 import { html, nothing } from "lit";
+import { live } from "lit/directives/live.js";
 import { camera } from "../store.js";
 import { t } from "../i18n.js";
 import { errText } from "../api.js";
 import { mediaTransport } from "./media-transport.js";
-import { timelineRange, wallPlayheadMs, fmtWall, onPlayerEvent } from "./camera-player.js";
+import { maxCutMs } from "./webrtc-session.js";
+import { timelineRange, wallPlayheadMs, fmtWall, onPlayerEvent, orderRoles, roleLabel } from "./camera-player.js";
 
 const MIN_CUT_MS = 1000;
+
+/** Percent for a cut progress report, or null when the car can't tell. */
+export function cutPercent(p) {
+  if (!p || !(p.total > 0)) return null;
+  return Math.max(0, Math.min(100, Math.round((p.done / p.total) * 100)));
+}
 
 function scrubMax(r) {
   return r.scrubMax != null ? r.scrubMax : r.end - 1;
@@ -47,6 +56,11 @@ export class CutController {
     this.origin = null;
     /** @type {(() => void)|null} */
     this.offLive = null;
+    /** Cameras to export. */
+    /** @type {Set<string>} */
+    this.roles = new Set();
+    /** Status line while exporting, e.g. "Front: preparing 40%". */
+    this.progress = "";
     host.addController(this);
   }
 
@@ -70,6 +84,7 @@ export class CutController {
     this.mode = false;
     this.drag = null;
     this.origin = null;
+    this.progress = "";
   }
 
   clear() {
@@ -82,7 +97,7 @@ export class CutController {
     if (!r.start || !r.end || r.end <= r.start) return;
     const maxEnd = scrubMax(r);
     const span = Math.max(MIN_CUT_MS, maxEnd - r.start);
-    const win = Math.max(MIN_CUT_MS * 5, Math.min(60_000, Math.floor(span * 0.12)));
+    const win = Math.min(maxCutMs(), Math.max(MIN_CUT_MS * 5, Math.min(60_000, Math.floor(span * 0.12))));
     let center = wallPlayheadMs();
     if (!center || center < r.start || center > maxEnd) {
       center = maxEnd - Math.floor(win / 2);
@@ -103,6 +118,14 @@ export class CutController {
     this.from = from;
     this.to = to;
     this.mode = true;
+    const all = camera.roles || [];
+    this.roles = new Set(camera.focus && all.indexOf(camera.focus) >= 0 ? [camera.focus] : all);
+    this.host.requestUpdate();
+  }
+
+  toggleRole(role, on) {
+    if (on) this.roles.add(role);
+    else this.roles.delete(role);
     this.host.requestUpdate();
   }
 
@@ -110,6 +133,7 @@ export class CutController {
     const r = timelineRange();
     if (!r.start || !r.end || r.end <= r.start) return;
     const maxEnd = scrubMax(r);
+    const maxLen = maxCutMs();
     let a = Math.max(r.start, Math.min(from, maxEnd - MIN_CUT_MS));
     let b = Math.min(maxEnd, Math.max(to, r.start + MIN_CUT_MS));
     if (b - a < MIN_CUT_MS) {
@@ -118,29 +142,57 @@ export class CutController {
       a = Math.max(r.start, a);
       b = Math.min(maxEnd, b);
     }
+    if (b - a > maxLen) {
+      if (this.drag === "from") a = b - maxLen;
+      else b = a + maxLen;
+    }
     this.from = Math.floor(a);
     this.to = Math.floor(b);
   }
 
   get canSave() {
-    return this.from != null && this.to != null && this.from < this.to && !this.busy;
+    return this.from != null && this.to != null && this.from < this.to && !this.busy && this.roles.size > 0;
   }
 
+  /** One MP4 per picked camera, exported one after another. */
   async download() {
     if (!this.canSave) return;
+    const from = /** @type {number} */ (this.from);
+    const to = /** @type {number} */ (this.to);
+    const roles = orderRoles(Array.from(this.roles));
     this.busy = true;
     camera.previewError = "";
     this.host.requestUpdate();
-    try {
-      const res = await mediaTransport().cut(this.from, this.to);
-      saveBlob(res.blob, res.name);
-      this.reset();
-    } catch (e) {
-      camera.previewError = errText(e);
-    } finally {
-      this.busy = false;
-      this.host.requestUpdate();
+    const failed = [];
+    for (const role of roles) {
+      const label = roleLabel(role);
+      this.setProgress(label, null);
+      try {
+        const res = await mediaTransport().cut(role, from, to, (p) => this.setProgress(label, p));
+        saveBlob(res.blob, res.name);
+      } catch (e) {
+        failed.push(label + ": " + errText(e));
+      }
     }
+    this.busy = false;
+    if (failed.length) {
+      camera.previewError = failed.join(" · ");
+      this.progress = "";
+      this.host.requestUpdate();
+    } else {
+      this.clear();
+    }
+  }
+
+  /** @param {string} label @param {{phase: string, done: number, total: number}|null} p */
+  setProgress(label, p) {
+    const pct = cutPercent(p);
+    const what =
+      p && p.phase === "transfer"
+        ? t("cameras.cut.downloading", "downloading")
+        : t("cameras.cut.preparing", "preparing");
+    this.progress = label + ": " + what + (pct != null ? " " + pct + "%" : "…");
+    this.host.requestUpdate();
   }
 
   /**
@@ -255,9 +307,25 @@ export class CutController {
         >
       `;
     }
+    const roles = camera.roles || [];
+    const n = this.roles.size;
     return html`
       <span class="sub mono">${fmtWall(this.from)} – ${fmtWall(this.to)}</span>
-      <wa-button size="small" appearance="outlined" @click=${() => this.clear()}
+      ${roles.length > 1
+        ? html`<span class="camera-cut-roles">
+            ${roles.map(
+              (role) => html`<wa-checkbox
+                size="small"
+                .checked=${live(this.roles.has(role))}
+                ?disabled=${this.busy}
+                @change=${(ev) => this.toggleRole(role, ev.target.checked)}
+                >${roleLabel(role)}</wa-checkbox
+              >`,
+            )}
+          </span>`
+        : nothing}
+      ${this.progress ? html`<span class="sub camera-cut-progress" aria-live="polite">${this.progress}</span>` : nothing}
+      <wa-button size="small" appearance="outlined" ?disabled=${this.busy} @click=${() => this.clear()}
         >${t("cameras.cut.cancel", "Cancel")}</wa-button
       >
       <wa-button
@@ -265,8 +333,11 @@ export class CutController {
         variant="brand"
         ?disabled=${!this.canSave}
         ?loading=${this.busy}
+        title=${t("cameras.cut.max", "Up to {n} min per clip").replace("{n}", String(Math.round(maxCutMs() / 60000)))}
         @click=${() => this.download()}
-        >${t("cameras.cut.download", "Download clip")}</wa-button
+        >${n > 1
+          ? t("cameras.cut.download_n", "Download {n} clips").replace("{n}", String(n))
+          : t("cameras.cut.download", "Download clip")}</wa-button
       >
     `;
   }

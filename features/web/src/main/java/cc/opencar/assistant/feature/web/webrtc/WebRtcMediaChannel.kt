@@ -17,6 +17,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
@@ -25,16 +26,16 @@ import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Car side of the `oaa-media` data channel (ADR-0003): fMP4 playback of DVR
- * recordings, recording downloads and wall-clock cuts. Recordings are
- * addressed by basename only and resolved inside the DVR directory.
+ * Car side of the `oaa-media` data channel (ADR-0003): live camera selection,
+ * the car clock, per-camera fMP4 playback of DVR recordings, recording downloads
+ * and per-camera cuts. Recordings are addressed by basename only and resolved
+ * inside the DVR directory.
  */
 class WebRtcMediaChannel(
     private val dc: DataLink,
     private val sessionId: String,
     private val dvr: DvrController,
-    private val liveAvailable: Boolean,
-    private val onLivePaused: (Boolean) -> Unit,
+    private val live: LiveControl,
 ) {
     /** The open `oaa-media` channel; the owning session delivers its events. */
     interface DataLink {
@@ -42,6 +43,14 @@ class WebRtcMediaChannel(
         val bufferedAmount: Long
         fun sendText(text: String): Boolean
         fun sendBinary(data: ByteArray): Boolean
+    }
+
+    /** The session's live tracks. */
+    interface LiveControl {
+        /** Camera roles with a track in this session. */
+        val roles: List<String>
+        fun setPaused(paused: Boolean)
+        fun select(roles: Collection<String>)
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -79,16 +88,30 @@ class WebRtcMediaChannel(
             OaaWebRtc.PLAYBACK_SEEK -> seekPlayback(reqId, msg)
             OaaWebRtc.PLAYBACK_CLOSE, OaaWebRtc.TRANSFER_CANCEL -> cancel(reqId)
             OaaWebRtc.DOWNLOAD_OPEN -> openDownload(reqId, msg.optString("name"))
-            OaaWebRtc.CUT_REQUEST -> openCut(reqId, msg.optLong("fromMs", -1L), msg.optLong("toMs", -1L))
-            OaaWebRtc.LIVE_PAUSE -> onLivePaused(true)
-            OaaWebRtc.LIVE_RESUME -> onLivePaused(false)
+            OaaWebRtc.CUT_REQUEST -> openCut(
+                reqId,
+                msg.optString("role"),
+                msg.optLong("fromMs", -1L),
+                msg.optLong("toMs", -1L),
+            )
+            OaaWebRtc.LIVE_PAUSE -> live.setPaused(true)
+            OaaWebRtc.LIVE_RESUME -> live.setPaused(false)
+            OaaWebRtc.LIVE_SELECT -> live.select(
+                msg.optJSONArray("roles")?.let { arr -> (0 until arr.length()).map { arr.optString(it) } } ?: live.roles,
+            )
+            OaaWebRtc.CLOCK_SYNC -> sendJson(
+                OaaFrames.versioned()
+                    .put("type", OaaWebRtc.CLOCK)
+                    .put("t0", msg.optDouble("t0", 0.0))
+                    .put("carUtcMs", System.currentTimeMillis()),
+            )
             else -> sendError(reqId, "unknown message")
         }
     }
 
     private fun sendHello() {
         val features = JSONArray()
-        if (liveAvailable) features.put(OaaWebRtc.FEATURE_LIVE)
+        if (live.roles.isNotEmpty()) features.put(OaaWebRtc.FEATURE_LIVE)
         features.put(OaaWebRtc.FEATURE_PLAYBACK)
         features.put(OaaWebRtc.FEATURE_DOWNLOAD)
         features.put(OaaWebRtc.FEATURE_CUT)
@@ -97,9 +120,24 @@ class WebRtcMediaChannel(
                 .put("type", OaaWebRtc.DC_HELLO)
                 .put("sessionId", sessionId)
                 .put("features", features)
+                .put("cameras", JSONArray(dvr.cameraRoles()))
+                .put("tracks", JSONArray(live.roles))
+                .put("carUtcMs", System.currentTimeMillis())
+                .put("maxCutMs", DvrController.MAX_CUT_MS)
                 .put("playbackContainer", OaaWebRtc.PLAYBACK_CONTAINER)
                 .put("chunkMaxBytes", OaaWebRtc.CHUNK_MAX_BYTES)
                 .put("maxTransfers", OaaWebRtc.MAX_TRANSFERS),
+        )
+    }
+
+    /** Which tracks exist and which cameras are sending now. */
+    fun sendLiveTracks(roles: List<String>, streaming: List<String>) {
+        if (!dc.isOpen) return
+        sendJson(
+            OaaFrames.versioned()
+                .put("type", OaaWebRtc.LIVE_TRACKS)
+                .put("roles", JSONArray(roles))
+                .put("streaming", JSONArray(streaming)),
         )
     }
 
@@ -109,15 +147,20 @@ class WebRtcMediaChannel(
 
     private fun resolveTarget(msg: JSONObject, fallbackFile: File?): Result<PlayTarget> {
         if (msg.has("atMs")) {
-            val res = dvr.resolvePlayAt(msg.optLong("atMs"))
+            val role = msg.optString("role").takeIf { it.isNotEmpty() }
+                ?: return Result.failure(IOException("role required"))
+            val res = dvr.resolvePlayAt(msg.optLong("atMs"), role)
             if (res["ok"] != true) return Result.failure(IOException(res["error"]?.toString() ?: "no recordings"))
             if (res["live"] == true) return Result.failure(IOException("live"))
-            val name = res["name"]?.toString() ?: return Result.failure(IOException("no recordings"))
+            val name = res["name"]?.toString() ?: return Result.failure(IOException("no recordings for $role"))
             val file = dvr.recordingFile(name) ?: return Result.failure(IOException("not found"))
             val extra = JSONObject()
+                .put("role", role)
                 .put("atMs", res["atUtcMs"])
+                .put("group", res["group"])
                 .put("segStartUtcMs", res["startUtcMs"])
                 .put("segEndUtcMs", res["endUtcMs"])
+                .put("fileStartUtcMs", res["fileStartUtcMs"])
             return Result.success(PlayTarget(file, (res["offsetMs"] as? Number)?.toLong() ?: 0L, extra))
         }
         val file = if (msg.has("name")) {
@@ -203,14 +246,37 @@ class WebRtcMediaChannel(
         launchTransfer(reqId) { streamFile(reqId, file, name, "download") }
     }
 
-    private fun openCut(reqId: Long, fromMs: Long, toMs: Long) {
-        if (fromMs <= 0 || toMs <= fromMs || toMs - fromMs > MAX_CUT_MS) {
+    private fun openCut(reqId: Long, role: String, fromMs: Long, toMs: Long) {
+        if (role !in dvr.cameraRoles()) {
+            sendError(reqId, "unknown camera")
+            return
+        }
+        if (fromMs <= 0 || toMs <= fromMs || toMs - fromMs > DvrController.MAX_CUT_MS) {
             sendError(reqId, "invalid range")
             return
         }
         if (!admit(reqId)) return
         launchTransfer(reqId) {
-            val cut = dvr.cutWallClockToTemp(fromMs, toMs)
+            var lastSentAt = 0L
+            val cut = dvr.cutWallClockToTemp(
+                role,
+                fromMs,
+                toMs,
+                onProgress = { done, total ->
+                    val now = System.currentTimeMillis()
+                    if (now - lastSentAt >= PROGRESS_EVERY_MS || done >= total) {
+                        lastSentAt = now
+                        sendJson(
+                            OaaFrames.versioned()
+                                .put("type", OaaWebRtc.MEDIA_PROGRESS)
+                                .put("reqId", reqId)
+                                .put("doneMs", done)
+                                .put("totalMs", total),
+                        )
+                    }
+                },
+                isCancelled = { !isActive },
+            )
             try {
                 streamFile(reqId, cut.file, cut.downloadName, "cut", cut.durationMs)
             } finally {
@@ -334,6 +400,6 @@ class WebRtcMediaChannel(
         private const val SEND_CHUNK = 64 * 1024
         private const val HIGH_WATER_BYTES = 1L * 1024 * 1024
         private const val PLAYBACK_LEAD_MS = 10_000L
-        private const val MAX_CUT_MS = 30 * 60_000L
+        private const val PROGRESS_EVERY_MS = 500L
     }
 }

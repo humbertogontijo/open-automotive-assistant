@@ -20,6 +20,35 @@ object DvrTimelineMath {
         val index: Int,
     )
 
+    /** One camera's file inside a segment group; `startUtcMs` is its first frame's capture time. */
+    data class CameraFile(
+        val role: String,
+        val name: String,
+        val startUtcMs: Long,
+        val durationMs: Long,
+    ) {
+        val endUtcMs: Long get() = startUtcMs + durationMs
+    }
+
+    /** Per-camera files recorded together; spans the union of its files. */
+    data class Group(
+        val id: String,
+        val files: List<CameraFile>,
+    ) {
+        val startUtcMs: Long get() = files.minOf { it.startUtcMs }
+        val endUtcMs: Long get() = files.maxOf { it.endUtcMs }
+        val durationMs: Long get() = endUtcMs - startUtcMs
+        fun file(role: String): CameraFile? = files.firstOrNull { it.role == role }
+        fun asSegment(): Segment = Segment(startUtcMs, endUtcMs, durationMs)
+    }
+
+    /** Group per-camera files by group id; empty groups are dropped, result sorted by start. */
+    fun groups(files: List<Pair<String, CameraFile>>): List<Group> =
+        files.groupBy({ it.first }, { it.second })
+            .filterValues { it.isNotEmpty() }
+            .map { (id, list) -> Group(id, list.sortedBy { it.role }) }
+            .sortedBy { it.startUtcMs }
+
     /** Media [from,to) inside a segment for a wall-clock cut range. */
     fun mediaRangeForCut(
         segStartUtcMs: Long,
@@ -33,6 +62,25 @@ object DvrTimelineMath {
             .coerceAtLeast(mediaFrom + 1L)
         return mediaFrom to mediaTo
     }
+
+    /** One camera's files overlapping [fromUtcMs, toUtcMs), with media ranges, in time order. */
+    fun cutRangesForRole(
+        groups: List<Group>,
+        role: String,
+        fromUtcMs: Long,
+        toUtcMs: Long,
+    ): List<Triple<CameraFile, Long, Long>> =
+        groups.mapNotNull { it.file(role) }
+            .filter { it.startUtcMs < toUtcMs && it.endUtcMs > fromUtcMs }
+            .sortedBy { it.startUtcMs }
+            .map { f ->
+                val (a, b) = mediaRangeForCut(f.startUtcMs, f.durationMs, fromUtcMs, toUtcMs)
+                Triple(f, a, b)
+            }
+
+    /** Media offset of wall time [wallUtcMs] inside [file], clamped to the file. */
+    fun offsetInFile(file: CameraFile, wallUtcMs: Long): Long =
+        (wallUtcMs - file.startUtcMs).coerceIn(0L, (file.durationMs - 1).coerceAtLeast(0L))
 
     /**
      * Snap [atUtcMs] into [segs] (sorted by start). Returns null if empty.

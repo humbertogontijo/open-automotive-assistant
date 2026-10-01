@@ -1,10 +1,12 @@
 package oaartc
 
 import (
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/pion/rtcp"
 	"github.com/pion/webrtc/v4"
 )
 
@@ -13,7 +15,7 @@ type events struct {
 	candidates []webrtc.ICECandidateInit
 	opened     chan struct{}
 	messages   chan string
-	keyFrames  chan struct{}
+	keyFrames  chan string
 }
 
 func (e *events) OnLocalCandidate(candidate string, sdpMid string, sdpMLineIndex int) {
@@ -23,9 +25,9 @@ func (e *events) OnLocalCandidate(candidate string, sdpMid string, sdpMLineIndex
 	e.mu.Unlock()
 }
 func (e *events) OnConnectionState(string) {}
-func (e *events) OnKeyFrameRequest() {
+func (e *events) OnKeyFrameRequest(role string) {
 	select {
-	case e.keyFrames <- struct{}{}:
+	case e.keyFrames <- role:
 	default:
 	}
 }
@@ -37,10 +39,18 @@ func (e *events) OnDataMessage(data []byte, binary bool) {
 }
 func (e *events) OnDataClose() {}
 
-// Plays the SPA: recvonly H.264 plus the oaa-media channel, offering to the car.
-func TestAnswerLiveAndDataChannel(t *testing.T) {
-	ev := &events{opened: make(chan struct{}), messages: make(chan string, 4), keyFrames: make(chan struct{}, 1)}
-	car, err := NewSession(`[]`, "oaa-media", ev)
+type gotTrack struct {
+	stream string
+	mime   string
+	ts     uint32
+	ssrc   uint32
+}
+
+// Plays the SPA: four recvonly H.264 m-lines plus the oaa-media channel; the car
+// sends two cameras.
+func TestAnswerPerCameraTracksAndDataChannel(t *testing.T) {
+	ev := &events{opened: make(chan struct{}), messages: make(chan string, 4), keyFrames: make(chan string, 4)}
+	car, err := NewSession(`[]`, "oaa-media", true, ev)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,17 +61,23 @@ func TestAnswerLiveAndDataChannel(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer viewer.Close()
-	if _, err := viewer.AddTransceiverFromKind(webrtc.RTPCodecTypeVideo,
-		webrtc.RTPTransceiverInit{Direction: webrtc.RTPTransceiverDirectionRecvonly}); err != nil {
-		t.Fatal(err)
+	for i := 0; i < 4; i++ {
+		if _, err := viewer.AddTransceiverFromKind(webrtc.RTPCodecTypeVideo,
+			webrtc.RTPTransceiverInit{Direction: webrtc.RTPTransceiverDirectionRecvonly}); err != nil {
+			t.Fatal(err)
+		}
 	}
 	dc, err := viewer.CreateDataChannel("oaa-media", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	gotTrack := make(chan string, 1)
+	tracks := make(chan gotTrack, 4)
 	viewer.OnTrack(func(tr *webrtc.TrackRemote, _ *webrtc.RTPReceiver) {
-		gotTrack <- tr.Codec().MimeType
+		pkt, _, err := tr.ReadRTP()
+		if err != nil {
+			return
+		}
+		tracks <- gotTrack{stream: tr.StreamID(), mime: tr.Codec().MimeType, ts: pkt.Timestamp, ssrc: uint32(tr.SSRC())}
 		for {
 			if _, _, err := tr.ReadRTP(); err != nil {
 				return
@@ -81,9 +97,20 @@ func TestAnswerLiveAndDataChannel(t *testing.T) {
 	}
 	<-gathered
 
-	answer, err := car.Answer(viewer.LocalDescription().SDP, true)
+	for _, role := range []string{"front", "rear"} {
+		if err := car.AddVideoTrack(role); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := car.AddVideoTrack("front"); err == nil {
+		t.Fatal("duplicate role accepted")
+	}
+	answer, err := car.Answer(viewer.LocalDescription().SDP)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if n := strings.Count(answer, "a=msid:"+StreamPrefix); n != 2 {
+		t.Fatalf("answer has %d camera msids, want 2", n)
 	}
 	if err := viewer.SetRemoteDescription(webrtc.SessionDescription{Type: webrtc.SDPTypeAnswer, SDP: answer}); err != nil {
 		t.Fatal(err)
@@ -108,24 +135,54 @@ func TestAnswerLiveAndDataChannel(t *testing.T) {
 	if err := dc.SendText("playback_open"); err != nil {
 		t.Fatal(err)
 	}
+	if err := car.WriteSample("left", []byte{0, 0, 0, 1, 0x65}, 1); err == nil {
+		t.Fatal("write to a role without a track succeeded")
+	}
+
 	// SPS, PPS and an IDR slice, Annex-B.
 	idr := []byte{0, 0, 0, 1, 0x67, 0x42, 0xe0, 0x1f, 0, 0, 0, 1, 0x68, 0xce, 0x3c, 0x80, 0, 0, 0, 1, 0x65, 0x88, 0x84}
+	const captureMs = int64(1_790_000_000_123)
+	got := map[string]gotTrack{}
 	deadline := time.After(10 * time.Second)
-	var mime string
-	for mime == "" {
-		if err := car.WriteSample(idr, 33_333); err != nil {
-			t.Fatal(err)
+	for len(got) < 2 {
+		for _, role := range []string{"front", "rear"} {
+			if err := car.WriteSample(role, idr, captureMs); err != nil {
+				t.Fatal(err)
+			}
 		}
 		select {
-		case mime = <-gotTrack:
+		case tr := <-tracks:
+			got[tr.stream] = tr
 		case <-deadline:
-			t.Fatal("no video track on viewer")
+			t.Fatalf("got %d camera tracks on viewer, want 2", len(got))
 		case <-time.After(50 * time.Millisecond):
 		}
 	}
-	if mime != webrtc.MimeTypeH264 {
-		t.Fatalf("codec %s, want H264", mime)
+	for _, role := range []string{"front", "rear"} {
+		tr, ok := got[StreamPrefix+role]
+		if !ok {
+			t.Fatalf("no stream %s%s (got %v)", StreamPrefix, role, got)
+		}
+		if tr.mime != webrtc.MimeTypeH264 {
+			t.Fatalf("codec %s, want H264", tr.mime)
+		}
+		if int64(tr.ts) != RTPTimestamp(captureMs) {
+			t.Fatalf("%s rtp ts %d, want %d", role, tr.ts, RTPTimestamp(captureMs))
+		}
 	}
+
+	if err := viewer.WriteRTCP([]rtcp.Packet{&rtcp.PictureLossIndication{MediaSSRC: got[StreamPrefix+"rear"].ssrc}}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case role := <-ev.keyFrames:
+		if role != "rear" {
+			t.Fatalf("PLI routed to %q, want rear", role)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("no keyframe request for PLI")
+	}
+
 	select {
 	case m := <-fromCar:
 		if m != "dc_hello" {
@@ -141,5 +198,18 @@ func TestAnswerLiveAndDataChannel(t *testing.T) {
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("car got no data message")
+	}
+}
+
+func TestRTPTimestampWraps(t *testing.T) {
+	if RTPTimestamp(0) != 0 {
+		t.Fatal("zero")
+	}
+	if RTPTimestamp(1000) != 90_000 {
+		t.Fatalf("1s = %d", RTPTimestamp(1000))
+	}
+	period := int64(1<<32) / 90
+	if d := RTPTimestamp(period+1000) - RTPTimestamp(1000); d > 90 || d < -90 {
+		t.Fatalf("not periodic: %d", d)
 	}
 }

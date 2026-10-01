@@ -498,12 +498,15 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * ICE servers for the media plane (hub human face; session required)
-         * @description Returns STUN URLs and, when `OAA_TURN_URLS` + `OAA_TURN_SECRET` are set,
+         * ICE servers for the media plane (human face; session required)
+         * @description Hub: returns STUN URLs and, when `OAA_TURN_URLS` + `OAA_TURN_SECRET` are set,
          *     short-lived TURN credentials in the coturn REST format
          *     (`username = <unixExpiry>:<userId>`, `credential = base64(HMAC-SHA1(secret, username))`).
          *     The shared secret never leaves the hub. The hub injects its own
          *     `iceServers` into the offer it relays to the car.
+         *
+         *     Car (`role=local`, car auth): returns no servers (`iceServers: []`,
+         *     `turn: false`); LAN and loopback viewers need none.
          */
         get: operations["getIceServers"];
         put?: never;
@@ -522,18 +525,23 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * WebRTC signaling WebSocket (hub human face; session required)
-         * @description `Upgrade: websocket`, scoped to one car with `?node=<nodeId>` (or
-         *     `X-Oaa-Node`). The hub binds this socket to the node's session by
-         *     `sessionId` and relays `webrtc_offer` / `webrtc_ice` / `webrtc_hangup`
-         *     to the car over the existing node WebSocket; `webrtc_answer` /
-         *     `webrtc_ice` / `webrtc_hangup` come back. SDP is never inspected or
-         *     persisted.
+         * WebRTC signaling WebSocket (human face; session required)
+         * @description `Upgrade: websocket`. On the hub it is scoped to one car with
+         *     `?node=<nodeId>` (or `X-Oaa-Node`). The hub binds this socket to the
+         *     node's session by `sessionId` and relays `webrtc_offer` / `webrtc_ice` /
+         *     `webrtc_hangup` to the car over the existing node WebSocket;
+         *     `webrtc_answer` / `webrtc_ice` / `webrtc_hangup` come back. SDP is never
+         *     inspected or persisted.
          *
-         *     Limits (v1): one WebRTC session per node — a newer offer replaces the
-         *     prior one (`reason=replaced`); at most 128 relayed ICE candidates per
-         *     session per direction; frames ≤ 64 KiB. Any frame whose `v` differs
-         *     from 1 is answered with `webrtc_hangup` `reason=version`. Offline node →
+         *     On the car (`role=local`, car auth) there is no `node` parameter: the
+         *     car answers the same frames itself after a `hello {v, role: "local",
+         *     online: true}`.
+         *
+         *     Limits (v1): one hub WebRTC session per node and up to three local
+         *     sessions on the car — a newer offer replaces the oldest
+         *     (`reason=replaced`); at most 128 relayed ICE candidates per session per
+         *     direction; frames ≤ 64 KiB. Any frame whose `v` differs from 1 is
+         *     answered with `webrtc_hangup` `reason=version`. Offline node →
          *     `reason=offline`; node without WebRTC support → `reason=unsupported`.
          *
          *     Access (v1): any authenticated hub user may open a session to any
@@ -562,6 +570,32 @@ export interface paths {
         post: operations["setHubConfig"];
         /** Leave hub (local only) */
         delete: operations["leaveHub"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * App update announced by the hub (car)
+         * @description The hub sends `ota_available` after every `hello`: its policy (`ask`, `auto`,
+         *     `off`) and, when it holds a newer build of this car's package, that build.
+         */
+        get: operations["getAppUpdate"];
+        put?: never;
+        /**
+         * Install the announced build (car; head unit only)
+         * @description Sends `ota_request` to the hub, which answers with `ota_offer` (a delta from
+         *     the installed APK when it has or can fetch that build).
+         */
+        post: operations["installAppUpdate"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1025,7 +1059,9 @@ export interface components {
          * @description Signaling envelope on `/api/webrtc/signal` and on the node session.
          *     Directions: `webrtc_offer` viewer→car; `webrtc_answer` car→viewer;
          *     `webrtc_ice` and `webrtc_hangup` both ways. The viewer creates the
-         *     offer (recvonly H.264 video + the `oaa-media` data channel).
+         *     offer (up to four recvonly H.264 video m-lines + the `oaa-media` data
+         *     channel); the car fills one m-line per camera, each track in the
+         *     MediaStream `oaa-cam-<role>`, and leaves the rest inactive.
          */
         WebRtcSignal: {
             /** @enum {string} */
@@ -1038,6 +1074,8 @@ export interface components {
                 sdp?: string;
                 /** @description answer only — negotiated codecs (e.g. `H264`) */
                 codecs?: string[];
+                /** @description answer only — camera roles with a video track, in m-line order */
+                tracks?: string[];
                 candidate?: string;
                 sdpMid?: string | null;
                 sdpMLineIndex?: number | null;
@@ -1054,23 +1092,35 @@ export interface components {
          * @description First message the car sends on the `oaa-media` data channel (reliable,
          *     ordered). The viewer must only use features listed here.
          *
-         *     Viewer→car JSON messages (all with `v: 1` and a numeric `reqId`):
-         *     `playback_open {reqId, name?, atMs?, mode: file|scrub}`,
-         *     `playback_seek {reqId, atMs? | offsetMs?}`, `playback_close {reqId}`,
+         *     Viewer→car JSON messages (all with `v: 1`; transfers carry a numeric `reqId`):
+         *     `playback_open {reqId, name, offsetMs?}` or `playback_open {reqId, atMs, role}`
+         *     (one camera's recording; `atMs` resolves the file covering that wall time),
+         *     `playback_seek {reqId, offsetMs? | atMs + role?}`, `playback_close {reqId}`,
          *     `download_open {reqId, name}` (basename only — `/`, `\`, `..` rejected),
-         *     `cut_request {reqId, fromMs, toMs}`, `transfer_cancel {reqId}`,
-         *     `live_pause` / `live_resume` (no `reqId`; stop/start sending live video
-         *     frames, e.g. while the viewer tab is hidden — resume starts on a key frame).
+         *     `cut_request {reqId, role, fromMs, toMs}` (one camera, ≤ `maxCutMs`; the
+         *     car re-encodes the range with the time burned in), `transfer_cancel {reqId}`.
+         *     Without `reqId`: `live_select {roles?}` (cameras to send; omitted = all),
+         *     `live_pause` / `live_resume` (stop/start sending live video frames, e.g.
+         *     while the viewer tab is hidden — resume starts on a key frame),
+         *     `clock_sync {t0}` (viewer clock ms).
          *
          *     Car→viewer JSON: `media_meta {reqId, kind, name?, mime, codec?, size?,
-         *     offsetMs?, atMs?, durationMs?}` precedes the bytes of each transfer
-         *     (and each playback restart after a seek); `media_error {reqId, error}`.
-         *     Bytes arrive as binary `MediaChunk` frames.
+         *     offsetMs?, atMs?, durationMs?, role?, group?, fileStartUtcMs?,
+         *     segStartUtcMs?, segEndUtcMs?}` precedes the bytes of each transfer (and
+         *     each playback restart after a seek); `media_progress {reqId, doneMs,
+         *     totalMs}` while a cut is being encoded; `media_error {reqId, error}`;
+         *     `live_tracks {roles, streaming}` when the set of sending cameras
+         *     changes; `clock {t0, carUtcMs}` answering `clock_sync`. Bytes arrive as
+         *     binary `MediaChunk` frames.
+         *
+         *     Live RTP timestamps are the frame's capture time: `captureUtcMs × 90`
+         *     mod 2^32. Viewers unwrap them against the car clock to draw the time.
          *
          *     Playback container contract: always fragmented MP4 (init + moof/mdat)
          *     for Media Source Extensions, mime `video/mp4; codecs="avc1.PPCCLL"`
          *     taken from the SPS. Downloads and cuts are progressive MP4 files.
-         *     At most 2 concurrent transfers per session; chunks ≤ `chunkMaxBytes`;
+         *     At most `maxTransfers` concurrent transfers per session (enough for
+         *     four playback streams plus downloads); chunks ≤ `chunkMaxBytes`;
          *     senders respect `bufferedAmount` backpressure.
          */
         DataChannelHello: {
@@ -1080,11 +1130,25 @@ export interface components {
             v: 1;
             sessionId: string;
             features: ("live" | "playback" | "download" | "cut")[];
+            /** @description Camera roles on this car, e.g. `front`, `right`, `rear`, `left` */
+            cameras?: string[];
+            /** @description Camera roles with a live track in this session */
+            tracks?: string[];
+            /**
+             * Format: int64
+             * @description Car wall clock when the hello was sent
+             */
+            carUtcMs?: number;
+            /**
+             * @description Longest `cut_request` range
+             * @example 600000
+             */
+            maxCutMs?: number;
             /** @enum {string} */
             playbackContainer?: "fmp4";
             /** @example 262144 */
             chunkMaxBytes?: number;
-            /** @example 2 */
+            /** @example 6 */
             maxTransfers?: number;
         };
         /**
@@ -1897,8 +1961,9 @@ export interface operations {
     };
     webrtcSignalWebSocket: {
         parameters: {
-            query: {
-                node: string;
+            query?: {
+                /** @description Hub only (required there) */
+                node?: string;
             };
             header?: never;
             path?: never;
@@ -1977,6 +2042,62 @@ export interface operations {
                     "application/json": {
                         ok?: boolean;
                     };
+                };
+            };
+        };
+    };
+    getAppUpdate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Update state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppUpdate"];
+                };
+            };
+        };
+    };
+    installAppUpdate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Requested */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppUpdate"];
+                };
+            };
+            /** @description Not the head unit */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No update announced, or the hub is offline */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppUpdate"];
                 };
             };
         };

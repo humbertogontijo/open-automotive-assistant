@@ -252,7 +252,7 @@ data class PlatformConfig(
     /**
      * Bind available Camera2 ids to product roles from [cameras].
      * When [cameras] is empty, falls back to unlabeled enumeration (compat).
-     * Role order for mosaic tiles: front, right, rear, left, then any extras.
+     * Camera role order (grid order in the UI): front, right, rear, left, then any extras.
      */
     fun resolveCameras(availableIds: Collection<String>): List<CameraSource> {
         if (cameras.isEmpty()) {

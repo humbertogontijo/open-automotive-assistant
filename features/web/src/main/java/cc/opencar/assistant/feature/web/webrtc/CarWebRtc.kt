@@ -14,65 +14,89 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 /**
- * Car end of the WebRTC media plane (ADR-0003). Receives `webrtc_*` frames relayed by
- * the hub over the node WebSocket, answers the viewer's offer, and publishes
- * the live mosaic (pass-through H.264) plus the `oaa-media` data channel.
- * One session at a time; a new offer replaces the current one.
+ * Car end of the WebRTC media plane (ADR-0003). Answers viewer offers relayed by
+ * the hub (node WebSocket) or sent on the car's own `/api/webrtc/signal`, sends
+ * each camera on its own pass-through H.264 track and serves the `oaa-media`
+ * data channel. The hub keeps one session per car; local viewers get a few more.
  */
-class CarWebRtc(
-    private val dvr: DvrController,
-    /** Sends a signaling frame to the hub; false when the node socket is down. */
-    private val sendSignal: (String) -> Boolean,
-) {
+class CarWebRtc(private val dvr: DvrController) {
+    /** Where a session's signaling replies go; false when that socket is gone. */
+    fun interface SignalSink {
+        fun send(text: String): Boolean
+    }
+
+    enum class Origin { HUB, LOCAL }
+
     private val exec = Executors.newSingleThreadScheduledExecutor { r ->
         Thread(r, "oaa-webrtc").apply { isDaemon = true }
     }
-    private var current: Session? = null
+    /** Camera seats open cameras (seconds); kept off [exec] so signaling never waits on them. */
+    private val liveExec = Executors.newSingleThreadExecutor { r ->
+        Thread(r, "oaa-webrtc-live").apply { isDaemon = true }
+    }
+    /** Open sessions in arrival order; confined to [exec]. */
+    private val sessions = LinkedHashMap<String, Session>()
 
-    private inner class Session(val id: String) {
+    private inner class Session(val id: String, val origin: Origin, val sink: SignalSink) {
         var rtc: RtcSession? = null
-        var source: PassThroughH264Source? = null
-        var seatHeld = false
-        var media: WebRtcMediaChannel? = null
+        /** Track per camera role, in the order the tracks were added. */
+        val sources = LinkedHashMap<String, PassThroughH264Source>()
+        @Volatile var media: WebRtcMediaChannel? = null
         var remoteSet = false
         val pendingIce = ArrayList<Triple<String, String, Long>>()
         var iceState = ""
-        var closed = false
+        @Volatile var closed = false
+        @Volatile var paused = false
+        /** Roles the viewer wants live. */
+        @Volatile var wanted: Set<String> = emptySet()
+        /** Roles with a hub seat and tap; confined to [liveExec]. */
+        val held = LinkedHashSet<String>()
     }
 
-    fun onSignal(frame: JSONObject) {
+    fun onSignal(frame: JSONObject, origin: Origin, sink: SignalSink) {
         exec.execute {
-            runCatching { handle(frame) }.onFailure { Log.w(TAG, "signal failed", it) }
+            runCatching { handle(frame, origin, sink) }.onFailure { Log.w(TAG, "signal failed", it) }
+        }
+    }
+
+    /** A signaling socket closed: its sessions go too. */
+    fun onSinkClosed(sink: SignalSink) {
+        exec.execute {
+            sessions.values.filter { it.sink === sink }.forEach { close(it, OaaWebRtc.REASON_BYE, notify = false) }
         }
     }
 
     fun closeAll(reason: String = OaaWebRtc.REASON_BYE) {
-        exec.execute { current?.let { close(it, reason, notify = true) } }
+        exec.execute { sessions.values.toList().forEach { close(it, reason, notify = true) } }
     }
 
-    /** Close the session, then drop any seat or tap still held; the instance is unusable afterwards. */
+    /** Close every session, then drop any seat still held; the instance is unusable afterwards. */
     fun shutdown() {
         runCatching {
-            exec.submit { current?.let { close(it, OaaWebRtc.REASON_BYE, notify = true) } }.get(2, TimeUnit.SECONDS)
+            exec.submit { sessions.values.toList().forEach { close(it, OaaWebRtc.REASON_BYE, notify = true) } }
+                .get(2, TimeUnit.SECONDS)
         }
         exec.shutdownNow()
-        dvr.releaseAllRemoteLive()
+        runCatching { liveExec.submit {}.get(5, TimeUnit.SECONDS) }
+        liveExec.shutdownNow()
+        dvr.releaseAllLive()
     }
 
-    private fun handle(frame: JSONObject) {
+    private fun handle(frame: JSONObject, origin: Origin, sink: SignalSink) {
         val type = frame.optString("type")
         val p = frame.optJSONObject("payload") ?: return
         val sid = p.optString("sessionId")
         if (!OaaWebRtc.isValidSessionId(sid)) return
+        val existing = sessions[sid]?.takeIf { it.sink === sink }
         if (!OaaFrames.isCurrentVersion(p)) {
-            send(OaaFrames.hangup(sid, OaaWebRtc.REASON_VERSION))
-            current?.takeIf { it.id == sid }?.let { close(it, OaaWebRtc.REASON_VERSION, notify = false) }
+            sink.send(OaaFrames.hangup(sid, OaaWebRtc.REASON_VERSION))
+            existing?.let { close(it, OaaWebRtc.REASON_VERSION, notify = false) }
             return
         }
         when (type) {
-            OaaWebRtc.OFFER -> handleOffer(sid, p)
+            OaaWebRtc.OFFER -> handleOffer(sid, origin, sink, p)
             OaaWebRtc.ICE -> {
-                val s = current?.takeIf { it.id == sid } ?: return
+                val s = existing ?: return
                 val cand = Triple(
                     p.optString("candidate"),
                     p.optString("sdpMid"),
@@ -81,19 +105,25 @@ class CarWebRtc(
                 if (cand.first.isEmpty()) return
                 if (s.remoteSet) addCandidate(s, cand) else s.pendingIce += cand
             }
-            OaaWebRtc.HANGUP -> current?.takeIf { it.id == sid }?.let {
+            OaaWebRtc.HANGUP -> existing?.let {
                 close(it, p.optString("reason", OaaWebRtc.REASON_BYE), notify = false)
             }
         }
     }
 
-    private fun handleOffer(sid: String, p: JSONObject) {
-        current?.let { close(it, OaaWebRtc.REASON_REPLACED, notify = it.id != sid) }
-        val s = Session(sid)
-        current = s
+    private fun handleOffer(sid: String, origin: Origin, sink: SignalSink, p: JSONObject) {
+        sessions[sid]?.let { close(it, OaaWebRtc.REASON_REPLACED, notify = it.sink !== sink) }
+        val sameOrigin = sessions.values.filter { it.origin == origin }
+        val cap = if (origin == Origin.HUB) 1 else MAX_LOCAL_SESSIONS
+        sameOrigin.take((sameOrigin.size - cap + 1).coerceAtLeast(0)).forEach {
+            close(it, OaaWebRtc.REASON_REPLACED, notify = true)
+        }
+        val s = Session(sid, origin, sink)
+        sessions[sid] = s
 
+        val iceServers = if (origin == Origin.HUB) p.optJSONArray("iceServers")?.toString() ?: "[]" else "[]"
         val rtc = try {
-            Oaartc.newSession(p.optJSONArray("iceServers")?.toString() ?: "[]", OaaWebRtc.DC_LABEL, listenerFor(s))
+            Oaartc.newSession(iceServers, OaaWebRtc.DC_LABEL, origin == Origin.LOCAL, listenerFor(s))
         } catch (t: Throwable) {
             Log.w(TAG, "session create failed", t)
             close(s, OaaWebRtc.REASON_ERROR, notify = true)
@@ -101,16 +131,20 @@ class CarWebRtc(
         }
         s.rtc = rtc
 
-        val wantsLive = dvr.cameras().isNotEmpty() && p.optString("sdp").contains("m=video")
-        if (wantsLive && dvr.acquireRemoteLive()) {
-            s.seatHeld = true
-            s.source = PassThroughH264Source(dvr) { data, durationUs ->
-                runCatching { rtc.writeSample(data, durationUs) }.isSuccess
+        val sdp = p.optString("sdp")
+        val videoLines = VIDEO_MLINE.findAll(sdp).count().coerceAtMost(OaaWebRtc.MAX_VIDEO_TRACKS)
+        for (role in dvr.cameraRoles().take(videoLines)) {
+            val added = runCatching { rtc.addVideoTrack(role) }
+                .onFailure { Log.w(TAG, "track $role: ${it.message}") }
+                .isSuccess
+            if (!added) continue
+            s.sources[role] = PassThroughH264Source(dvr, role) { data, captureUtcMs ->
+                runCatching { rtc.writeSample(role, data, captureUtcMs) }.isSuccess
             }
         }
 
         val answer = try {
-            rtc.answer(p.optString("sdp"), s.seatHeld)
+            rtc.answer(sdp)
         } catch (t: Throwable) {
             Log.w(TAG, "answer failed: ${t.message}")
             close(s, OaaWebRtc.REASON_ERROR, notify = true)
@@ -119,19 +153,54 @@ class CarWebRtc(
         s.remoteSet = true
         s.pendingIce.forEach { addCandidate(s, it) }
         s.pendingIce.clear()
-        s.source?.let { dvr.addLiveTap(it) }
+        // Every track starts live; the viewer narrows it with live_select.
+        select(s, s.sources.keys)
 
         val out = OaaFrames.versioned()
             .put("sessionId", sid)
             .put("sdp", answer)
             .put("codecs", JSONArray().put("H264"))
-        send(OaaFrames.frame(OaaWebRtc.ANSWER, out))
-        LogRingBuffer.append("WebRTC session $sid answered live=${s.seatHeld}")
+            .put("tracks", JSONArray(s.sources.keys.toList()))
+        sink.send(OaaFrames.frame(OaaWebRtc.ANSWER, out))
+        LogRingBuffer.append("WebRTC ${origin.name.lowercase()} session $sid answered tracks=${s.sources.keys}")
     }
 
     private fun addCandidate(s: Session, c: Triple<String, String, Long>) {
         runCatching { s.rtc?.addRemoteCandidate(c.first, c.second, c.third) }
             .onFailure { Log.w(TAG, "remote candidate rejected: ${it.message}") }
+    }
+
+    private fun select(s: Session, roles: Collection<String>) {
+        s.wanted = roles.filter { it in s.sources }.toSet()
+        liveExec.execute { reconcile(s) }
+    }
+
+    private fun setPaused(s: Session, paused: Boolean) {
+        s.paused = paused
+        s.sources.values.forEach { it.paused = paused }
+    }
+
+    /** Bring the session's seats and taps in line with what it wants; runs on [liveExec]. */
+    private fun reconcile(s: Session) {
+        val want = if (s.closed) emptySet() else s.wanted
+        val drop = s.held - want
+        if (drop.isNotEmpty()) {
+            drop.forEach { role -> s.sources[role]?.let { dvr.removeLiveTap(role, it) } }
+            dvr.releaseLive(drop)
+            s.held -= drop
+        }
+        val add = want - s.held
+        if (add.isNotEmpty()) {
+            val got = dvr.acquireLive(add)
+            for (role in got) {
+                val src = s.sources[role] ?: continue
+                src.paused = s.paused
+                dvr.addLiveTap(role, src)
+                src.restart()
+            }
+            s.held += got
+        }
+        if (!s.closed) s.media?.sendLiveTracks(s.sources.keys.toList(), s.held.toList())
     }
 
     /** Pion calls back on Go threads; everything hops onto [exec]. */
@@ -142,24 +211,23 @@ class CarWebRtc(
                 .put("candidate", candidate)
                 .put("sdpMid", sdpMid)
                 .put("sdpMLineIndex", sdpMLineIndex)
-            send(OaaFrames.frame(OaaWebRtc.ICE, out))
+            s.sink.send(OaaFrames.frame(OaaWebRtc.ICE, out))
         }
 
         override fun onConnectionState(state: String) {
             exec.execute { onIceState(s, state) }
         }
 
-        override fun onKeyFrameRequest() {
-            s.source?.requestKeyFrame()
+        override fun onKeyFrameRequest(role: String) {
+            s.sources[role]?.requestKeyFrame()
         }
 
         override fun onDataOpen() {
             exec.execute {
-                if (current !== s || s.media != null) return@execute
+                if (s.closed || s.media != null) return@execute
                 val rtc = s.rtc ?: return@execute
-                s.media = WebRtcMediaChannel(RtcDataLink(rtc), s.id, dvr, liveAvailable = s.seatHeld) { paused ->
-                    s.source?.paused = paused
-                }.also { it.start() }
+                s.media = WebRtcMediaChannel(RtcDataLink(rtc), s.id, dvr, liveControl(s)).also { it.start() }
+                liveExec.execute { if (!s.closed) s.media?.sendLiveTracks(s.sources.keys.toList(), s.held.toList()) }
             }
         }
 
@@ -172,40 +240,36 @@ class CarWebRtc(
         }
     }
 
+    private fun liveControl(s: Session) = object : WebRtcMediaChannel.LiveControl {
+        override val roles: List<String> get() = s.sources.keys.toList()
+        override fun setPaused(paused: Boolean) = exec.execute { setPaused(s, paused) }
+        override fun select(roles: Collection<String>) = exec.execute { if (!s.closed) select(s, roles) }
+    }
+
     private fun onIceState(s: Session, state: String) {
-        if (current !== s) return
+        if (s.closed) return
         s.iceState = state
         when (state) {
             ICE_FAILED -> close(s, OaaWebRtc.REASON_ERROR, notify = true)
             ICE_DISCONNECTED -> exec.schedule({
-                if (current === s && s.iceState == ICE_DISCONNECTED) {
+                if (!s.closed && s.iceState == ICE_DISCONNECTED) {
                     close(s, OaaWebRtc.REASON_ERROR, notify = true)
                 }
             }, DISCONNECT_GRACE_SEC, TimeUnit.SECONDS)
-            ICE_CONNECTED -> s.source?.restart()
+            ICE_CONNECTED -> s.sources.values.forEach { it.restart() }
         }
     }
 
     private fun close(s: Session, reason: String, notify: Boolean) {
         if (s.closed) return
         s.closed = true
-        if (current === s) current = null
-        if (notify) send(OaaFrames.hangup(s.id, reason))
+        sessions.remove(s.id, s)
+        if (notify) s.sink.send(OaaFrames.hangup(s.id, reason))
         s.media?.close()
-        s.source?.let { src ->
-            dvr.removeLiveTap(src)
-            src.dispose()
-        }
+        s.sources.values.forEach { it.dispose() }
         runCatching { s.rtc?.close() }
-        if (s.seatHeld) {
-            s.seatHeld = false
-            dvr.releaseRemoteLive()
-        }
+        liveExec.execute { reconcile(s) }
         LogRingBuffer.append("WebRTC session ${s.id} closed ($reason)")
-    }
-
-    private fun send(text: String) {
-        if (!sendSignal(text)) Log.w(TAG, "signal dropped (hub offline)")
     }
 
     private class RtcDataLink(private val rtc: RtcSession) : WebRtcMediaChannel.DataLink {
@@ -217,9 +281,11 @@ class CarWebRtc(
 
     companion object {
         private const val TAG = "OaaCarWebRtc"
+        private const val MAX_LOCAL_SESSIONS = 3
         private const val DISCONNECT_GRACE_SEC = 15L
         private const val ICE_CONNECTED = "connected"
         private const val ICE_DISCONNECTED = "disconnected"
         private const val ICE_FAILED = "failed"
+        private val VIDEO_MLINE = Regex("^m=video ", RegexOption.MULTILINE)
     }
 }

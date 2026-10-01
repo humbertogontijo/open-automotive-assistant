@@ -103,7 +103,11 @@ class HubClient(
     private var appInfo: JSONObject? = null
 
     private val dvrRef = dvr
-    private val webrtc = dvr?.let { CarWebRtc(it, ::send) }
+    /** Media plane for hub-relayed and local viewers alike. */
+    internal val webrtc = dvr?.let { CarWebRtc(it) }
+    private val hubSignal = CarWebRtc.SignalSink { text ->
+        send(text).also { if (!it) Log.w(TAG, "signal dropped (hub offline)") }
+    }
     private val ota = OtaUpdater(context, installer, http, scope) {
         otaState = it
         send(OaaFrames.frame(OaaFrames.OTA_STATUS, it))
@@ -480,7 +484,7 @@ class HubClient(
                 OaaWebRtc.OFFER, OaaWebRtc.ICE, OaaWebRtc.HANGUP -> {
                     val rtc = webrtc
                     if (rtc != null) {
-                        rtc.onSignal(json)
+                        rtc.onSignal(json, CarWebRtc.Origin.HUB, hubSignal)
                     } else if (type == OaaWebRtc.OFFER) {
                         webSocket.send(OaaFrames.hangup(payload?.optString("sessionId"), OaaWebRtc.REASON_UNSUPPORTED))
                     }

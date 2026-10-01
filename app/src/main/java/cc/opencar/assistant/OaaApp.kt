@@ -10,6 +10,7 @@ import cc.opencar.assistant.feature.debug.LogRingBuffer
 import cc.opencar.assistant.feature.debug.OaaLog
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoRuntimeSettings
+import java.io.File
 
 class OaaApp : Application() {
     lateinit var runtime: AssistantRuntime
@@ -20,14 +21,28 @@ class OaaApp : Application() {
     /** Gecko allows exactly one runtime per process. */
     val geckoRuntime: GeckoRuntime by lazy {
         val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
-        val settings = GeckoRuntimeSettings.Builder()
+        val builder = GeckoRuntimeSettings.Builder()
             .remoteDebuggingEnabled(debuggable)
             .consoleOutput(debuggable)
             .automaticFontSizeAdjustment(false)
             .fontSizeFactor(1f)
-            .build()
-        GeckoRuntime.create(this, settings)
+        geckoConfigFile()?.let { builder.configFilePath(it.absolutePath) }
+        GeckoRuntime.create(this, builder.build())
     }
+
+    /**
+     * The in-car SPA talks WebRTC to this same device; Gecko must offer loopback and
+     * plain host candidates (not mDNS names) for that to connect without a network.
+     */
+    private fun geckoConfigFile(): File? = runCatching {
+        File(filesDir, "geckoview-config.yaml").apply {
+            writeText(
+                "prefs:\n" +
+                    "  media.peerconnection.ice.loopback: true\n" +
+                    "  media.peerconnection.ice.obfuscate_host_addresses: false\n",
+            )
+        }
+    }.onFailure { Log.w("OaaApp", "gecko config: ${it.message}") }.getOrNull()
 
     override fun onCreate() {
         super.onCreate()

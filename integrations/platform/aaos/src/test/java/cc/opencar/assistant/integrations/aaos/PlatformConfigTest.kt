@@ -45,7 +45,7 @@ class PlatformConfigTest {
         assertEquals(0x11600207, cfg.bindings.getValue("PERF_VEHICLE_SPEED").nativeId)
         assertEquals(4, cfg.cameras.size)
         assertEquals("front", cfg.cameras.first().role)
-        assertEquals("0", cfg.cameras.first().cameraId)
+        assertEquals("2", cfg.cameras.first().cameraId)
         assertTrue(cfg.properties.size >= 100)
         assertTrue(cfg.android.volumeGroups.any { it.entity == "number.vol_media" })
         assertTrue(cfg.catalogEntries().isNotEmpty())

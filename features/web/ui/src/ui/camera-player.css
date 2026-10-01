@@ -44,7 +44,48 @@ wa-card.camera-player::part(body) {
   overflow: hidden;
   border: 1px solid var(--wa-color-surface-border);
 }
-.camera-preview-wrap .preview {
+.camera-grid {
+  display: grid;
+  gap: 2px;
+  grid-template-columns: 1fr;
+  grid-auto-rows: 1fr;
+}
+.camera-grid.n2 {
+  grid-template-columns: 1fr 1fr;
+}
+.camera-grid.n3,
+.camera-grid.n4 {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+.camera-tile {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: #000;
+  cursor: zoom-in;
+  container-type: size;
+}
+.camera-tile.is-hidden {
+  display: none;
+}
+.camera-grid.n1 .camera-tile {
+  cursor: zoom-out;
+}
+/* The picture's own box inside the tile; overlays are placed against it, like the car's burn-in. */
+.camera-frame {
+  --frame-ar: 1.3333;
+  --stamp-text: 0.041667;
+  --stamp-margin: 0.015;
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: min(100cqw, 100cqh * var(--frame-ar));
+  height: min(100cqh, 100cqw / var(--frame-ar));
+  container-type: size;
+}
+.camera-frame .preview {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -55,6 +96,60 @@ wa-card.camera-player::part(body) {
   border-radius: 0;
   border: 0;
   background: #000;
+}
+.camera-tile-role,
+.camera-stamp {
+  position: absolute;
+  top: calc(100cqh * var(--stamp-margin));
+  padding: 0.35em;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, "Droid Sans Mono", monospace;
+  font-size: max(8px, 100cqh * var(--stamp-text));
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 1;
+}
+.camera-tile-role {
+  left: calc(100cqh * var(--stamp-margin));
+  font-weight: 600;
+}
+.camera-stamp {
+  right: calc(100cqh * var(--stamp-margin));
+}
+.camera-stamp:empty {
+  display: none;
+}
+.camera-tile-status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.85rem;
+  pointer-events: none;
+}
+.camera-player-focus {
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.camera-player-grid {
+  margin-left: auto;
+}
+.camera-cut-roles {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+}
+.camera-cut-progress {
+  font-variant-numeric: tabular-nums;
 }
 .camera-preview-loading {
   position: absolute;

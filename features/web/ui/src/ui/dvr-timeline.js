@@ -5,6 +5,28 @@
 
 export const LIVE_EDGE_TIP_MS = 400;
 export const DAY_MS = 24 * 60 * 60 * 1000;
+/** Camera grid order; unknown roles sort after these. */
+export const ROLE_ORDER = ["front", "right", "rear", "left"];
+
+function roleRank(role) {
+  const i = ROLE_ORDER.indexOf(role);
+  return i < 0 ? ROLE_ORDER.length : i;
+}
+
+/** Unique camera roles in grid order. */
+export function orderRoles(list) {
+  const seen = new Set();
+  const out = [];
+  (list || []).forEach(function (r) {
+    const role = String(r || "");
+    if (!role || seen.has(role)) return;
+    seen.add(role);
+    out.push(role);
+  });
+  return out.sort(function (a, b) {
+    return roleRank(a) - roleRank(b) || a.localeCompare(b);
+  });
+}
 
 /** @param {number} ms */
 export function dayKeyFromMs(ms) {

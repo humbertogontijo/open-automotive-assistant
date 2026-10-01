@@ -50,7 +50,7 @@ Adding a visible control card usually touches:
 
 For a **composite** (like `climate.cabin` or `drivetrain.vehicle`), add one `EntityDef` with `bindingKey = null` and `attributes` → binding keys; keep `platform.json` entity fields as the atomic keys (`HVAC_POWER_ON`, `DM_FUNC_DRIVE_MODE_SELECT`, …). Domain selects the card family in the web UI. See [composites.md](composites.md) for the car-native type set and Wave-1 bindings.
 
-**Camera entities** (`camera.front` / `rear` / `left` / `right`) are virtual (Camera2), not VHAL: declare roles in `platform.json` → `cameras[]` (`role` + `cameraId`), register defs in `EntityRegistry`, and let ControlCatalog merge them when DVR is available. Mosaic/live stream stays under `/api/dvr/*` — do not add a mosaic entity.
+**Camera entities** (`camera.front` / `rear` / `left` / `right`) are virtual (Camera2), not VHAL: declare roles in `platform.json` → `cameras[]` (`role` + `cameraId`), register defs in `EntityRegistry`, and let ControlCatalog merge them when DVR is available. Live video is one WebRTC track per camera and recordings stay under `/api/dvr/*` — do not add a combined or "all cameras" entity.
 
 Discover candidates in Lab → **VHAL catalog** → filter **Missing** (see [contributor-debug.md](contributor-debug.md)). The full HU property list lives in each integration’s `platform.json` → `properties` (shared AOSP stubs via `"extends": ["aaos"]`); it is for probing / gap tracking until you attach an `entity`.
 

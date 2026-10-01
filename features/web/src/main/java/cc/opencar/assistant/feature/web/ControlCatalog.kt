@@ -264,14 +264,13 @@ object ControlCatalog {
 
     private fun cameraEntityMaps(dvr: DvrController?): List<Map<String, Any?>> {
         if (dvr == null) return emptyList()
-        val open = dvr.openCameraIds().toSet()
-        val streaming = dvr.isMosaicRunning()
+        val open = dvr.runningCameraIds().toSet()
         return dvr.cameras().mapNotNull { src ->
             val role = src.role ?: return@mapNotNull null
             val def = EntityRegistry.byId(src.id) ?: EntityRegistry.CAMERAS.firstOrNull {
                 it.id == "camera.$role"
             } ?: return@mapNotNull null
-            val state = if (streaming && src.cameraId in open) "streaming" else "idle"
+            val state = if (src.cameraId in open) "streaming" else "idle"
             val attrs = linkedMapOf<String, Any?>(
                 "role" to role,
                 "camera_id" to src.cameraId,

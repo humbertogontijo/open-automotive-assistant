@@ -47,7 +47,7 @@ HVAC extras as atomics (not climate attrs): `HVAC_MAX_DEFROST_ON`, `HVAC_MAX_AC_
 | `ev_battery` | `ev_battery.main` | `ev_battery_percent`, `ev_battery_level_raw`, `battery_temp_c`, `hybrid_soc` |
 | `hud` | `hud.main` | `hud_active` / `snow` / `ar` + Wave-1 `hud_display_mode`, `hud_angle` |
 | `light` | `light.ambient` | `effect` ← `SETTING_FUNC_AMBIENCE_LIGHT_MAINCOLOR`, `brightness` (0–255) ← `SETTING_FUNC_AMBIENCE_LIGHT_INTENSITY_SET`, `rgb_color` ← `SETTING_FUNC_AMBIENCE_MODE_COLOR` (packed `0xRRGGBB`) |
-| `camera` | `camera.front` / `rear` / `left` / `right` | Camera2 via `platform.json` → `cameras[]` (not VHAL); mosaic is DVR-only |
+| `camera` | `camera.front` / `rear` / `left` / `right` | Camera2 via `platform.json` → `cameras[]` (not VHAL); one stream and recording per camera |
 | `seat` | *(planned)* | AAOS `SEAT_*` when position/memory is productized — see [domains.md](domains.md) |
 
 ## Domain ranges

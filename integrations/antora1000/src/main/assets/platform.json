@@ -3,14 +3,8 @@
   "displayName": "Antora 1000 (SE1000)",
   "backend": "vhal",
   "vhalTypedIds": true,
-  "extends": [
-    "aaos"
-  ],
-  "match": [
-    "antora1000",
-    "se1000",
-    "antora"
-  ],
+  "extends": ["aaos"],
+  "match": ["antora1000", "se1000", "antora"],
   "capabilities": [
     "READ_TELEMETRY",
     "WRITE_SETTINGS",
@@ -27,15 +21,15 @@
   "cameras": [
     {
       "role": "front",
-      "cameraId": "0"
+      "cameraId": "2"
     },
     {
       "role": "right",
-      "cameraId": "1"
+      "cameraId": "0"
     },
     {
       "role": "rear",
-      "cameraId": "2"
+      "cameraId": "1"
     },
     {
       "role": "left",
@@ -88,108 +82,84 @@
       "key": "INFO_VIN",
       "access": "r",
       "changeMode": "static",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11100101",
       "key": "INFO_MAKE",
       "access": "r",
       "changeMode": "static",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11100102",
       "key": "INFO_MODEL",
       "access": "r",
       "changeMode": "static",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11200308",
       "key": "FUEL_DOOR_OPEN",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x1120030a",
       "key": "EV_CHARGE_PORT_OPEN",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x1120030b",
       "key": "EV_CHARGE_PORT_CONNECTED",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11200402",
       "key": "PARKING_BRAKE_ON",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11200405",
       "key": "FUEL_LEVEL_LOW",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11200407",
       "key": "NIGHT_MODE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x1120040a",
       "key": "ABS_ACTIVE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x1120040b",
       "key": "TRACTION_CONTROL_ACTIVE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11200b45",
       "key": "MIRROR_FOLD",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11200f05",
@@ -197,162 +167,126 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11400103",
       "key": "INFO_MODEL_YEAR",
       "access": "r",
       "changeMode": "static",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11400108",
       "key": "INFO_FUEL_DOOR_LOCATION",
       "access": "r",
       "changeMode": "static",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11400109",
       "key": "INFO_EV_PORT_LOCATION",
       "access": "r",
       "changeMode": "static",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11400303",
       "key": "ENGINE_OIL_LEVEL",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11400400",
       "key": "GEAR_SELECTION",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11400401",
       "key": "CURRENT_GEAR",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11400408",
       "key": "TURN_SIGNAL_STATE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11400409",
       "key": "IGNITION_STATE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x1140050e",
       "key": "HVAC_TEMPERATURE_DISPLAY_UNITS",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11400600",
       "key": "DISTANCE_DISPLAY_UNITS",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11400602",
       "key": "TIRE_PRESSURE_DISPLAY_UNITS",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11400605",
       "key": "VEHICLE_SPEED_DISPLAY_UNITS",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11400a03",
       "key": "DISPLAY_BRIGHTNESS",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11400e00",
       "key": "HEADLIGHTS_STATE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11400e01",
       "key": "HIGH_BEAM_LIGHTS_STATE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11400e02",
       "key": "FOG_LIGHTS_STATE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11400e03",
       "key": "HAZARD_LIGHTS_STATE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11400e10",
@@ -360,9 +294,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11400e11",
@@ -370,72 +302,56 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11400e12",
       "key": "FOG_LIGHTS_SWITCH",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11400e13",
       "key": "HAZARD_LIGHTS_SWITCH",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11410105",
       "key": "INFO_FUEL_TYPE",
       "access": "r",
       "changeMode": "static",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11410107",
       "key": "INFO_EV_CONNECTOR_TYPE",
       "access": "r",
       "changeMode": "static",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x1141010b",
       "key": "INFO_EXTERIOR_DIMENSIONS",
       "access": "r",
       "changeMode": "static",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x1141010c",
       "key": "INFO_MULTI_EV_PORT_LOCATIONS",
       "access": "r",
       "changeMode": "static",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11410a00",
       "key": "AP_POWER_STATE_REQ",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11410a01",
@@ -443,162 +359,126 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11410a10",
       "key": "HW_KEY_INPUT",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11410a20",
       "key": "HW_ROTARY_INPUT",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11510306",
       "key": "WHEEL_TICK",
       "access": "r",
       "changeMode": "continuous",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11600104",
       "key": "INFO_FUEL_CAPACITY",
       "access": "r",
       "changeMode": "static",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11600106",
       "key": "INFO_EV_BATTERY_CAPACITY",
       "access": "r",
       "changeMode": "static",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11600204",
       "key": "PERF_ODOMETER",
       "access": "r",
       "changeMode": "continuous",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11600207",
       "key": "PERF_VEHICLE_SPEED",
       "access": "r",
       "changeMode": "continuous",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11600208",
       "key": "PERF_VEHICLE_SPEED_DISPLAY",
       "access": "r",
       "changeMode": "continuous",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11600209",
       "key": "PERF_STEERING_ANGLE",
       "access": "r",
       "changeMode": "continuous",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11600210",
       "key": "PERF_REAR_STEERING_ANGLE",
       "access": "r",
       "changeMode": "continuous",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11600304",
       "key": "ENGINE_OIL_TEMP",
       "access": "r",
       "changeMode": "continuous",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11600305",
       "key": "ENGINE_RPM",
       "access": "r",
       "changeMode": "continuous",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11600307",
       "key": "FUEL_LEVEL",
       "access": "r",
       "changeMode": "continuous",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11600308",
       "key": "RANGE_REMAINING",
       "access": "r",
       "changeMode": "continuous",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11600309",
       "key": "EV_BATTERY_LEVEL",
       "access": "r",
       "changeMode": "continuous",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x1160030c",
       "key": "EV_BATTERY_INSTANTANEOUS_CHARGE_RATE",
       "access": "r",
       "changeMode": "continuous",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11600703",
       "key": "ENV_OUTSIDE_TEMPERATURE",
       "access": "r",
       "changeMode": "continuous",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11e00c00",
@@ -606,36 +486,28 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11e00d00",
       "key": "OBD2_LIVE_FRAME",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11e00d01",
       "key": "OBD2_FREEZE_FRAME",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11e00d02",
       "key": "OBD2_FREEZE_FRAME_INFO",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11e00d03",
@@ -643,9 +515,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11e00f07",
@@ -653,9 +523,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11e00f08",
@@ -663,9 +531,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11e00f09",
@@ -673,9 +539,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11e00f0a",
@@ -683,9 +547,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x11e00f0b",
@@ -693,41 +555,28 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x13200514",
       "key": "HVAC_ELECTRIC_DEFROSTER_ON",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        2
-      ]
+      "areas": [2]
     },
     {
       "id": "0x13200bc4",
       "key": "WINDOW_LOCK",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        1344
-      ]
+      "areas": [1344]
     },
     {
       "id": "0x13400bc0",
       "key": "WINDOW_POS",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        16,
-        64,
-        256,
-        1024,
-        65536,
-        131072
-      ],
+      "areas": [16, 64, 256, 1024, 65536, 131072],
       "min": 0,
       "max": 100,
       "step": 1
@@ -737,92 +586,70 @@
       "key": "WINDOW_MOVE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        65536,
-        131072
-      ]
+      "areas": [65536, 131072]
     },
     {
       "id": "0x15200505",
       "key": "HVAC_AC_ON",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        117
-      ]
+      "areas": [117]
     },
     {
       "id": "0x15200506",
       "key": "HVAC_MAX_AC_ON",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        117
-      ]
+      "areas": [117]
     },
     {
       "id": "0x15200507",
       "key": "HVAC_MAX_DEFROST_ON",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        117
-      ]
+      "areas": [117]
     },
     {
       "id": "0x15200508",
       "key": "HVAC_RECIRC_ON",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        117
-      ]
+      "areas": [117]
     },
     {
       "id": "0x1520050a",
       "key": "HVAC_AUTO_ON",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        1
-      ]
+      "areas": [1]
     },
     {
       "id": "0x15200510",
       "key": "HVAC_POWER_ON",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        5
-      ]
+      "areas": [5]
     },
     {
       "id": "0x15200512",
       "key": "HVAC_AUTO_RECIRC_ON",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        117
-      ]
+      "areas": [117]
     },
     {
       "id": "0x1540010a",
       "key": "INFO_DRIVER_SEAT",
       "access": "r",
       "changeMode": "static",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x15400500",
       "key": "HVAC_FAN_SPEED",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        5,
-        117
-      ],
+      "areas": [5, 117],
       "min": 0,
       "max": 9,
       "step": 1
@@ -832,38 +659,22 @@
       "key": "HVAC_FAN_DIRECTION",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        1
-      ],
-      "values": [
-        0,
-        1,
-        2,
-        3,
-        4,
-        5,
-        6,
-        7
-      ]
+      "areas": [1],
+      "values": [0, 1, 2, 3, 4, 5, 6, 7]
     },
     {
       "id": "0x15400513",
       "key": "HVAC_SEAT_VENTILATION",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        1,
-        4
-      ]
+      "areas": [1, 4]
     },
     {
       "id": "0x15400b85",
       "key": "SEAT_FORE_AFT_POS",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        1
-      ]
+      "areas": [1]
     },
     {
       "id": "0x15400b86",
@@ -871,18 +682,14 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        1
-      ]
+      "areas": [1]
     },
     {
       "id": "0x15400b87",
       "key": "SEAT_BACKREST_ANGLE_1_POS",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        1
-      ]
+      "areas": [1]
     },
     {
       "id": "0x15400b88",
@@ -890,18 +697,14 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        1
-      ]
+      "areas": [1]
     },
     {
       "id": "0x15400b8b",
       "key": "SEAT_HEIGHT_POS",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        1
-      ]
+      "areas": [1]
     },
     {
       "id": "0x15400b8c",
@@ -909,40 +712,28 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        1
-      ]
+      "areas": [1]
     },
     {
       "id": "0x15400f04",
       "key": "READING_LIGHTS_SWITCH",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        1,
-        2,
-        4,
-        16,
-        64
-      ]
+      "areas": [1, 2, 4, 16, 64]
     },
     {
       "id": "0x15410511",
       "key": "HVAC_FAN_DIRECTION_AVAILABLE",
       "access": "r",
       "changeMode": "static",
-      "areas": [
-        117
-      ]
+      "areas": [117]
     },
     {
       "id": "0x15600503",
       "key": "HVAC_TEMPERATURE_SET",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        1
-      ],
+      "areas": [1],
       "min": 15.5,
       "max": 28.5,
       "step": 0.5
@@ -952,46 +743,28 @@
       "key": "DOOR_LOCK",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        1,
-        4,
-        16,
-        64
-      ]
+      "areas": [1, 4, 16, 64]
     },
     {
       "id": "0x16400b00",
       "key": "DOOR_POS",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        1,
-        4,
-        16,
-        64,
-        536870912
-      ]
+      "areas": [1, 4, 16, 64, 536870912]
     },
     {
       "id": "0x16400b01",
       "key": "DOOR_MOVE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        536870912
-      ]
+      "areas": [536870912]
     },
     {
       "id": "0x17600309",
       "key": "TIRE_PRESSURE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        1,
-        2,
-        4,
-        8
-      ]
+      "areas": [1, 2, 4, 8]
     },
     {
       "id": "0x21100104",
@@ -999,63 +772,49 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x211073c0",
       "key": "DEVICE_IHUID",
       "access": "r",
       "changeMode": "static",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x211073c1",
       "key": "DEVICE_XDSN",
       "access": "r",
       "changeMode": "static",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x211073c2",
       "key": "DEVICE_VER_MCU_FIRMWARE",
       "access": "r",
       "changeMode": "static",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x211073c3",
       "key": "DEVICE_VER_MCU_HARDWARE",
       "access": "r",
       "changeMode": "static",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x211073cb",
       "key": "DEVICE_VEHICLE_TYPE_CONFIG",
       "access": "r",
       "changeMode": "static",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x211073f3",
       "key": "INIT_PROFILE_INFO",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2110747c",
@@ -1063,9 +822,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2110747e",
@@ -1073,63 +830,49 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x211074e0",
       "key": "DEVICE_PROJECT_CODE",
       "access": "r",
       "changeMode": "static",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x211074e1",
       "key": "DEVICE_SUPPLIER_CODE",
       "access": "r",
       "changeMode": "static",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2110765d",
       "key": "CONFIG_INFO_TARGET_MARKET",
       "access": "r",
       "changeMode": "static",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21108015",
       "key": "PA_VIN_V",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21108016",
       "key": "PA_VP_V",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2110801f",
       "key": "PA_M",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21200000",
@@ -1137,99 +880,77 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207006",
       "key": "SETTING_FUNC_ESC_SPORT_MODE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207010",
       "key": "SETTING_FUNC_LAMP_AUTOMATIC_COURTESY_LIGHT",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207013",
       "key": "SETTING_FUNC_LAMP_APPROACH_LIGHT",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207018",
       "key": "SETTING_FUNC_AUTO_HOLD",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120701a",
       "key": "SETTING_FUNC_PBC_DOUBLE_EPB_SWITCH",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120701f",
       "key": "SETTING_FUNC_AUTO_CLOSE_WINDOW",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120703a",
       "key": "SETTING_FUNC_AUDIBLE_LOCKING_FEEDBACK",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207040",
       "key": "SETTING_FUNC_CENTRAL_LOCK",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207041",
       "key": "SETTING_FUNC_TWOSTEP_UNLOCKING",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207042",
       "key": "SETTING_FUNC_HUD_ACTIVE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207043",
@@ -1237,18 +958,14 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207046",
       "key": "SETTING_FUNC_CAR_LOCATOR",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120704b",
@@ -1256,27 +973,21 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207107",
       "key": "DM_FUNC_STEERING_WHEEL_FEEL_SYNC_DRIVEMODE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207164",
       "key": "BCM_FUNC_LIGHT_ATMOSPHERE_LAMPS",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120716f",
@@ -1284,315 +995,245 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207170",
       "key": "BCM_FUNC_DISPLAY_ONOFF",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207174",
       "key": "HYBRID_FUNC_BATTERY_SAVE_MODE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207175",
       "key": "HYBRID_FUNC_BATTERY_CHARGE_MODE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120717c",
       "key": "SETTING_FUNC_HDC_SWITCH",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120717d",
       "key": "SETTING_FUNC_LANE_KEEPING_AID",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207183",
       "key": "SETTING_FUNC_EMGY_LANE_KEEP_AID",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207187",
       "key": "SETTING_FUNC_REAR_CROSS_TRAFFIC_ALERT",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120718b",
       "key": "SETTING_FUNC_AUTONOMOUS_EMERGENCY_BRAKING",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120718d",
       "key": "SETTING_FUNC_REAR_COLLISION_WARNING",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x212071cf",
       "key": "SETTING_FUNC_AMBIENCE_LIGHT_ENDURANCE_MIL_REMINDER",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x212071d0",
       "key": "SETTING_FUNC_AMBIENCE_LIGHT_PHONE_CALL_REMINDER",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x212071d3",
       "key": "SETTING_FUNC_AMBIENCE_LIGHT_WELCOME_SHOW_MODE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x212071d6",
       "key": "SETTING_FUNC_AMBIENCE_LIGHT_VOICE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x212071e0",
       "key": "SETTING_FUNC_AMBIENCE_LIGHT_CLIMATE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x212071ef",
       "key": "SETTING_FUNC_BACKLIGHT_LINKAGE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120720b",
       "key": "SETTING_FUNC_HUD_ANGLE_ADJUST",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120720c",
       "key": "SETTING_FUNC_HUD_ANGLE_RESET",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120720d",
       "key": "SETTING_FUNC_HUD_SNOW_MODE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120720e",
       "key": "SETTING_FUNC_HUD_AR_ENGINE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207253",
       "key": "SETTING_FUNC_APPROACH_UNLOCK",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207255",
       "key": "SETTING_FUNC_AWAY_LOCK",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120727c",
       "key": "CHARGE_FUNC_EXTERNAL_CHARGING_LIGHT",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207281",
       "key": "CHARGE_FUNC_DISCHARGING_SWITCH_V2V",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207282",
       "key": "CHARGE_FUNC_DISCHARGING_SWITCH_V2L",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x212072a8",
       "key": "TRIP_FUNC_RESET",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x212072b9",
       "key": "SCENE_FUNC_NAP_MODE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120733b",
       "key": "DRIVE_MODE_SELECTION_PURE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120733c",
       "key": "DRIVE_MODE_SELECTION_HYBRID",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120733d",
       "key": "DRIVE_MODE_SELECTION_POWER",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120734b",
       "key": "LAMP_EXTERIOR_LIGHT_CONTROL_POS_LIGHT",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120734c",
       "key": "LAMP_EXTERIOR_LIGHT_CONTROL_LOWBEAM",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120734d",
       "key": "LAMP_EXTERIOR_LIGHT_CONTROL_AUTOMATIC",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207359",
       "key": "CHARGE_FUNC_PARKING",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207376",
       "key": "CHARGE_FUNC_PRE_CHARGING_IMMEDIATELY",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120739f",
@@ -1600,45 +1241,35 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x212073a2",
       "key": "SETTING_FUNC_CST_SWITCH",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x212073bb",
       "key": "LAMP_EXTERIOR_LIGHT_CONTROL_OFF",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207418",
       "key": "SETTING_FUNC_AUDIO_2D_SURROUND_SHOUND_EFFECT_SWITCH",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120741f",
       "key": "SETTING_FUNC_AUDIO_HEAD_PILLOW",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207443",
@@ -1646,216 +1277,168 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120747f",
       "key": "SETTING_FUNC_BRIGHTNESS_AUTO_ADJUST",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120748d",
       "key": "SETTING_FUNC_STEERING_ASSISTANCE_LEVEL_HEAVY",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120748e",
       "key": "SETTING_FUNC_STEERING_ASSISTANCE_LEVEL_MEDIUM",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120748f",
       "key": "SETTING_FUNC_STEERING_ASSISTANCE_LEVEL_SOFT",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x212074a7",
       "key": "PROFILE_DRVR_SEAT_ADJUST",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x212074ab",
       "key": "PROFILE_HUD_ADJUST",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x212074e2",
       "key": "CHARGE_FUNC_DISCHARGING_NOTIFICATION_FINISHED",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207505",
       "key": "DMS_DPS_SWITCH",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207513",
       "key": "SETTING_SPACE_CAPSULE_SWITCH",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207526",
       "key": "SETTING_FUNC_AUDIO_KTV_MODE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120757a",
       "key": "HVAC_FUNC_AUTO_STATUS",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207588",
       "key": "SETTING_FUNC_HUD_LYRICS_DISPLAY_SWITCH",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x212075c8",
       "key": "HVAC_FUNC_AUTO_DRY",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207607",
       "key": "SETTING_FUNC_WADING_PROTECTION_SWITCH",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207609",
       "key": "SETTING_FUNC_ONE_CLICK_TRAILER",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120760a",
       "key": "SETTING_FUNC_ONE_CLICK_TRAILER_POP",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207613",
       "key": "CHARGE_FUNC_DISCHARGING_ENGINE_SWITCH",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207614",
       "key": "SETTING_FUNC_INTELLIGENT_STEERING_SWITCH",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207623",
       "key": "SETTING_FUNC_AUTO_SHOW_MODE_HVAC_CONTROL",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207626",
       "key": "SCENE_FUNC_PARKING_COMFORT_SWITCH",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207644",
       "key": "SETTING_FUNC_FCDA_STATUS",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207649",
       "key": "SETTING_FUNC_AUDIO_OPEN_DOOR_SUPPRESS_MEDIA_SOUND_SWITCH",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120764a",
       "key": "SETTING_FUNC_NIGHTMODE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120764f",
@@ -1863,9 +1446,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207651",
@@ -1873,9 +1454,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207660",
@@ -1883,9 +1462,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207662",
@@ -1893,18 +1470,14 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207667",
       "key": "SETTING_FUNC_PANORAMIC_SOUND",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120766d",
@@ -1912,9 +1485,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207670",
@@ -1922,54 +1493,42 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207674",
       "key": "HVAC_PREVENTS_ICING",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207675",
       "key": "HVAC_PREVENTS_COLD",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207676",
       "key": "HVAC_PREVENTS_HEAT",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207677",
       "key": "HVAC_RAPID_COOLING",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207678",
       "key": "HVAC_RAPID_HEATING",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207681",
@@ -1977,18 +1536,14 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21207686",
       "key": "SETTING_FUNC_AUDIO_EOC_ACTIVE_SWITCH",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2120ffff",
@@ -1996,522 +1551,406 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407008",
       "key": "SETTING_FUNC_ENERGY_REGENERATION",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407011",
       "key": "SETTING_FUNC_LAMP_HOME_SAFE_LIGHT",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407016",
       "key": "SETTING_FUNC_LAMP_EXTERIOR_LIGHT_CONTROL",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407027",
       "key": "SETTING_FUNC_AMBIENCE_LIGHT_MAINCOLOR",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140703b",
       "key": "SETTING_FUNC_KEYLESS_UNLOCKING",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407049",
       "key": "SETTING_FUNC_CAR_LOCATOR_REMINDER_MODE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407053",
       "key": "SETTING_FUNC_ESM_VOLUME",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140705c",
       "key": "SETTING_FUNC_PCM_TIMER",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407061",
       "key": "SETTING_FUNC_SOUND_WARNING_VOLUME",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214070f9",
       "key": "DM_FUNC_DRIVE_MODE_SELECT",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407149",
       "key": "PAS_FUNC_RCTA_WARNING_VOLUME",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407171",
       "key": "BCM_FUNC_CUSTOM_KEY",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407181",
       "key": "SETTING_FUNC_LANE_CHANGE_WARNING_MODE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407182",
       "key": "SETTING_FUNC_LANE_KEEPING_AID_WARNING",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407185",
       "key": "SETTING_FUNC_STEERING_ASSISTANCE_LEVEL",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407191",
       "key": "SETTING_FUNC_FORWARD_COLLISION_WARN_SNVTY",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140719c",
       "key": "SETTING_FUNC_SPEED_LIMIT_WARNING_MODE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214071d4",
       "key": "SETTING_FUNC_AMBIENCE_LIGHT_MUSIC_SHOW_MODE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214071e8",
       "key": "SETTING_FUNC_DAYMODE_SETTING",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214071ea",
       "key": "SETTING_FUNC_BRIGHTNESS_DAY",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214071eb",
       "key": "SETTING_FUNC_BRIGHTNESS_NIGHT",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214071ec",
       "key": "SETTING_FUNC_BRIGHTNESS_MAX",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214071ed",
       "key": "SETTING_FUNC_BRIGHTNESS_MIN",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214071ee",
       "key": "SETTING_FUNC_BRIGHTNESS_STEP",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214071f0",
       "key": "SETTING_FUNC_BRIGHTNESS_BACKLIGHT",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214071f1",
       "key": "SETTING_FUNC_BRIGHTNESS_BACKLIGHT_MAX",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214071f2",
       "key": "SETTING_FUNC_BRIGHTNESS_BACKLIGHT_MIN",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214071f4",
       "key": "SETTING_FUNC_BRIGHTNESS_DIM",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407201",
       "key": "SETTING_FUNC_CUSTOM_DAY_TIME",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407202",
       "key": "SETTING_FUNC_CUSTOM_NIGHT_TIME",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407204",
       "key": "SETTING_FUNC_SUN_TIME",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407220",
       "key": "SETTING_FUNC_LAMP_LOW_BEAM_VERTICAL_LEVEL",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407228",
       "key": "SETTING_FUNC_EASY_INGRESS_EGRESS_MODE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        1
-      ]
+      "areas": [1]
     },
     {
       "id": "0x21407289",
       "key": "CHARGE_FUNC_CHARGING_PLUG_STATE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214072a6",
       "key": "CHARGE_FUNC_CHARGE_PHEV_BATTERY_COLOR",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214072a9",
       "key": "TRIP_FUNC_AUTO_RESET_OPTION",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214072e3",
       "key": "SENSOR_TYPE_CAR_MODE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214072f8",
       "key": "SENSOR_TYPE_WARN_EV_BATTERY_LOW",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407334",
       "key": "DEVICE_MODE_ENTERTAINMENT",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407335",
       "key": "DEVICE_MODE_INFOTAINMENT",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407351",
       "key": "SETTING_FUNC_DRIVE_MODE_AUDIO_FEEDBACK",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407369",
       "key": "SETTING_FUNC_AUDIO_FREQENCY_LOW",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140736a",
       "key": "SETTING_FUNC_AUDIO_FREQENCY_MID",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140736b",
       "key": "SETTING_FUNC_AUDIO_FREQENCY_HIGH",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140737e",
       "key": "CHARGE_FUNC_CHARGING_DISCHARGING_STATE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140739d",
       "key": "FUNC_UNIT_TIME_INDICATION",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214073a0",
       "key": "FUNC_UNIT_LANGUAGE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214073bc",
       "key": "BCM_FUNC_TRUNK_DOOR_STATUS",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214073cd",
       "key": "SETTING_INTELLIGENT_DRIVING_ASSISTANCE_MODE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407416",
       "key": "SETTING_FUNC_AUDIO_COMPENSATION_LEVEL",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407417",
       "key": "SETTING_FUNC_AUDIO_SEAT_SOUND_OPTIMIZE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140741a",
       "key": "SETTING_FUNC_AUDIO_SOUND_OPTIMIZE_BALANCE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140741b",
       "key": "SETTING_FUNC_AUDIO_SOUND_OPTIMIZE_FADER",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140741c",
       "key": "SETTING_FUNC_SOFT_BUTTON_SOUND_TYPE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140741e",
       "key": "SETTING_FUNC_AUDIO_NAVI_MIX_MODE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407420",
       "key": "SETTING_FUNC_AUDIO_HEAD_PILLOW_AUTO_MODE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407421",
       "key": "SETTING_FUNC_VOICE_BROADCAST_MODE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407425",
@@ -2519,27 +1958,21 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407427",
       "key": "SETTING_FUNC_SPEED_WARNING_MAX",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140742c",
       "key": "TYPE_JOY_LIMIT_STATE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407432",
@@ -2547,9 +1980,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407433",
@@ -2557,9 +1988,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407434",
@@ -2567,9 +1996,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407435",
@@ -2577,9 +2004,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407436",
@@ -2587,9 +2012,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407437",
@@ -2597,9 +2020,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407438",
@@ -2607,9 +2028,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407439",
@@ -2617,9 +2036,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140743e",
@@ -2627,9 +2044,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140743f",
@@ -2637,36 +2052,28 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407453",
       "key": "SETTING_FUNC_AUTO_SHOW_MODE_ENTER_CONDITIONS",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407454",
       "key": "SETTING_FUNC_AUTO_SHOW_MODE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140745d",
       "key": "CURRENT_PROFILE_ID",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140746d",
@@ -2674,18 +2081,14 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407477",
       "key": "SETTING_FUNC_DIM_DISPLAY_MODE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407492",
@@ -2693,9 +2096,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214074f1",
@@ -2703,9 +2104,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214074f2",
@@ -2713,63 +2112,49 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214074f6",
       "key": "REVERSE_LIGHT_STATE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214074f8",
       "key": "FRONT_POSTITION_STATUS",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214074f9",
       "key": "AFTER_POSTITION_STATUS",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214074fa",
       "key": "DAYTIME_LIGHT_STATUS",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214074fe",
       "key": "DOUBLE_FLASH",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407502",
       "key": "SETTING_BRAKE_PEDAL_STATUS",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407510",
@@ -2777,27 +2162,21 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140751c",
       "key": "SENSOR_TYPE_USG_MODE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140752d",
       "key": "CUSTOM_KEY_TYPE_NONE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140752e",
@@ -2805,63 +2184,49 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407531",
       "key": "CUSTOM_KEY_TYPE_UNLOCK_TRUNK",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407532",
       "key": "CUSTOM_KEY_TYPE_CHANGE_DVRMOD",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407534",
       "key": "CUSTOM_KEY_TYPE_SOUND_SWITCH",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407535",
       "key": "CUSTOM_KEY_TYPE_REAR_MIRROR_ADJUST",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407537",
       "key": "VR_ACTIVATED",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407558",
       "key": "SETTING_FUNC_SCENE_MODE_DIM_BRIGHTNESS_STATE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407559",
@@ -2869,18 +2234,14 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140755a",
       "key": "SETTING_FUNC_TCAM_RESET_STATE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140755b",
@@ -2888,9 +2249,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407565",
@@ -2898,54 +2257,42 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407568",
       "key": "SETTING_FUNC_FAULT_ALARM_ZONE_A",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407569",
       "key": "SETTING_FUNC_FAULT_ALARM_ZONE_B",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407570",
       "key": "SETTING_FUNC_AUDIO_WARNING_RING_STATE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214075b2",
       "key": "TYPE_FUEL_WARNING_COLOR",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214075b4",
       "key": "HYBRID_FUNC_BATTERY_MODE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214075bf",
@@ -2953,9 +2300,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214075c0",
@@ -2963,63 +2308,49 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214075c7",
       "key": "BCM_FUNC_RAIN_SENSOR_SENSITIVITY_VALUE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214075f5",
       "key": "FUNC_UNIT_AVG_FUEL",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407608",
       "key": "SETTING_FUNC_WADING_PROTECTION_NOTITYPE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407622",
       "key": "SETTING_FUNC_ESM_SOUND_TYPE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407628",
       "key": "SETTING_FUNC_USB_SWITCH",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407643",
       "key": "SETTING_FUNC_HUD_DISPLAY_MODE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407646",
@@ -3027,9 +2358,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140764b",
@@ -3037,9 +2366,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140764d",
@@ -3047,9 +2374,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140764e",
@@ -3057,9 +2382,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407650",
@@ -3067,9 +2390,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407655",
@@ -3077,18 +2398,14 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140765e",
       "key": "SETTING_FUNC_SPEED_LIMIT_UPDATE_REMINDER",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407661",
@@ -3096,27 +2413,21 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407668",
       "key": "SETTING_FUNC_UNIT_DATE_INDICATION",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407669",
       "key": "SETTING_FUNC_RVS_SWITCH",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140766a",
@@ -3124,27 +2435,21 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140766b",
       "key": "CHARGE_FUNC_AC_CHARGING",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140766c",
       "key": "CHARGE_FUNC_DC_CHARGING",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140766e",
@@ -3152,27 +2457,21 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407679",
       "key": "SETTING_FUNC_AMBIENCE_RHYTHM_RATE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140767f",
       "key": "TYPE_ENGINE_OIL_DURATION",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407682",
@@ -3180,9 +2479,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407683",
@@ -3190,9 +2487,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407687",
@@ -3200,18 +2495,14 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21407689",
       "key": "SETTING_FUNC_AUDIO_MEDIA_VOLUME",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140768f",
@@ -3219,9 +2510,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408001",
@@ -3229,9 +2518,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408002",
@@ -3239,9 +2526,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408003",
@@ -3249,9 +2534,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408004",
@@ -3259,9 +2542,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408005",
@@ -3269,9 +2550,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408006",
@@ -3279,9 +2558,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408007",
@@ -3289,9 +2566,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408008",
@@ -3299,9 +2574,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408009",
@@ -3309,9 +2582,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140800a",
@@ -3319,9 +2590,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140800b",
@@ -3329,9 +2598,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140800c",
@@ -3339,9 +2606,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140800d",
@@ -3349,9 +2614,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140800e",
@@ -3359,9 +2622,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140800f",
@@ -3369,9 +2630,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408010",
@@ -3379,9 +2638,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408011",
@@ -3389,18 +2646,14 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408012",
       "key": "PA_VFC_IPW",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408013",
@@ -3408,27 +2661,21 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408014",
       "key": "PA_VFC_S",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408017",
       "key": "PA_VIND",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408018",
@@ -3436,9 +2683,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408019",
@@ -3446,9 +2691,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140801a",
@@ -3456,9 +2699,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140801b",
@@ -3466,9 +2707,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140801c",
@@ -3476,9 +2715,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140801d",
@@ -3486,9 +2723,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140801e",
@@ -3496,9 +2731,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408020",
@@ -3506,9 +2739,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408021",
@@ -3516,9 +2747,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408022",
@@ -3526,108 +2755,84 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408023",
       "key": "D",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408024",
       "key": "H",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408028",
       "key": "T",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408029",
       "key": "T",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140802a",
       "key": "T",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140802b",
       "key": "T",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140802c",
       "key": "T",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140802d",
       "key": "T",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140802e",
       "key": "T",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140802f",
       "key": "V",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408030",
       "key": "V",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408031",
@@ -3635,54 +2840,42 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408032",
       "key": "V",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408033",
       "key": "L",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408034",
       "key": "L",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408036",
       "key": "S",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408037",
       "key": "ADC",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408038",
@@ -3690,9 +2883,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140803f",
@@ -3700,9 +2891,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408040",
@@ -3710,9 +2899,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408041",
@@ -3720,9 +2907,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408045",
@@ -3730,18 +2915,14 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408046",
       "key": "V",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408047",
@@ -3749,9 +2930,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408048",
@@ -3759,9 +2938,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408049",
@@ -3769,9 +2946,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140804a",
@@ -3779,9 +2954,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140804b",
@@ -3789,9 +2962,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140804d",
@@ -3799,9 +2970,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140804e",
@@ -3809,9 +2978,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140804f",
@@ -3819,9 +2986,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408050",
@@ -3829,9 +2994,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408051",
@@ -3839,9 +3002,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408052",
@@ -3849,180 +3010,140 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408053",
       "key": "V",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408054",
       "key": "S",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408055",
       "key": "D",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408056",
       "key": "V",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408058",
       "key": "M",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408059",
       "key": "C",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140805a",
       "key": "F",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140805c",
       "key": "V",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140805d",
       "key": "G",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140805e",
       "key": "T",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140805f",
       "key": "T",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408060",
       "key": "T",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408061",
       "key": "F",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408062",
       "key": "V",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408063",
       "key": "T",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408064",
       "key": "S",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408065",
       "key": "T",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408066",
       "key": "O",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408067",
       "key": "P",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408068",
@@ -4030,207 +3151,161 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408069",
       "key": "D",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140806a",
       "key": "P",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140806b",
       "key": "P",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140806c",
       "key": "R",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140806d",
       "key": "R",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140806e",
       "key": "R",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140806f",
       "key": "R",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408070",
       "key": "R",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408071",
       "key": "R",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408072",
       "key": "P",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408073",
       "key": "A",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408074",
       "key": "S",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408075",
       "key": "I",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408076",
       "key": "I",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408077",
       "key": "I",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408078",
       "key": "I",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140807a",
       "key": "LSDAF",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140807b",
       "key": "O",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140807c",
       "key": "I",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140807d",
       "key": "I",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140807e",
       "key": "O",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140807f",
       "key": "V",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408080",
@@ -4238,225 +3313,175 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408082",
       "key": "O",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408083",
       "key": "O",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408084",
       "key": "O",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408085",
       "key": "S",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408086",
       "key": "I",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408087",
       "key": "I",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408088",
       "key": "I",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408089",
       "key": "I",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140808a",
       "key": "I",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140808b",
       "key": "P",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140808c",
       "key": "PA_C",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140808d",
       "key": "A",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140808e",
       "key": "A",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140808f",
       "key": "A",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408090",
       "key": "A",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408091",
       "key": "A",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408092",
       "key": "A",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408093",
       "key": "A",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408094",
       "key": "A",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408095",
       "key": "C",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408096",
       "key": "A",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408097",
       "key": "A",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408098",
       "key": "C",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21408099",
       "key": "A",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140809a",
@@ -4464,18 +3489,14 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140809b",
       "key": "P",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140809c",
@@ -4483,9 +3504,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140809d",
@@ -4493,9 +3512,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140809e",
@@ -4503,9 +3520,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2140809f",
@@ -4513,18 +3528,14 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214080a0",
       "key": "R",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214080a1",
@@ -4532,18 +3543,14 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214080a2",
       "key": "A",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214080a3",
@@ -4551,27 +3558,21 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214080ac",
       "key": "V",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214080ad",
       "key": "TBAF",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214173ce",
@@ -4579,61 +3580,45 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214174a3",
       "key": "PAS_FUNC_HPA_CAR_CONFIG_HMI_CAR_STATE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x214175ae",
       "key": "FUNC_FAN_TEMPERATURE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21417647",
       "key": "SETTING_FUNC_FAULT_ALARM_LIST",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2141764c",
       "key": "HVAC_FUNC_CLIAMTE_EVENT",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2141767a",
       "key": "SETTING_FUNC_AMBIENCE_MODE_COLOR",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ],
+      "areas": [0],
       "vector": {
         "read": 1,
-        "write": [
-          1,
-          4,
-          5
-        ]
+        "write": [1, 4, 5]
       }
     },
     {
@@ -4641,18 +3626,14 @@
       "key": "SETTING_FUNC_BRIGHTNESS_DIM_WITH_FLAG",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21507364",
       "key": "CHARGE_FUNC_CHARGING_WORK_TIME",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2150765c",
@@ -4660,9 +3641,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21607176",
@@ -4670,288 +3649,224 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2160726f",
       "key": "CHARGE_FUNC_CHARGING_SOC_MAX",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21607270",
       "key": "CHARGE_FUNC_CHARGING_SOC_MIN",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21607271",
       "key": "CHARGE_FUNC_CHARGING_SOC_STEP",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21607272",
       "key": "CHARGE_FUNC_CHARGING_CURRENT",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21607273",
       "key": "CHARGE_FUNC_CHARGING_CURRENT_MAX",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21607274",
       "key": "CHARGE_FUNC_CHARGING_CURRENT_MIN",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21607275",
       "key": "CHARGE_FUNC_CHARGING_CURRENT_STEP",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21607283",
       "key": "CHARGE_FUNC_DISCHARGING_SOC",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2160728b",
       "key": "CHARGE_FUNC_CHARGING_WORK_VOLTAGE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2160728c",
       "key": "CHARGE_FUNC_CHARGING_WORK_CURRENT",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2160728d",
       "key": "CHARGE_FUNC_CHARGING_ESTIMATED_TIME",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2160728e",
       "key": "CHARGE_FUNC_CHARGING_SPEED",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2160728f",
       "key": "CHARGE_FUNC_CHARGING_ENERGY",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21607290",
       "key": "CHARGE_FUNC_DISCHARGING_WORK_VOLTAGE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21607291",
       "key": "CHARGE_FUNC_DISCHARGING_WORK_CURRENT",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21607293",
       "key": "CHARGE_FUNC_DISCHARGING_ENETGY",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x216072cc",
       "key": "SENSOR_TYPE_TEMPERATURE_AMBIENT",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x216072cd",
       "key": "SENSOR_TYPE_TEMPERATURE_INDOOR",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x216072d9",
       "key": "SENSOR_TYPE_ENDURANCE_MILEAGE_FUEL",
       "access": "r",
       "changeMode": "continuous",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x216072da",
       "key": "SENSOR_TYPE_ENDURANCE_MILEAGE_EV",
       "access": "r",
       "changeMode": "continuous",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2160730a",
       "key": "TYPE_MAINTENANCE_MILEAGE",
       "access": "r",
       "changeMode": "continuous",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2160730b",
       "key": "TYPE_MAINTENANCE_TIME",
       "access": "r",
       "changeMode": "continuous",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2160730e",
       "key": "TYPE_EV_BATTERY_PERCENTAGE",
       "access": "r",
       "changeMode": "continuous",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2160730f",
       "key": "TYPE_CHARGING_ENDURANCE_MILEAGE",
       "access": "r",
       "changeMode": "continuous",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21607310",
       "key": "TYPE_DISCHARGING_ENDURANCE_MILEAGE",
       "access": "r",
       "changeMode": "continuous",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21607313",
       "key": "TYPE_FUEL_PERCENTAGE",
       "access": "r",
       "changeMode": "continuous",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21607353",
       "key": "CHARGE_FUNC_DISTANCE_PROTECTION",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2160735d",
       "key": "CHARGE_FUNC_DC_CHARGING_POWER",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21607363",
       "key": "CHARGE_FUNC_BATTERY_CHARGING_CURRENT_POWER",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21607366",
       "key": "CHARGE_FUNC_BATTERY_DISCHARGING_CURRENT_POWER",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2160737b",
       "key": "CHARGE_FUNC_DISCHARGING_WORK_TOTAL",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21607415",
@@ -4959,180 +3874,140 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2160743d",
       "key": "SENSOR_TYPE_TEMPERATURE_GYROSCOPE",
       "access": "r",
       "changeMode": "continuous",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x216074e9",
       "key": "TRIP_ED_DRIVING_ENERGY_FLOW",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x216074ea",
       "key": "TRIP_ED_CLIMATE_ENERGY_FLOW",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x216074eb",
       "key": "TRIP_ED_BATTERY_ENERGY_FLOW",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x216074ec",
       "key": "TRIP_ED_OTHER_ENERGY_FLOW",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2160755e",
       "key": "TRIP_DOT_INTERVAL",
       "access": "r",
       "changeMode": "static",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21607616",
       "key": "TRIP_DOT_INTERVAL1",
       "access": "r",
       "changeMode": "static",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2160762a",
       "key": "SETTING_FUNC_ESTIMD_PWR_SAVE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2160762b",
       "key": "SETTING_FUNC_TOT_PWR_SAVE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21607653",
       "key": "SENSOR_TYPE_EV_BATTERY_TEMP",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2160765f",
       "key": "TRIP_DI_AVG_ELC_CONSUMPTION",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2160767b",
       "key": "TYPE_SINCE_MAINTENANCE_TOTAL_MILEAGE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2160767c",
       "key": "TYPE_SINCE_MAINTENANCE_EV_MILEAGE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2160767d",
       "key": "TYPE_SINCE_MAINTENANCE_FUEL_MILEAGE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2160767e",
       "key": "TYPE_ENGINE_OIL_HEALTH",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2160768a",
       "key": "TRIP_DI_AVG_FUEL_CONSUMPTION",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21608035",
       "key": "S",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21608057",
       "key": "D",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2160805b",
       "key": "V",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2170744a",
@@ -5140,9 +4015,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2170744b",
@@ -5150,9 +4023,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2170744c",
@@ -5160,9 +4031,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2170744d",
@@ -5170,9 +4039,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2170744e",
@@ -5180,9 +4047,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2170744f",
@@ -5190,9 +4055,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21707450",
@@ -5200,9 +4063,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21707451",
@@ -5210,9 +4071,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21707452",
@@ -5220,9 +4079,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21707509",
@@ -5230,9 +4087,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2170750a",
@@ -5240,9 +4095,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2170750d",
@@ -5250,9 +4103,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2170750e",
@@ -5260,9 +4111,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2170751a",
@@ -5270,27 +4119,21 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x217075a7",
       "key": "CARCONFIG_LESS_THAN_1000",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x217075a8",
       "key": "CARCONFIG_GREATER_THAN_1000",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2170766f",
@@ -5298,18 +4141,14 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21708000",
       "key": "PA_P",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21708025",
@@ -5317,9 +4156,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21708026",
@@ -5327,9 +4164,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21708027",
@@ -5337,9 +4172,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21708039",
@@ -5347,9 +4180,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2170803a",
@@ -5357,9 +4188,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2170803b",
@@ -5367,9 +4196,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2170803c",
@@ -5377,9 +4204,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2170803d",
@@ -5387,9 +4212,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2170803e",
@@ -5397,9 +4220,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21708042",
@@ -5407,9 +4228,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21708043",
@@ -5417,9 +4236,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21708044",
@@ -5427,9 +4244,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2170804c",
@@ -5437,9 +4252,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21708081",
@@ -5447,9 +4260,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x217080a4",
@@ -5457,9 +4268,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x217080a5",
@@ -5467,9 +4276,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x217080a6",
@@ -5477,9 +4284,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x217080a7",
@@ -5487,9 +4292,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x217080a8",
@@ -5497,9 +4300,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x217080a9",
@@ -5507,9 +4308,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x217080aa",
@@ -5517,9 +4316,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x217080ab",
@@ -5527,9 +4324,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21e00666",
@@ -5537,9 +4332,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21e01111",
@@ -5547,9 +4340,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21e01112",
@@ -5557,9 +4348,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21e01113",
@@ -5567,9 +4356,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21e01114",
@@ -5577,9 +4364,7 @@
       "access": "w",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21e073f5",
@@ -5587,9 +4372,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21e073f6",
@@ -5597,9 +4380,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21e073f7",
@@ -5607,9 +4388,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21e073f8",
@@ -5617,9 +4396,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x21e073f9",
@@ -5627,37 +4404,28 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2320702f",
       "key": "SETTING_FUNC_WINDSCREEN_SERVICE_POSITION",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        1,
-        2
-      ]
+      "areas": [1, 2]
     },
     {
       "id": "0x23207030",
       "key": "SETTING_FUNC_AUTO_REAR_WIPING",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        2
-      ]
+      "areas": [2]
     },
     {
       "id": "0x23207156",
       "key": "BCM_FUNC_SUNROOF_TILT",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        65536
-      ]
+      "areas": [65536]
     },
     {
       "id": "0x23400103",
@@ -5665,32 +4433,21 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        1,
-        2,
-        65536
-      ]
+      "areas": [1, 2, 65536]
     },
     {
       "id": "0x24207024",
       "key": "SETTING_FUNC_MIRROR_AUTO_FOLDING",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0,
-        3
-      ]
+      "areas": [0, 3]
     },
     {
       "id": "0x2420716d",
       "key": "BCM_FUNC_REAR_MIRROR_ADJUST",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        1,
-        2,
-        3
-      ]
+      "areas": [1, 2, 3]
     },
     {
       "id": "0x24407386",
@@ -5698,39 +4455,28 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        1,
-        2
-      ]
+      "areas": [1, 2]
     },
     {
       "id": "0x2440757b",
       "key": "TRIP_GRAPH_RANGE_OPTION",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        1
-      ]
+      "areas": [1]
     },
     {
       "id": "0x24607306",
       "key": "TYPE_AVG_FUEL_CONSUMPTION",
       "access": "r",
       "changeMode": "continuous",
-      "areas": [
-        1,
-        2
-      ]
+      "areas": [1, 2]
     },
     {
       "id": "0x24607309",
       "key": "TYPE_AVG_ENERGY_CONSUMPTION",
       "access": "r",
       "changeMode": "continuous",
-      "areas": [
-        1,
-        2
-      ]
+      "areas": [1, 2]
     },
     {
       "id": "0x24607384",
@@ -5738,10 +4484,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        1,
-        2
-      ]
+      "areas": [1, 2]
     },
     {
       "id": "0x24607385",
@@ -5749,10 +4492,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        1,
-        2
-      ]
+      "areas": [1, 2]
     },
     {
       "id": "0x24617381",
@@ -5760,9 +4500,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        1
-      ]
+      "areas": [1]
     },
     {
       "id": "0x24617382",
@@ -5770,105 +4508,77 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        1
-      ]
+      "areas": [1]
     },
     {
       "id": "0x25207001",
       "key": "WPC_FUNC_WORK_MODE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        5
-      ]
+      "areas": [5]
     },
     {
       "id": "0x252070b0",
       "key": "HVAC_FUNC_ECO_SWITCH",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        117
-      ]
+      "areas": [117]
     },
     {
       "id": "0x25207227",
       "key": "SETTING_FUNC_EASY_INGRESS_EGRESS",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0,
-        1
-      ]
+      "areas": [0, 1]
     },
     {
       "id": "0x25207524",
       "key": "SETTING_FUNC_ASD_SCREEN_BACKLIGHT_SWITCH",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        16,
-        64
-      ]
+      "areas": [16, 64]
     },
     {
       "id": "0x2520756f",
       "key": "SETTING_FUNC_RSD_SCREEN_BACKLIGHT_SWITCH",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        256,
-        1024
-      ]
+      "areas": [256, 1024]
     },
     {
       "id": "0x2520763c",
       "key": "HVAC_FUNC_AUTO_SEAT_VENTILATION_ICON",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        1,
-        4
-      ]
+      "areas": [1, 4]
     },
     {
       "id": "0x25207657",
       "key": "PROFILE_MEM_ADJUST_STATE",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        1,
-        4
-      ]
+      "areas": [1, 4]
     },
     {
       "id": "0x25407002",
       "key": "WPC_FUNC_CHARGE_STATES",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        5
-      ]
+      "areas": [5]
     },
     {
       "id": "0x254070b5",
       "key": "HVAC_FUNC_AUTO_SEAT_VENTILATION",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        1,
-        4
-      ]
+      "areas": [1, 4]
     },
     {
       "id": "0x254071c3",
       "key": "SETTING_FUNC_AMBIENCE_LIGHT_INTENSITY_SET",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        5
-      ],
+      "areas": [5],
       "min": 0,
       "max": 20,
       "step": 1
@@ -5878,60 +4588,42 @@
       "key": "SETTING_FUNC_SEAT_LEG_SUPPORT_HEIGHT",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        1
-      ]
+      "areas": [1]
     },
     {
       "id": "0x2540723d",
       "key": "SETTING_FUNC_SEAT_LEG_SUPPORT_LENGTH",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        1
-      ]
+      "areas": [1]
     },
     {
       "id": "0x254074ee",
       "key": "SENSOR_SEAT_BELT",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        1,
-        4,
-        16,
-        32,
-        64
-      ]
+      "areas": [1, 4, 16, 32, 64]
     },
     {
       "id": "0x25407500",
       "key": "SETTING_SEAT_OCCUPANCY_STATUS",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        1,
-        4
-      ]
+      "areas": [1, 4]
     },
     {
       "id": "0x2540750c",
       "key": "SETTING_FUNC_BRIGHTNESS",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        2
-      ]
+      "areas": [2]
     },
     {
       "id": "0x2540756a",
       "key": "SETTING_FUNC_SEAT_BACKREST_ANGLE_1_POS",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        1,
-        4
-      ]
+      "areas": [1, 4]
     },
     {
       "id": "0x2540760e",
@@ -5939,9 +4631,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        1
-      ]
+      "areas": [1]
     },
     {
       "id": "0x2540760f",
@@ -5949,19 +4639,14 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        1
-      ]
+      "areas": [1]
     },
     {
       "id": "0x25407611",
       "key": "HVAC_FUNC_HEAT_VENTILATION_POP",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        1,
-        4
-      ]
+      "areas": [1, 4]
     },
     {
       "id": "0x2540763a",
@@ -5969,12 +4654,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        1,
-        4,
-        16,
-        64
-      ]
+      "areas": [1, 4, 16, 64]
     },
     {
       "id": "0x2540763f",
@@ -5982,12 +4662,7 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        1,
-        4,
-        16,
-        64
-      ]
+      "areas": [1, 4, 16, 64]
     },
     {
       "id": "0x25407645",
@@ -5995,21 +4670,14 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        1,
-        4,
-        16,
-        64
-      ]
+      "areas": [1, 4, 16, 64]
     },
     {
       "id": "0x25407673",
       "key": "HVAC_RECIRC_ON_AUTO",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        1
-      ]
+      "areas": [1]
     },
     {
       "id": "0x25600102",
@@ -6017,58 +4685,42 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        49,
-        68
-      ]
+      "areas": [49, 68]
     },
     {
       "id": "0x2560722d",
       "key": "SETTING_FUNC_SEAT_LENGTH_POS",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        1,
-        4
-      ]
+      "areas": [1, 4]
     },
     {
       "id": "0x2560722e",
       "key": "SETTING_FUNC_SEAT_HEIGHT_POS",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        1,
-        4
-      ]
+      "areas": [1, 4]
     },
     {
       "id": "0x25607231",
       "key": "SETTING_FUNC_SEAT_CUSHION_TILT_POS",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        1,
-        4
-      ]
+      "areas": [1, 4]
     },
     {
       "id": "0x2560723e",
       "key": "SETTING_FUNC_SEAT_LEG_SUPPORT_HEIGHT_POS",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        1
-      ]
+      "areas": [1]
     },
     {
       "id": "0x2560723f",
       "key": "SETTING_FUNC_SEAT_LEG_SUPPORT_LENGTH_POS",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        1
-      ]
+      "areas": [1]
     },
     {
       "id": "0x26200101",
@@ -6076,61 +4728,37 @@
       "access": "rw",
       "writeLocked": true,
       "changeMode": "on_change",
-      "areas": [
-        1,
-        4,
-        16,
-        64
-      ]
+      "areas": [1, 4, 16, 64]
     },
     {
       "id": "0x26207192",
       "key": "SETTING_FUNC_DOOR_OPEN_WARN_ACTIVE",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0
-      ]
+      "areas": [0]
     },
     {
       "id": "0x2620725f",
       "key": "SETTING_FUNC_P_GEAR_UNLOCK",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0,
-        85
-      ]
+      "areas": [0, 85]
     },
     {
       "id": "0x2640725b",
       "key": "SETTING_FUNC_TRUNK_OPENING_POSITION",
       "access": "rw",
       "changeMode": "on_change",
-      "areas": [
-        0,
-        536870912
-      ]
+      "areas": [0, 536870912]
     },
     {
       "id": "0x27407449",
       "key": "TIRE_WARNING",
       "access": "r",
       "changeMode": "on_change",
-      "areas": [
-        1,
-        2,
-        4,
-        8
-      ]
+      "areas": [1, 2, 4, 8]
     }
   ],
-  "models": [
-    "p145_eu"
-  ],
-  "profiles": [
-    "phev",
-    "bev",
-    "default"
-  ]
+  "models": ["p145_eu"],
+  "profiles": ["phev", "bev", "default"]
 }

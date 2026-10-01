@@ -21,6 +21,7 @@ import io.ktor.server.cio.CIO
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.plugins.partialcontent.PartialContent
 import io.ktor.server.routing.routing
 import io.ktor.server.websocket.WebSockets
 import java.util.concurrent.atomic.AtomicReference
@@ -82,6 +83,7 @@ class OaaWebServer(
         val server = embeddedServer(CIO, port = port, host = "0.0.0.0") {
             install(ContentNegotiation) { gson() }
             install(WebSockets)
+            install(PartialContent)
             installCarAuth(auth)
             routing {
                 registerStaticRoutes(deps)
@@ -90,6 +92,7 @@ class OaaWebServer(
                 registerEventRoutes(deps)
                 registerStoreRoutes(deps)
                 registerDvrRoutes(deps)
+                registerWebRtcRoutes(deps)
                 registerSoundRoutes(deps)
                 registerDebugRoutes(deps)
                 registerShortcutRoutes(deps)

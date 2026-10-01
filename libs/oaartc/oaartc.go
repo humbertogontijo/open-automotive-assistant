@@ -1,7 +1,7 @@
 // Package oaartc is the car end of the WebRTC media plane (ADR-0003), built on
 // Pion and bound to Kotlin with gomobile. It answers one viewer offer, sends
-// pre-encoded H.264 AccessUnits on a single video track and carries the
-// `oaa-media` data channel.
+// each camera's pre-encoded H.264 AccessUnits on its own video track and
+// carries the `oaa-media` data channel.
 //
 // Pion is pure Go, so the binding has no native dependencies beyond the Go
 // runtime and does not share the org.webrtc namespace that GeckoView embeds.
@@ -11,19 +11,20 @@ import (
 	"encoding/json"
 	"errors"
 	"sync"
-	"time"
 
 	"github.com/pion/interceptor"
 	"github.com/pion/rtcp"
+	"github.com/pion/rtp"
+	"github.com/pion/rtp/codecs"
 	"github.com/pion/webrtc/v4"
-	"github.com/pion/webrtc/v4/pkg/media"
 )
 
 // Listener receives session events. Calls arrive on Go-owned threads.
 type Listener interface {
 	OnLocalCandidate(candidate string, sdpMid string, sdpMLineIndex int)
 	OnConnectionState(state string)
-	OnKeyFrameRequest()
+	// OnKeyFrameRequest reports a viewer PLI/FIR on the track of camera role.
+	OnKeyFrameRequest(role string)
 	OnDataOpen()
 	OnDataMessage(data []byte, binary bool)
 	OnDataClose()
@@ -34,10 +35,20 @@ type Session struct {
 	pc       *webrtc.PeerConnection
 	listener Listener
 	label    string
-	track    *webrtc.TrackLocalStaticSample
 
-	mu sync.Mutex
-	dc *webrtc.DataChannel
+	mu     sync.Mutex
+	dc     *webrtc.DataChannel
+	tracks map[string]*videoTrack
+}
+
+// videoTrack is one camera. RTP timestamps are the capture wall clock in 90 kHz
+// units (mod 2^32), so the viewer can recover each frame's capture time.
+type videoTrack struct {
+	role  string
+	track *webrtc.TrackLocalStaticRTP
+
+	mu         sync.Mutex
+	packetizer rtp.Packetizer
 }
 
 type iceServer struct {
@@ -46,12 +57,18 @@ type iceServer struct {
 	Credential string `json:"credential"`
 }
 
-// H264 constrained baseline 3.1, the mosaic encoder's profile.
+// H264 constrained baseline 3.1, the camera encoders' profile.
 const h264Fmtp = "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f"
 
-// NewSession creates a PeerConnection. iceServersJSON is the RTCIceServer array the
-// hub injects into the offer; dataLabel is the only data channel label accepted.
-func NewSession(iceServersJSON string, dataLabel string, listener Listener) (*Session, error) {
+// StreamPrefix prefixes each track's MediaStream id; the viewer reads the role from it.
+const StreamPrefix = "oaa-cam-"
+
+const rtpMTU = 1200
+
+// NewSession creates a PeerConnection. iceServersJSON is the RTCIceServer array
+// (empty on the LAN); dataLabel is the only data channel label accepted. loopback
+// adds 127.0.0.1 candidates for a viewer on the head unit itself.
+func NewSession(iceServersJSON string, dataLabel string, loopback bool, listener Listener) (*Session, error) {
 	if listener == nil {
 		return nil, errors.New("listener required")
 	}
@@ -77,7 +94,9 @@ func NewSession(iceServersJSON string, dataLabel string, listener Listener) (*Se
 	if err := webrtc.RegisterDefaultInterceptors(me, ir); err != nil {
 		return nil, err
 	}
-	api := webrtc.NewAPI(webrtc.WithMediaEngine(me), webrtc.WithInterceptorRegistry(ir))
+	se := webrtc.SettingEngine{}
+	se.SetIncludeLoopbackCandidate(loopback)
+	api := webrtc.NewAPI(webrtc.WithMediaEngine(me), webrtc.WithInterceptorRegistry(ir), webrtc.WithSettingEngine(se))
 	pc, err := api.NewPeerConnection(webrtc.Configuration{
 		ICEServers:    servers,
 		BundlePolicy:  webrtc.BundlePolicyMaxBundle,
@@ -86,7 +105,7 @@ func NewSession(iceServersJSON string, dataLabel string, listener Listener) (*Se
 	if err != nil {
 		return nil, err
 	}
-	s := &Session{pc: pc, listener: listener, label: dataLabel}
+	s := &Session{pc: pc, listener: listener, label: dataLabel, tracks: map[string]*videoTrack{}}
 	pc.OnICECandidate(func(c *webrtc.ICECandidate) {
 		if c == nil {
 			return
@@ -159,25 +178,46 @@ func (s *Session) onDataChannel(dc *webrtc.DataChannel) {
 	})
 }
 
-// Answer applies the viewer's offer and returns the local answer SDP. Candidates
-// trickle through Listener.OnLocalCandidate. With live set, a send-only H.264 track
-// answers the offer's video m-line.
-func (s *Session) Answer(offerSDP string, live bool) (string, error) {
-	if live {
-		track, err := webrtc.NewTrackLocalStaticSample(
-			webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeH264, ClockRate: 90000, SDPFmtpLine: h264Fmtp},
-			"oaa-mosaic", "oaa",
-		)
-		if err != nil {
-			return "", err
-		}
-		sender, err := s.pc.AddTrack(track)
-		if err != nil {
-			return "", err
-		}
-		s.track = track
-		go s.readRTCP(sender)
+// AddVideoTrack adds a send-only H.264 track for camera role, in MediaStream
+// StreamPrefix+role. Call before Answer, at most once per offered video m-line.
+func (s *Session) AddVideoTrack(role string) error {
+	if role == "" {
+		return errors.New("role required")
 	}
+	s.mu.Lock()
+	_, dup := s.tracks[role]
+	s.mu.Unlock()
+	if dup {
+		return errors.New("track exists: " + role)
+	}
+	track, err := webrtc.NewTrackLocalStaticRTP(
+		webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeH264, ClockRate: 90000, SDPFmtpLine: h264Fmtp},
+		"video-"+role, StreamPrefix+role,
+	)
+	if err != nil {
+		return err
+	}
+	sender, err := s.pc.AddTrack(track)
+	if err != nil {
+		return err
+	}
+	vt := &videoTrack{
+		role:  role,
+		track: track,
+		// Payload type and SSRC are rewritten per binding by TrackLocalStaticRTP.
+		packetizer: rtp.NewPacketizer(rtpMTU, 0, 0, &codecs.H264Payloader{}, rtp.NewRandomSequencer(), 90000),
+	}
+	s.mu.Lock()
+	s.tracks[role] = vt
+	s.mu.Unlock()
+	go s.readRTCP(sender, role)
+	return nil
+}
+
+// Answer applies the viewer's offer and returns the local answer SDP. Candidates
+// trickle through Listener.OnLocalCandidate. Tracks added with AddVideoTrack answer
+// the offer's video m-lines in order.
+func (s *Session) Answer(offerSDP string) (string, error) {
 	if err := s.pc.SetRemoteDescription(webrtc.SessionDescription{Type: webrtc.SDPTypeOffer, SDP: offerSDP}); err != nil {
 		return "", err
 	}
@@ -191,7 +231,7 @@ func (s *Session) Answer(offerSDP string, live bool) (string, error) {
 	return answer.SDP, nil
 }
 
-func (s *Session) readRTCP(sender *webrtc.RTPSender) {
+func (s *Session) readRTCP(sender *webrtc.RTPSender, role string) {
 	for {
 		pkts, _, err := sender.ReadRTCP()
 		if err != nil {
@@ -200,7 +240,7 @@ func (s *Session) readRTCP(sender *webrtc.RTPSender) {
 		for _, p := range pkts {
 			switch p.(type) {
 			case *rtcp.PictureLossIndication, *rtcp.FullIntraRequest:
-				s.listener.OnKeyFrameRequest()
+				s.listener.OnKeyFrameRequest(role)
 			}
 		}
 	}
@@ -216,12 +256,31 @@ func (s *Session) AddRemoteCandidate(candidate string, sdpMid string, sdpMLineIn
 	return s.pc.AddICECandidate(init)
 }
 
-// WriteSample sends one Annex-B AccessUnit lasting durationUs on the live track.
-func (s *Session) WriteSample(annexB []byte, durationUs int64) error {
-	if s.track == nil {
-		return errors.New("no live track")
+// RTPTimestamp maps a capture wall-clock time (ms since the epoch) to the 90 kHz
+// RTP timestamp written on the wire.
+func RTPTimestamp(captureUtcMs int64) int64 {
+	return int64(uint32(uint64(captureUtcMs) * 90))
+}
+
+// WriteSample sends one Annex-B AccessUnit of camera role captured at captureUtcMs.
+func (s *Session) WriteSample(role string, annexB []byte, captureUtcMs int64) error {
+	s.mu.Lock()
+	vt := s.tracks[role]
+	s.mu.Unlock()
+	if vt == nil {
+		return errors.New("no track: " + role)
 	}
-	return s.track.WriteSample(media.Sample{Data: annexB, Duration: time.Duration(durationUs) * time.Microsecond})
+	ts := uint32(RTPTimestamp(captureUtcMs))
+	vt.mu.Lock()
+	pkts := vt.packetizer.Packetize(annexB, 0)
+	vt.mu.Unlock()
+	for _, p := range pkts {
+		p.Timestamp = ts
+		if err := vt.track.WriteRTP(p); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Session) channel() (*webrtc.DataChannel, error) {

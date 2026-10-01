@@ -27,7 +27,7 @@ class Fmp4FileStreamer(private val file: File) : Closeable {
     data class Fragment(val data: ByteArray, val endMs: Long)
 
     private val extractor = MediaExtractor()
-    private var muxer: Fmp4LiveMuxer? = null
+    private var muxer: Fmp4Muxer? = null
     private var buffer: ByteBuffer = ByteBuffer.allocateDirect(512 * 1024)
     private var lastSeq = 0L
     private var held: ByteArray? = null
@@ -54,7 +54,7 @@ class Fmp4FileStreamer(private val file: File) : Closeable {
         runCatching { format.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE) }.getOrNull()
             ?.takeIf { it > buffer.capacity() }?.let { buffer = ByteBuffer.allocateDirect(it) }
 
-        val m = Fmp4LiveMuxer(width, height, timescale = 1000)
+        val m = Fmp4Muxer(width, height, timescale = 1000)
         m.setParameterSets(sps, pps)
         val init = m.initSegment() ?: error("invalid SPS/PPS")
         muxer = m
@@ -78,7 +78,7 @@ class Fmp4FileStreamer(private val file: File) : Closeable {
         }
     }
 
-    private fun readOne(m: Fmp4LiveMuxer) {
+    private fun readOne(m: Fmp4Muxer) {
         val pts = extractor.sampleTime
         if (pts < 0) {
             held?.let { m.onSample(it, heldKey, frameUs / 1000L) }

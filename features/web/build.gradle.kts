@@ -74,6 +74,7 @@ dependencies {
     implementation(libs.ktor.server.content.negotiation)
     implementation(libs.ktor.serialization.gson)
     implementation(libs.ktor.server.websockets)
+    implementation(libs.ktor.server.partial.content)
     implementation(libs.ktor.server.status.pages)
     implementation(libs.okhttp)
     // ADR-0003 media plane: Pion (pure Go) via gomobile, built by :oaartc. Not libwebrtc,
