@@ -1,7 +1,11 @@
 /**
  * Camera media plane (ADR-0003): one RTCPeerConnection per car carrying one
  * H.264 track per camera (MediaStream id `oaa-cam-<role>`) and the `oaa-media`
- * data channel (car clock, fMP4 playback into MSE, downloads, cuts).
+ * data channel (car clock, camera selection, replay control, downloads, cuts).
+ *
+ * Recordings play on the same tracks as live: `replay_*` asks the car to stream
+ * them instead, in step across cameras. RTP time keeps following the car clock;
+ * `replay_state` anchors map it back to each frame's capture time.
  *
  * Signaling goes to the car's own /api/webrtc/signal when the UI is served by
  * the car (session.role "local") or to the hub's /api/webrtc/signal?node= when
@@ -11,8 +15,7 @@ import { session } from "../store.js";
 import { api } from "../api.js";
 import { wsUrl } from "../base.js";
 import { t } from "../i18n.js";
-import { MsePlayback } from "./mse-playback.js";
-import { unwrapRtpMs } from "./camera-stamp.js";
+import { unwrapRtpMs, wallFromRtp } from "./camera-stamp.js";
 
 const V = 1;
 const DC_LABEL = "oaa-media";
@@ -25,6 +28,8 @@ const CONNECT_TIMEOUT_MS = 20000;
 const PING_MS = 25000;
 const CLOCK_SAMPLES = 5;
 const CLOCK_RESYNC_MS = 60000;
+/** Frames still on screen can belong to a few epochs back. */
+const MAX_ANCHORS = 8;
 /** Car→viewer frames on /api/webrtc/signal; `pong` and anything else is unversioned. */
 const SIGNAL_TYPES = ["webrtc_answer", "webrtc_ice", "webrtc_hangup"];
 
@@ -53,6 +58,8 @@ let lastFailKey = "";
 let wantedRoles = null;
 /** @type {Set<(info: {roles: string[], streaming: string[], cameras: string[]}) => void>} */
 const liveListeners = new Set();
+/** @type {Set<(state: any) => void>} */
+const replayListeners = new Set();
 
 function isCurrentVersion(p) {
   return !!p && p.v === V;
@@ -124,6 +131,8 @@ class MediaSession {
     this.clockBestRtt = Infinity;
     this.livePaused = false;
     this._hello = null;
+    /** @type {import("./camera-stamp.js").ReplayAnchor[]} sorted by fromRtpMs */
+    this.anchors = [{ fromRtpMs: 0, live: true }];
   }
 
   has(feature) {
@@ -335,6 +344,15 @@ class MediaSession {
         emitLiveTracks(this);
         return;
       }
+      if (m.type === "replay_state") {
+        this._addAnchor(m.anchor);
+        replayListeners.forEach(function (fn) {
+          try {
+            fn(m);
+          } catch (e) {}
+        });
+        return;
+      }
       const tr = this.transfers.get(m.reqId);
       if (!tr) return;
       if (m.type === "media_meta") {
@@ -393,16 +411,35 @@ class MediaSession {
     return Date.now() + this.clockOffsetMs;
   }
 
-  /** Wall-clock capture time of the frame on screen for `role`. */
-  liveWallMs(role, rtpTimestamp) {
+  _addAnchor(a) {
+    if (!a || !(Number(a.fromRtpMs) >= 0)) return;
+    const from = Number(a.fromRtpMs);
+    const list = this.anchors.filter(function (x) {
+      return x.fromRtpMs !== from;
+    });
+    list.push({
+      fromRtpMs: from,
+      live: !!a.live,
+      rtpMs: Number(a.rtpMs) || 0,
+      wallMs: Number(a.wallMs) || 0,
+      speed: Number(a.speed) || 1,
+    });
+    list.sort(function (x, y) {
+      return x.fromRtpMs - y.fromRtpMs;
+    });
+    this.anchors = list.slice(-MAX_ANCHORS);
+  }
+
+  /** Capture time (wall UTC ms) of the frame on screen for `role`, live or replayed; 0 if unknown. */
+  frameWallMs(role, rtpTimestamp) {
     let ts = rtpTimestamp;
     if (ts == null) {
       const rx = this.receivers.get(role);
       const srcs = rx && typeof rx.getSynchronizationSources === "function" ? rx.getSynchronizationSources() : [];
       if (srcs && srcs.length && srcs[0].rtpTimestamp != null) ts = srcs[0].rtpTimestamp;
     }
-    const now = this.carNow();
-    return ts == null ? now : unwrapRtpMs(ts, now);
+    if (ts == null) return 0;
+    return wallFromRtp(unwrapRtpMs(ts, this.carNow()), this.anchors);
   }
 
   // --- requests -----------------------------------------------------------------
@@ -615,10 +652,6 @@ function closeCurrent() {
 
 export function hangupMediaSession() {
   wantedRoles = null;
-  playbacks.forEach(function (pb) {
-    pb.close();
-  });
-  playbacks.clear();
   closeCurrent();
 }
 
@@ -637,10 +670,10 @@ export function maxCutMs() {
   return (current && current.hello && Number(current.hello.maxCutMs)) || 10 * 60 * 1000;
 }
 
-// --- live -------------------------------------------------------------------
+// --- camera tracks (live or replay) -----------------------------------------
 
-/** Tell the car which cameras to send (the rest stay idle). */
-export function selectLive(roles) {
+/** Tell the car which cameras to send, live or replayed (the rest stay idle). */
+export function selectCameras(roles) {
   wantedRoles = roles.slice();
   const s = current;
   if (s && !s.closed && s.hello) {
@@ -650,15 +683,19 @@ export function selectLive(roles) {
 }
 
 /**
+ * Show `role`'s track in `video`; it carries live video or a replay, whichever the car sends.
  * @param {string} role
  * @param {HTMLVideoElement} video
+ * @param {() => boolean} [stillWanted] checked after the waits; the tile may be gone or hidden by then
+ * @returns {Promise<boolean>} false when `stillWanted` declined
  */
-export async function attachLive(role, video) {
+export async function attachCamera(role, video, stillWanted) {
   const s = await getMediaSession();
   if (!s.has("live")) throw new Error("Live video is not available on this car");
   if (s.tracks.roles.length && s.tracks.roles.indexOf(role) < 0) throw new Error("No live track for this camera");
   s.resumeLive();
   const stream = await s.waitStream(role, 10000);
+  if (stillWanted && !stillWanted()) return false;
   if (video.srcObject !== stream) {
     try {
       video.removeAttribute("src");
@@ -672,8 +709,8 @@ export async function attachLive(role, video) {
   return true;
 }
 
-/** Detach a live track from its <video>; keeps the session. */
-export function detachLive(video) {
+/** Detach a camera track from its <video>; keeps the session. */
+export function detachCamera(video) {
   if (video && video.srcObject) {
     try {
       video.pause();
@@ -682,11 +719,11 @@ export function detachLive(video) {
   }
 }
 
-/** Wall-clock capture time of the live frame (rVFC `metadata.rtpTimestamp` when available). */
-export function liveFrameWallMs(role, rtpTimestamp) {
+/** Capture time of the frame on screen (rVFC `metadata.rtpTimestamp` when available); 0 if unknown. */
+export function frameWallMs(role, rtpTimestamp) {
   const s = current;
-  if (!s || s.closed) return Date.now();
-  return s.liveWallMs(role, rtpTimestamp);
+  if (!s || s.closed) return 0;
+  return s.frameWallMs(role, rtpTimestamp);
 }
 
 document.addEventListener("visibilitychange", function () {
@@ -708,40 +745,68 @@ export async function cutRemote(role, fromMs, toMs, onProgress) {
   return s.transferFile({ type: "cut_request", role: role, fromMs: fromMs, toMs: toMs }, onProgress);
 }
 
-// --- playback (fMP4 → MSE) ---------------------------------------------------
-
-/** @type {Map<HTMLVideoElement, MsePlayback>} */
-const playbacks = new Map();
+// --- replay -------------------------------------------------------------------
 
 /**
- * @param {HTMLVideoElement} video
- * @param {string} name recording basename
- * @param {number} offsetMs media offset inside the recording
- * @param {(e: Error) => void} [onError]
+ * `replay_state` from the car: `{state, atMs, speed, group?, groupStartUtcMs?, groupEndUtcMs?,
+ * roles, anchor, error?}`; state is playing / paused / ended / live / error.
+ * @param {(state: any) => void} fn
+ * @returns {() => void} unsubscribe
  */
-export async function playRecordingRemote(video, name, offsetMs, onError) {
-  stopRemotePlayback(video);
-  const s = await getMediaSession();
-  if (!s.has("playback")) throw new Error("Playback is not available on this car");
-  if (s.hello.playbackContainer && s.hello.playbackContainer !== "fmp4") {
-    throw new Error("Unsupported playback container " + s.hello.playbackContainer);
-  }
-  const pb = new MsePlayback(s, video, s.allocReq(), onError);
-  playbacks.set(video, pb);
-  pb.start(name, offsetMs);
-  return pb;
+export function onReplayState(fn) {
+  replayListeners.add(fn);
+  return function () {
+    replayListeners.delete(fn);
+  };
 }
 
-/** Stop playback on `video`, or on every video when omitted. */
-export function stopRemotePlayback(video) {
-  if (video) {
-    const pb = playbacks.get(video);
-    playbacks.delete(video);
-    if (pb) pb.close();
-    return;
-  }
-  playbacks.forEach(function (pb) {
-    pb.close();
-  });
-  playbacks.clear();
+async function replaySession() {
+  const s = await getMediaSession();
+  if (!s.has("replay")) throw new Error("Recording playback is not available on this car — update the car app");
+  return s;
+}
+
+/**
+ * Switch the camera tracks from live to recordings at wall `atMs` (a seek when already replaying).
+ * @param {number} atMs
+ * @param {number} speed
+ * @param {boolean} paused
+ * @param {() => boolean} [stillWanted] checked once connected
+ * @returns {Promise<boolean>} false when `stillWanted` declined
+ */
+export async function replayStart(atMs, speed, paused, stillWanted) {
+  const s = await replaySession();
+  if (stillWanted && !stillWanted()) return false;
+  s.send({ type: "replay_start", atMs: Math.floor(atMs), speed: speed, paused: !!paused });
+  return true;
+}
+
+/** Commands for a running replay; no-ops without a session. */
+function replaySend(msg) {
+  const s = current;
+  if (!s || s.closed || !s.hello) return;
+  try {
+    s.send(msg);
+  } catch (e) {}
+}
+
+export function replaySeek(atMs) {
+  replaySend({ type: "replay_seek", atMs: Math.floor(atMs) });
+}
+
+export function replayPause() {
+  replaySend({ type: "replay_pause" });
+}
+
+export function replayResume() {
+  replaySend({ type: "replay_resume" });
+}
+
+export function replaySpeed(speed) {
+  replaySend({ type: "replay_speed", speed: speed });
+}
+
+/** Back to live on the same tracks. */
+export function replayStop() {
+  replaySend({ type: "replay_stop" });
 }

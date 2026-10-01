@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { fmtStamp, unwrapRtpMs } from "../src/ui/camera-stamp.js";
+import { fmtStamp, unwrapRtpMs, wallFromRtp } from "../src/ui/camera-stamp.js";
 import { orderRoles } from "../src/ui/dvr-timeline.js";
 
 const PERIOD = 4294967296 / 90;
@@ -22,6 +22,21 @@ test("unwrapRtpMs picks the nearest period across a wrap", () => {
   const after = wrap + 40;
   assert.ok(Math.abs(unwrapRtpMs(rtpOf(before), after) - before) < 1);
   assert.ok(Math.abs(unwrapRtpMs(rtpOf(after), before) - after) < 1);
+});
+
+test("wallFromRtp maps replay frames through their epoch's anchor", () => {
+  const now = 1_790_000_000_000;
+  const anchors = [
+    { fromRtpMs: 0, live: true },
+    { fromRtpMs: now - 5_000, rtpMs: now - 5_000, wallMs: 1_789_000_000_000, speed: 1 },
+    { fromRtpMs: now, rtpMs: now + 20, wallMs: 1_788_000_000_000, speed: 2 },
+    { fromRtpMs: now + 60_000, live: true },
+  ];
+  assert.equal(wallFromRtp(now - 10_000, anchors), now - 10_000);
+  assert.equal(wallFromRtp(now - 1_000, anchors), 1_789_000_004_000);
+  assert.equal(wallFromRtp(now + 520, anchors), 1_788_000_001_000);
+  assert.equal(wallFromRtp(now + 60_500, anchors), now + 60_500);
+  assert.equal(wallFromRtp(123, []), 123);
 });
 
 test("fmtStamp matches the exported burn-in format", () => {

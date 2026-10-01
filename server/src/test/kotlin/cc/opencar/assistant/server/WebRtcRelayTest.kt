@@ -221,7 +221,7 @@ class WebRtcRelayTest {
         val bytes = OaaMediaChunk.encode(
             reqId = 0xFFFF_FFF0L,
             seq = 7,
-            flags = OaaMediaChunk.FLAG_INIT or OaaMediaChunk.FLAG_EOF,
+            flags = OaaMediaChunk.FLAG_EOF,
             payload = payload,
             offset = 10,
             length = 500,
@@ -233,7 +233,6 @@ class WebRtcRelayTest {
         assertEquals(OaaMediaChunk.TYPE_CHUNK, f.type)
         assertEquals(0xFFFF_FFF0L, f.reqId)
         assertEquals(7L, f.seq)
-        assertTrue(f.isInit)
         assertTrue(f.isEof)
         assertArrayEquals(payload.copyOfRange(10, 510), f.payload)
         assertNull(OaaMediaChunk.decode(ByteArray(3)))
@@ -243,25 +242,21 @@ class WebRtcRelayTest {
     }
 
     @Test
-    fun fmp4InitThenFragmentsHappyPath() {
-        val init = byteArrayOf(0, 0, 0, 8) + "ftyp".toByteArray()
-        val frag = ByteArray(OaaWebRtc.CHUNK_MAX_BYTES + 100) { 1 }
+    fun largeTransferSplitsIntoSequencedChunks() {
+        val body = ByteArray(OaaWebRtc.CHUNK_MAX_BYTES + 100) { 1 }
         val frames = ArrayList<ByteArray>()
-        frames += OaaMediaChunk.encode(3, 0, OaaMediaChunk.FLAG_INIT, init)
-        var seq = 1L
+        var seq = 0L
         var off = 0
-        while (off < frag.size) {
-            val n = minOf(OaaWebRtc.CHUNK_MAX_BYTES, frag.size - off)
-            val last = off + n >= frag.size
-            frames += OaaMediaChunk.encode(3, seq++, if (last) OaaMediaChunk.FLAG_EOF else 0, frag, off, n)
+        while (off < body.size) {
+            val n = minOf(OaaWebRtc.CHUNK_MAX_BYTES, body.size - off)
+            val last = off + n >= body.size
+            frames += OaaMediaChunk.encode(3, seq++, if (last) OaaMediaChunk.FLAG_EOF else 0, body, off, n)
             off += n
         }
         val decoded = frames.map { OaaMediaChunk.decode(it)!! }
-        assertTrue(decoded.first().isInit)
         assertTrue(decoded.last().isEof)
-        assertEquals(listOf(0L, 1L, 2L), decoded.map { it.seq })
-        val body = decoded.drop(1).fold(ByteArray(0)) { acc, f -> acc + f.payload }
-        assertArrayEquals(frag, body)
+        assertEquals(listOf(0L, 1L), decoded.map { it.seq })
+        assertArrayEquals(body, decoded.fold(ByteArray(0)) { acc, f -> acc + f.payload })
     }
 
     @Test

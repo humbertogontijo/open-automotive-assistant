@@ -47,10 +47,12 @@ class CarWebRtc(private val dvr: DvrController) {
         var iceState = ""
         @Volatile var closed = false
         @Volatile var paused = false
-        /** Roles the viewer wants live. */
+        /** Roles the viewer shows (live, or replayed while [replay] runs). */
         @Volatile var wanted: Set<String> = emptySet()
         /** Roles with a hub seat and tap; confined to [liveExec]. */
         val held = LinkedHashSet<String>()
+        /** Recordings playing on the tracks instead of live; set on [exec]. */
+        @Volatile var replay: ReplaySession? = null
     }
 
     fun onSignal(frame: JSONObject, origin: Origin, sink: SignalSink) {
@@ -172,7 +174,58 @@ class CarWebRtc(private val dvr: DvrController) {
 
     private fun select(s: Session, roles: Collection<String>) {
         s.wanted = roles.filter { it in s.sources }.toSet()
+        s.replay?.setRoles(s.wanted)
         liveExec.execute { reconcile(s) }
+    }
+
+    /** `replay_*` from the viewer; runs on [exec]. */
+    private fun onReplay(s: Session, type: String, msg: JSONObject) {
+        if (s.closed) return
+        val speed = msg.optDouble("speed", Double.NaN).takeIf { it.isFinite() && it > 0 }
+        when (type) {
+            OaaWebRtc.REPLAY_START -> {
+                val r = s.replay ?: startReplay(s) ?: return
+                speed?.let { r.setSpeed(it) }
+                r.seek(msg.optLong("atMs"), msg.optBoolean("paused", false))
+            }
+            OaaWebRtc.REPLAY_SEEK -> s.replay?.seek(msg.optLong("atMs"), paused = null)
+            OaaWebRtc.REPLAY_PAUSE -> s.replay?.pause()
+            OaaWebRtc.REPLAY_RESUME -> s.replay?.resume()
+            OaaWebRtc.REPLAY_SPEED -> speed?.let { s.replay?.setSpeed(it) }
+            OaaWebRtc.REPLAY_STOP -> stopReplay(s, notify = true)
+        }
+    }
+
+    private fun startReplay(s: Session): ReplaySession? {
+        val rtc = s.rtc ?: return null
+        val r = ReplaySession(
+            dvr,
+            s.wanted.ifEmpty { s.sources.keys },
+            write = { role, data, rtpMs -> runCatching { rtc.writeSample(role, data, rtpMs) }.isSuccess },
+            onState = { msg -> s.media?.sendEvent(msg) },
+        )
+        s.replay = r
+        r.start()
+        liveExec.execute { reconcile(s) }
+        LogRingBuffer.append("WebRTC session ${s.id} replay started")
+        return r
+    }
+
+    /** Back to live: live frames resume only after the replay's last RTP time on every track. */
+    private fun stopReplay(s: Session, notify: Boolean) {
+        val r = s.replay ?: return
+        s.replay = null
+        val floor = r.stop()
+        s.sources.values.forEach { it.minCaptureUtcMs = floor }
+        liveExec.execute { reconcile(s) }
+        if (notify) {
+            s.media?.sendEvent(
+                OaaFrames.versioned()
+                    .put("type", OaaWebRtc.REPLAY_STATE)
+                    .put("state", "live")
+                    .put("anchor", JSONObject().put("fromRtpMs", floor).put("live", true)),
+            )
+        }
     }
 
     private fun setPaused(s: Session, paused: Boolean) {
@@ -182,7 +235,7 @@ class CarWebRtc(private val dvr: DvrController) {
 
     /** Bring the session's seats and taps in line with what it wants; runs on [liveExec]. */
     private fun reconcile(s: Session) {
-        val want = if (s.closed) emptySet() else s.wanted
+        val want = if (s.closed || s.replay != null) emptySet() else s.wanted
         val drop = s.held - want
         if (drop.isNotEmpty()) {
             drop.forEach { role -> s.sources[role]?.let { dvr.removeLiveTap(role, it) } }
@@ -219,7 +272,7 @@ class CarWebRtc(private val dvr: DvrController) {
         }
 
         override fun onKeyFrameRequest(role: String) {
-            s.sources[role]?.requestKeyFrame()
+            if (s.replay == null) s.sources[role]?.requestKeyFrame()
         }
 
         override fun onDataOpen() {
@@ -244,6 +297,7 @@ class CarWebRtc(private val dvr: DvrController) {
         override val roles: List<String> get() = s.sources.keys.toList()
         override fun setPaused(paused: Boolean) = exec.execute { setPaused(s, paused) }
         override fun select(roles: Collection<String>) = exec.execute { if (!s.closed) select(s, roles) }
+        override fun replay(type: String, msg: JSONObject) = exec.execute { onReplay(s, type, msg) }
     }
 
     private fun onIceState(s: Session, state: String) {
@@ -265,6 +319,7 @@ class CarWebRtc(private val dvr: DvrController) {
         s.closed = true
         sessions.remove(s.id, s)
         if (notify) s.sink.send(OaaFrames.hangup(s.id, reason))
+        stopReplay(s, notify = false)
         s.media?.close()
         s.sources.values.forEach { it.dispose() }
         runCatching { s.rtc?.close() }

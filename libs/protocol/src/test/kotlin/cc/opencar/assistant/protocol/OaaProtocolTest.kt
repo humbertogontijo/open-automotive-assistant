@@ -92,7 +92,6 @@ class OaaProtocolTest {
         assertEquals(0xFFFF_FFFFL, f.reqId)
         assertEquals(3L, f.seq)
         assertTrue(f.isEof)
-        assertFalse(f.isInit)
         assertArrayEquals(payload.copyOfRange(100, 150), f.payload)
         assertNull(OaaMediaChunk.decode(ByteArray(3)))
     }

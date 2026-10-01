@@ -325,25 +325,39 @@ object OaaWebRtc {
 
     const val DC_LABEL = "oaa-media"
     const val CHUNK_MAX_BYTES = 262_144
-    /** Four per-camera playbacks plus a download and a cut. */
-    const val MAX_TRANSFERS = 6
+    /** A recording download and a cut. */
+    const val MAX_TRANSFERS = 2
     /** One live track per camera; the viewer offers this many recvonly video m-lines. */
     const val MAX_VIDEO_TRACKS = 4
     /** MediaStream id of a camera's live track is this prefix plus its role. */
     const val STREAM_PREFIX = "oaa-cam-"
     /** Per-session cap on relayed ICE candidates (each direction). */
     const val MAX_ICE_PER_SESSION = 128
-    const val PLAYBACK_CONTAINER = "fmp4"
 
     const val FEATURE_LIVE = "live"
-    const val FEATURE_PLAYBACK = "playback"
+    const val FEATURE_REPLAY = "replay"
     const val FEATURE_DOWNLOAD = "download"
     const val FEATURE_CUT = "cut"
 
     const val DC_HELLO = "dc_hello"
-    const val PLAYBACK_OPEN = "playback_open"
-    const val PLAYBACK_SEEK = "playback_seek"
-    const val PLAYBACK_CLOSE = "playback_close"
+    /**
+     * SPA→car: replay recordings on the camera tracks instead of live.
+     * `replay_start {atMs, speed?, paused?}`, `replay_seek {atMs}`, `replay_pause`,
+     * `replay_resume`, `replay_speed {speed}`, `replay_stop` (back to live).
+     * The cameras replayed are the ones chosen with [LIVE_SELECT].
+     */
+    const val REPLAY_START = "replay_start"
+    const val REPLAY_SEEK = "replay_seek"
+    const val REPLAY_PAUSE = "replay_pause"
+    const val REPLAY_RESUME = "replay_resume"
+    const val REPLAY_SPEED = "replay_speed"
+    const val REPLAY_STOP = "replay_stop"
+    /**
+     * Car→SPA `{state, atMs, speed, group?, roles, anchor}`; state is playing / paused /
+     * ended / live / error. A frame with RTP time r ≥ `anchor.fromRtpMs` was captured at
+     * `anchor.wallMs + (r - anchor.rtpMs) × anchor.speed` (`anchor.live`: at r itself).
+     */
+    const val REPLAY_STATE = "replay_state"
     const val DOWNLOAD_OPEN = "download_open"
     const val CUT_REQUEST = "cut_request"
     /** Car→SPA text companion to binary chunks: size / mime / name / codec for a reqId. */
@@ -374,7 +388,6 @@ object OaaWebRtc {
 object OaaMediaChunk {
     const val TYPE_CHUNK: Int = 1
     const val FLAG_EOF: Int = 0x01
-    const val FLAG_INIT: Int = 0x02
     const val HEADER_BYTES = 10
 
     class Frame(
@@ -385,7 +398,6 @@ object OaaMediaChunk {
         val payload: ByteArray,
     ) {
         val isEof: Boolean get() = flags and FLAG_EOF != 0
-        val isInit: Boolean get() = flags and FLAG_INIT != 0
     }
 
     fun encode(

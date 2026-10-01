@@ -193,4 +193,13 @@ class DvrGroupStorageTest {
             deleted,
         )
     }
+
+    @Test
+    fun fourCamerasAt720pKeepTwentyMinutesIn512Mb() {
+        val totalBps = 4L * CameraEncoderSession.bitrateFor(1280, 720)
+        val seconds = 512L * 1024 * 1024 * 8 / totalBps
+        assertTrue("only ${seconds}s of footage", seconds >= 20 * 60)
+        assertTrue(CameraEncoderSession.bitrateFor(640, 480) >= 250_000)
+        assertTrue(CameraEncoderSession.bitrateFor(1920, 1080) <= 1_000_000)
+    }
 }

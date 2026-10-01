@@ -27,8 +27,11 @@ class PassThroughH264Source(
             if (!value) restart()
         }
 
+    /** Frames captured before this are dropped: a replay already used RTP times up to it on this track. */
+    @Volatile var minCaptureUtcMs: Long = 0L
+
     override fun onSample(unit: H264Encoder.AccessUnit) {
-        if (paused || disposed) return
+        if (paused || disposed || unit.captureUtcMs < minCaptureUtcMs) return
         synchronized(lock) {
             if (waitingForKey) {
                 if (!unit.isKeyFrame) return

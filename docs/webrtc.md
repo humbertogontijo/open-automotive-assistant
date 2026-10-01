@@ -17,7 +17,7 @@ Each camera's track belongs to the MediaStream `oaa-cam-<role>` (`front`, `right
 | Feature | Transport | Car side |
 |---|---|---|
 | Live | One H.264 RTP track per camera | That camera's encoder output, passed through without re-encoding. RTP timestamp = capture UTC ms × 90 (mod 2³²) |
-| Playback / scrub | Data channel → MSE (hub); HTTP Range (car) | Per-camera recording remuxed to fragmented MP4 (`playback_open` / `playback_seek` / `playback_close`); one stream per visible camera |
+| Playback / scrub | The same RTP tracks | Recorded H.264 samples sent on each visible camera's track instead of live, paced by one clock (`replay_*` on the data channel); no remux or re-encode |
 | Download | Data channel → Blob | `download_open {name}`, basename only |
 | Cut | Data channel → Blob | `cut_request {role, fromMs, toMs}`, one camera, up to 10 minutes, time burned in; `media_progress` while the car encodes |
 
@@ -27,21 +27,29 @@ The in-car UI connects to the car's own Pion stack over loopback. The app starts
 
 ## Data channel
 
-The car's first data-channel message is `dc_hello {features, cameras, tracks, carUtcMs, maxCutMs, maxTransfers, playbackContainer, chunkMaxBytes}`; the SPA only uses what is advertised.
+The car's first data-channel message is `dc_hello {features, cameras, tracks, carUtcMs, maxCutMs, maxTransfers, chunkMaxBytes}`; the SPA only uses what is advertised.
 
-- **Camera selection:** `live_select {roles}` sends only the visible cameras (the whole grid, or the one camera tapped to view alone); omitting `roles` selects all. The car answers with `live_tracks {roles, streaming}` whenever the set of sending cameras changes. A newly selected camera starts with a key frame; a viewer's PLI/FIR asks only that camera's encoder for one.
-- **Car clock:** `clock_sync {t0}` → `clock {t0, carUtcMs}`. The SPA keeps the lowest round-trip sample of five at connect and again every minute, and uses it to unwrap RTP timestamps into wall time for the live overlay.
-- **Pause:** hiding the tab sends `live_pause` (the car stops sending video frames); showing it sends `live_resume`, and the car starts again with a key frame. Playing recordings selects no live cameras. Leaving Cameras hangs up the session.
+- **Camera selection:** `live_select {roles}` sends only the visible cameras (the whole grid, or the one camera tapped to view alone), live or replayed; omitting `roles` selects all. The car answers with `live_tracks {roles, streaming}` whenever the set of live cameras changes. A newly selected camera starts with a key frame; a viewer's PLI/FIR asks only that camera's encoder for one.
+- **Car clock:** `clock_sync {t0}` → `clock {t0, carUtcMs}`. The SPA keeps the lowest round-trip sample of five at connect and again every minute, and uses it to unwrap RTP timestamps.
+- **Replay:** see [Recorded playback](#recorded-playback).
+- **Pause:** hiding the tab sends `live_pause` (the car stops sending live frames); showing it sends `live_resume`, and the car starts again with a key frame. Leaving Cameras hangs up the session, which also ends a replay.
 
 ## Timestamps
 
-- **Live:** each frame's RTP timestamp (`requestVideoFrameCallback` metadata, else the receiver's synchronization source), unwrapped against the car clock.
-- **Recorded:** the recording's `startUtcMs` (first frame) plus the video's media time.
+RTP time on every camera track follows the car clock, live or replayed, so the browser's jitter buffer never sees a jump.
+
+- **Live:** each frame's RTP timestamp (`requestVideoFrameCallback` metadata, else the receiver's synchronization source), unwrapped against the car clock, is its capture time.
+- **Replayed:** the same unwrapped RTP time, mapped through the anchor of its replay epoch: `wallMs + (rtp − rtpMs) × speed`.
 - **Exported:** burned into the picture by the car (`yyyy-MM-dd HH:mm:ss`, car time zone) while it re-encodes the clip.
 
 ## Recorded playback
 
-Recordings are groups: one `oaa_dvr_<stamp>_<role>.mp4` per camera covering the same wall-clock window. `GET /api/dvr/play?atMs=` resolves a group with every camera's file and offset. The SPA plays each visible camera's file; one video leads the wall-clock playhead (the camera viewed alone, else the first one) and the others follow it within 100 ms by nudging their playback rate, or seek when they drift more than a second.
+Recordings are groups: one `oaa_dvr_<stamp>_<role>.mp4` per camera covering the same wall-clock window. The car replays them over the camera tracks the session already has, so the browser needs nothing beyond WebRTC (no Media Source Extensions, which iPhones lack) and the hub relays nothing extra.
+
+- `replay_start {atMs, speed?, paused?}` switches the selected cameras from live to their recordings at wall time `atMs` (the active group is sealed first; a time in a gap snaps to the next recording). `replay_seek {atMs}`, `replay_pause`, `replay_resume` and `replay_speed {speed}` (0.25–4) control it; `replay_stop` goes back to live.
+- The car reads each file's H.264 samples and sends them on that camera's track when due: every camera follows one clock, so the tiles stay in step without the browser syncing anything. A seek sends each camera's frames from the preceding key frame up to the target at once, so the picture appears straight away. Playback continues into the next group and skips gaps longer than 3 s.
+- `replay_state {state, atMs, speed, group?, groupStartUtcMs?, groupEndUtcMs?, roles, anchor, error?}` reports `playing`, `paused`, `ended` (no more recordings; the SPA goes live if the car is still recording), `live` (nothing sealed at that time, or the answer to `replay_stop`) or `error`. Each seek, resume, speed change or skipped gap starts an epoch: frames with RTP time ≥ `anchor.fromRtpMs` were captured at `anchor.wallMs + (rtp − anchor.rtpMs) × anchor.speed`; `anchor.live` means RTP time is the capture time again. The SPA keeps the last few anchors, since frames from an earlier epoch can still be on screen.
+- Back to live, the car drops live frames captured before the replay's last RTP time, so RTP time never goes backwards.
 
 ## Error reasons
 
@@ -53,7 +61,7 @@ Recordings are groups: one `oaa_dvr_<stamp>_<role>.mp4` per camera covering the 
 | `unsupported` | Car app is too old or has no DVR |
 | `replaced` | Another viewer opened this car's cameras (one hub viewer per car; up to three on the car itself) |
 | `version` | Signaling or data-channel version mismatch; update the car app or hub |
-| `busy` | `media_error` only: transfer limit reached (6 per session: four playback streams plus downloads or cuts) |
+| `busy` | `media_error` only: transfer limit reached (2 per session: a download and a cut) |
 | `invalid` | Malformed frame, bad `sessionId`, or a name that failed the basename check |
 | `error`, `bye` | Car-side failure or normal close |
 | `timeout` | SPA only: no `dc_hello` or request answer in time |
@@ -84,7 +92,7 @@ The hub never carries, logs or stores media. TURN relays DTLS ciphertext only. T
 - **"Car is offline"**: the car's hub connection is down; check the hub's Cars page.
 - **Stuck on connecting, then ICE failure**: no usable path; configure TURN and make sure UDP 3478 and the relay port range are reachable.
 - **One tile stays on "Waiting for camera…"**: that camera did not open or its encoder did not start; `GET /api/status` → `dvr.cameras[]` (`running`, `encoder`, `fps`) and `dvr.stream.camera2Probe` show why.
-- **Live black but playback works**: the browser rejected the H.264 profile (the car sends Constrained Baseline 3.1).
+- **Black tiles, live and recordings**: the browser rejected the H.264 profile (the car sends Constrained Baseline 3.1).
 - **On the head unit only, ICE fails**: GeckoView did not load `geckoview-config.yaml` (loopback candidates disabled).
 
 ## Not covered

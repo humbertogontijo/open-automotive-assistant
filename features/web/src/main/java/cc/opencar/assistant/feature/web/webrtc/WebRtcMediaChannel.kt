@@ -2,7 +2,6 @@ package cc.opencar.assistant.feature.web.webrtc
 
 import android.util.Log
 import cc.opencar.assistant.feature.dvr.DvrController
-import cc.opencar.assistant.feature.dvr.Fmp4FileStreamer
 import cc.opencar.assistant.protocol.OaaFrames
 import cc.opencar.assistant.protocol.OaaMediaChunk
 import cc.opencar.assistant.protocol.OaaMediaNames
@@ -14,7 +13,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
@@ -26,10 +24,10 @@ import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Car side of the `oaa-media` data channel (ADR-0003): live camera selection,
- * the car clock, per-camera fMP4 playback of DVR recordings, recording downloads
- * and per-camera cuts. Recordings are addressed by basename only and resolved
- * inside the DVR directory.
+ * Car side of the `oaa-media` data channel (ADR-0003): camera selection, the
+ * car clock, replay control (recordings play on the camera tracks, see
+ * [ReplaySession]), recording downloads and per-camera cuts. Recordings are
+ * addressed by basename only and resolved inside the DVR directory.
  */
 class WebRtcMediaChannel(
     private val dc: DataLink,
@@ -45,17 +43,18 @@ class WebRtcMediaChannel(
         fun sendBinary(data: ByteArray): Boolean
     }
 
-    /** The session's live tracks. */
+    /** The session's camera tracks: live, or replaying recordings. */
     interface LiveControl {
         /** Camera roles with a track in this session. */
         val roles: List<String>
         fun setPaused(paused: Boolean)
         fun select(roles: Collection<String>)
+        /** One of the `replay_*` requests. */
+        fun replay(type: String, msg: JSONObject)
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val transfers = ConcurrentHashMap<Long, Job>()
-    private val playbackFiles = ConcurrentHashMap<Long, File>()
     @Volatile private var closed = false
 
     /** Call once the channel is open. */
@@ -68,7 +67,6 @@ class WebRtcMediaChannel(
         closed = true
         scope.cancel()
         transfers.clear()
-        playbackFiles.clear()
     }
 
     fun onClosed() {
@@ -83,10 +81,11 @@ class WebRtcMediaChannel(
             sendError(reqId, OaaWebRtc.REASON_VERSION)
             return
         }
-        when (msg.optString("type")) {
-            OaaWebRtc.PLAYBACK_OPEN -> openPlayback(reqId, msg)
-            OaaWebRtc.PLAYBACK_SEEK -> seekPlayback(reqId, msg)
-            OaaWebRtc.PLAYBACK_CLOSE, OaaWebRtc.TRANSFER_CANCEL -> cancel(reqId)
+        when (val type = msg.optString("type")) {
+            OaaWebRtc.TRANSFER_CANCEL -> cancel(reqId)
+            OaaWebRtc.REPLAY_START, OaaWebRtc.REPLAY_SEEK, OaaWebRtc.REPLAY_PAUSE,
+            OaaWebRtc.REPLAY_RESUME, OaaWebRtc.REPLAY_SPEED, OaaWebRtc.REPLAY_STOP,
+            -> live.replay(type, msg)
             OaaWebRtc.DOWNLOAD_OPEN -> openDownload(reqId, msg.optString("name"))
             OaaWebRtc.CUT_REQUEST -> openCut(
                 reqId,
@@ -111,8 +110,10 @@ class WebRtcMediaChannel(
 
     private fun sendHello() {
         val features = JSONArray()
-        if (live.roles.isNotEmpty()) features.put(OaaWebRtc.FEATURE_LIVE)
-        features.put(OaaWebRtc.FEATURE_PLAYBACK)
+        if (live.roles.isNotEmpty()) {
+            features.put(OaaWebRtc.FEATURE_LIVE)
+            features.put(OaaWebRtc.FEATURE_REPLAY)
+        }
         features.put(OaaWebRtc.FEATURE_DOWNLOAD)
         features.put(OaaWebRtc.FEATURE_CUT)
         sendJson(
@@ -124,7 +125,6 @@ class WebRtcMediaChannel(
                 .put("tracks", JSONArray(live.roles))
                 .put("carUtcMs", System.currentTimeMillis())
                 .put("maxCutMs", DvrController.MAX_CUT_MS)
-                .put("playbackContainer", OaaWebRtc.PLAYBACK_CONTAINER)
                 .put("chunkMaxBytes", OaaWebRtc.CHUNK_MAX_BYTES)
                 .put("maxTransfers", OaaWebRtc.MAX_TRANSFERS),
         )
@@ -141,93 +141,9 @@ class WebRtcMediaChannel(
         )
     }
 
-    // --- playback -----------------------------------------------------------
-
-    private data class PlayTarget(val file: File, val offsetMs: Long, val extra: JSONObject)
-
-    private fun resolveTarget(msg: JSONObject, fallbackFile: File?): Result<PlayTarget> {
-        if (msg.has("atMs")) {
-            val role = msg.optString("role").takeIf { it.isNotEmpty() }
-                ?: return Result.failure(IOException("role required"))
-            val res = dvr.resolvePlayAt(msg.optLong("atMs"), role)
-            if (res["ok"] != true) return Result.failure(IOException(res["error"]?.toString() ?: "no recordings"))
-            if (res["live"] == true) return Result.failure(IOException("live"))
-            val name = res["name"]?.toString() ?: return Result.failure(IOException("no recordings for $role"))
-            val file = dvr.recordingFile(name) ?: return Result.failure(IOException("not found"))
-            val extra = JSONObject()
-                .put("role", role)
-                .put("atMs", res["atUtcMs"])
-                .put("group", res["group"])
-                .put("segStartUtcMs", res["startUtcMs"])
-                .put("segEndUtcMs", res["endUtcMs"])
-                .put("fileStartUtcMs", res["fileStartUtcMs"])
-            return Result.success(PlayTarget(file, (res["offsetMs"] as? Number)?.toLong() ?: 0L, extra))
-        }
-        val file = if (msg.has("name")) {
-            val name = msg.optString("name")
-            if (!OaaMediaNames.isSafeBasename(name)) return Result.failure(IOException("invalid name"))
-            dvr.recordingFile(name) ?: return Result.failure(IOException("not found"))
-        } else {
-            fallbackFile ?: return Result.failure(IOException("name or atMs required"))
-        }
-        return Result.success(PlayTarget(file, msg.optLong("offsetMs", 0L).coerceAtLeast(0L), JSONObject()))
-    }
-
-    private fun openPlayback(reqId: Long, msg: JSONObject) {
-        if (!admit(reqId)) return
-        val target = resolveTarget(msg, null).getOrElse {
-            sendError(reqId, it.message ?: "playback failed")
-            return
-        }
-        startPlayback(reqId, target, previous = null)
-    }
-
-    private fun seekPlayback(reqId: Long, msg: JSONObject) {
-        val previous = transfers[reqId]
-        if (previous == null && !admit(reqId)) return
-        val target = resolveTarget(msg, playbackFiles[reqId]).getOrElse {
-            sendError(reqId, it.message ?: "seek failed")
-            return
-        }
-        startPlayback(reqId, target, previous)
-    }
-
-    private fun startPlayback(reqId: Long, target: PlayTarget, previous: Job?) {
-        playbackFiles[reqId] = target.file
-        launchTransfer(reqId, previous) { streamPlayback(reqId, target) }
-    }
-
-    private suspend fun CoroutineScope.streamPlayback(reqId: Long, target: PlayTarget) {
-        Fmp4FileStreamer(target.file).use { streamer ->
-            val info = streamer.open(target.offsetMs)
-            val meta = JSONObject(target.extra.toString())
-                .put("type", OaaWebRtc.MEDIA_META)
-                .put("v", OaaFrames.VERSION)
-                .put("reqId", reqId)
-                .put("kind", "playback")
-                .put("name", target.file.name)
-                .put("mime", "video/mp4; codecs=\"${info.codec}\"")
-                .put("codec", info.codec)
-                .put("width", info.width)
-                .put("height", info.height)
-                .put("durationMs", info.durationMs)
-                .put("startMs", info.startMs)
-                .put("offsetMs", target.offsetMs)
-            sendJson(meta)
-            var seq = 0L
-            seq = sendBytes(reqId, seq, info.init, OaaMediaChunk.FLAG_INIT)
-            val startedAt = System.currentTimeMillis()
-            while (true) {
-                ensureActive()
-                val frag = streamer.nextFragment() ?: break
-                seq = sendBytes(reqId, seq, frag.data, 0)
-                // Pace to ~2× realtime after a 10 s head start; avoids pulling a whole file over cellular.
-                while ((frag.endMs - info.startMs) > (System.currentTimeMillis() - startedAt) * 2 + PLAYBACK_LEAD_MS) {
-                    delay(100)
-                }
-            }
-            sendChunk(reqId, seq, ByteArray(0), 0, 0, OaaMediaChunk.FLAG_EOF)
-        }
+    /** A car→SPA event that is not tied to a transfer (e.g. [OaaWebRtc.REPLAY_STATE]). */
+    fun sendEvent(obj: JSONObject) {
+        if (dc.isOpen) sendJson(obj)
     }
 
     // --- download / cut -----------------------------------------------------
@@ -285,10 +201,9 @@ class WebRtcMediaChannel(
         }
     }
 
-    /** Run [block] as the transfer for [reqId], after [previous] (a replaced seek) has stopped. */
-    private fun launchTransfer(reqId: Long, previous: Job? = null, block: suspend CoroutineScope.() -> Unit) {
+    /** Run [block] as the transfer for [reqId]. */
+    private fun launchTransfer(reqId: Long, block: suspend CoroutineScope.() -> Unit) {
         val job = scope.launch(start = CoroutineStart.LAZY) {
-            previous?.cancelAndJoin()
             try {
                 block()
             } catch (e: CancellationException) {
@@ -357,19 +272,6 @@ class WebRtcMediaChannel(
 
     private fun cancel(reqId: Long) {
         transfers.remove(reqId)?.cancel()
-        playbackFiles.remove(reqId)
-    }
-
-    /** Split [data] into ≤ [SEND_CHUNK] frames; returns the next seq. */
-    private suspend fun sendBytes(reqId: Long, startSeq: Long, data: ByteArray, flags: Int): Long {
-        var seq = startSeq
-        var off = 0
-        do {
-            val n = minOf(SEND_CHUNK, data.size - off)
-            sendChunk(reqId, seq++, data, off, n, if (seq - 1 == startSeq) flags else 0)
-            off += n
-        } while (off < data.size)
-        return seq
     }
 
     private suspend fun sendChunk(reqId: Long, seq: Long, data: ByteArray, off: Int, len: Int, flags: Int) {
@@ -399,7 +301,6 @@ class WebRtcMediaChannel(
         /** Well under Chrome/Firefox SCTP max-message-size; keeps two transfers interleaved. */
         private const val SEND_CHUNK = 64 * 1024
         private const val HIGH_WATER_BYTES = 1L * 1024 * 1024
-        private const val PLAYBACK_LEAD_MS = 10_000L
         private const val PROGRESS_EVERY_MS = 500L
     }
 }

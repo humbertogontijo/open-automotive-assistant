@@ -1093,35 +1093,39 @@ export interface components {
          *     ordered). The viewer must only use features listed here.
          *
          *     Viewer→car JSON messages (all with `v: 1`; transfers carry a numeric `reqId`):
-         *     `playback_open {reqId, name, offsetMs?}` or `playback_open {reqId, atMs, role}`
-         *     (one camera's recording; `atMs` resolves the file covering that wall time),
-         *     `playback_seek {reqId, offsetMs? | atMs + role?}`, `playback_close {reqId}`,
          *     `download_open {reqId, name}` (basename only — `/`, `\`, `..` rejected),
          *     `cut_request {reqId, role, fromMs, toMs}` (one camera, ≤ `maxCutMs`; the
          *     car re-encodes the range with the time burned in), `transfer_cancel {reqId}`.
-         *     Without `reqId`: `live_select {roles?}` (cameras to send; omitted = all),
-         *     `live_pause` / `live_resume` (stop/start sending live video frames, e.g.
-         *     while the viewer tab is hidden — resume starts on a key frame),
-         *     `clock_sync {t0}` (viewer clock ms).
+         *     Without `reqId`: `live_select {roles?}` (cameras to send, live or
+         *     replayed; omitted = all), `live_pause` / `live_resume` (stop/start
+         *     sending live video frames, e.g. while the viewer tab is hidden — resume
+         *     starts on a key frame), `clock_sync {t0}` (viewer clock ms), and with
+         *     the `replay` feature `replay_start {atMs, speed?, paused?}` (send the
+         *     recordings from wall time `atMs` on the camera tracks instead of live;
+         *     a gap snaps to the next recording), `replay_seek {atMs}`,
+         *     `replay_pause`, `replay_resume`, `replay_speed {speed}` (0.25–4) and
+         *     `replay_stop` (back to live).
          *
-         *     Car→viewer JSON: `media_meta {reqId, kind, name?, mime, codec?, size?,
-         *     offsetMs?, atMs?, durationMs?, role?, group?, fileStartUtcMs?,
-         *     segStartUtcMs?, segEndUtcMs?}` precedes the bytes of each transfer (and
-         *     each playback restart after a seek); `media_progress {reqId, doneMs,
-         *     totalMs}` while a cut is being encoded; `media_error {reqId, error}`;
-         *     `live_tracks {roles, streaming}` when the set of sending cameras
-         *     changes; `clock {t0, carUtcMs}` answering `clock_sync`. Bytes arrive as
-         *     binary `MediaChunk` frames.
+         *     Car→viewer JSON: `media_meta {reqId, kind, name?, mime, size?,
+         *     durationMs?}` precedes the bytes of each transfer; `media_progress
+         *     {reqId, doneMs, totalMs}` while a cut is being encoded; `media_error
+         *     {reqId, error}`; `live_tracks {roles, streaming}` when the set of live
+         *     cameras changes; `clock {t0, carUtcMs}` answering `clock_sync`;
+         *     `replay_state {state, atMs, speed, group?, groupStartUtcMs?,
+         *     groupEndUtcMs?, roles, anchor?, error?}` with state `playing`,
+         *     `paused`, `ended`, `live` (nothing sealed at that time, or the answer
+         *     to `replay_stop`) or `error`. Bytes arrive as binary `MediaChunk` frames.
          *
-         *     Live RTP timestamps are the frame's capture time: `captureUtcMs × 90`
-         *     mod 2^32. Viewers unwrap them against the car clock to draw the time.
+         *     RTP timestamps are car-clock ms × 90 mod 2^32 on every camera track;
+         *     viewers unwrap them against the car clock. Live, that is the frame's
+         *     capture time. Replayed, each seek / resume / speed change starts an
+         *     epoch: a frame with RTP time r ≥ `anchor.fromRtpMs` was captured at
+         *     `anchor.wallMs + (r − anchor.rtpMs) × anchor.speed` (`anchor.live`:
+         *     at r itself).
          *
-         *     Playback container contract: always fragmented MP4 (init + moof/mdat)
-         *     for Media Source Extensions, mime `video/mp4; codecs="avc1.PPCCLL"`
-         *     taken from the SPS. Downloads and cuts are progressive MP4 files.
-         *     At most `maxTransfers` concurrent transfers per session (enough for
-         *     four playback streams plus downloads); chunks ≤ `chunkMaxBytes`;
-         *     senders respect `bufferedAmount` backpressure.
+         *     Downloads and cuts are progressive MP4 files. At most `maxTransfers`
+         *     concurrent transfers per session; chunks ≤ `chunkMaxBytes`; senders
+         *     respect `bufferedAmount` backpressure.
          */
         DataChannelHello: {
             /** @enum {string} */
@@ -1129,7 +1133,7 @@ export interface components {
             /** @enum {integer} */
             v: 1;
             sessionId: string;
-            features: ("live" | "playback" | "download" | "cut")[];
+            features: ("live" | "replay" | "download" | "cut")[];
             /** @description Camera roles on this car, e.g. `front`, `right`, `rear`, `left` */
             cameras?: string[];
             /** @description Camera roles with a live track in this session */
@@ -1144,20 +1148,17 @@ export interface components {
              * @example 600000
              */
             maxCutMs?: number;
-            /** @enum {string} */
-            playbackContainer?: "fmp4";
             /** @example 262144 */
             chunkMaxBytes?: number;
-            /** @example 6 */
+            /** @example 2 */
             maxTransfers?: number;
         };
         /**
          * Format: binary
          * @description Binary data-channel frame, big-endian:
          *     `u8 type (1=chunk) | u32 reqId | u32 seq | u8 flags | payload`.
-         *     Flags: `0x01` eof (last chunk of the transfer), `0x02` init (fMP4
-         *     initialization segment). `seq` restarts at 0 for each transfer or
-         *     playback restart. Payload ≤ `chunkMaxBytes`.
+         *     Flags: `0x01` eof (last chunk of the transfer). `seq` restarts at 0
+         *     for each transfer. Payload ≤ `chunkMaxBytes`.
          */
         MediaChunk: string;
     };

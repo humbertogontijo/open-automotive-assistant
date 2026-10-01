@@ -132,7 +132,7 @@ func TestAnswerPerCameraTracksAndDataChannel(t *testing.T) {
 	if err := car.SendText("dc_hello"); err != nil {
 		t.Fatal(err)
 	}
-	if err := dc.SendText("playback_open"); err != nil {
+	if err := dc.SendText("replay_start"); err != nil {
 		t.Fatal(err)
 	}
 	if err := car.WriteSample("left", []byte{0, 0, 0, 1, 0x65}, 1); err == nil {
@@ -193,7 +193,7 @@ func TestAnswerPerCameraTracksAndDataChannel(t *testing.T) {
 	}
 	select {
 	case m := <-ev.messages:
-		if m != "playback_open" {
+		if m != "replay_start" {
 			t.Fatalf("car got %q", m)
 		}
 	case <-time.After(5 * time.Second):

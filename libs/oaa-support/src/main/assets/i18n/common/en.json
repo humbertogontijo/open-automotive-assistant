@@ -548,6 +548,7 @@
     "locale.en": "English",
     "cameras.play": "Play",
     "cameras.play.loading": "Loading…",
+    "cameras.play.failed": "Playback failed",
     "cameras.play.pause": "Pause",
     "cameras.play.resume": "Resume",
     "cameras.play.live": "Back to live",

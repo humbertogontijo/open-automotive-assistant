@@ -453,10 +453,20 @@ class CameraEncoderSession(
         private const val DRAIN_TIMEOUT_US = 20_000L
         private const val MAX_CLOCK_SKEW_MS = 5_000L
 
-        /** ~1.2 Mbps at 640x480, scaled by pixel count. */
-        fun bitrateFor(size: Size): Int {
-            val area = size.width.toLong() * size.height
-            return (area * H264Encoder.DEFAULT_BITRATE / (640L * 480L)).toInt().coerceIn(600_000, 3_000_000)
+        /**
+         * Every camera records at once, so the DVR footprint is the sum over cameras:
+         * four 720p cameras ≈ 2.8 Mbps ≈ 21 MB/min, about the old single-mosaic budget.
+         */
+        private const val BITRATE_720P = 700_000L
+        private const val MIN_BITRATE = 250_000
+        private const val MAX_BITRATE = 1_000_000
+
+        /** [BITRATE_720P] scaled by pixel count. */
+        fun bitrateFor(width: Int, height: Int): Int {
+            val area = width.toLong() * height
+            return (area * BITRATE_720P / (1280L * 720L)).toInt().coerceIn(MIN_BITRATE, MAX_BITRATE)
         }
+
+        fun bitrateFor(size: Size): Int = bitrateFor(size.width, size.height)
     }
 }

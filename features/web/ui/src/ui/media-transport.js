@@ -1,18 +1,12 @@
 /**
- * Where recorded camera media comes from for the current car. Live video is
- * always WebRTC (webrtc-session.js); recordings and cuts depend on the host:
- *   local → the car's own HTTP (progressive MP4 with Range); cuts over the data
- *           channel for progress, HTTP /api/dvr/cut as fallback
- *   hub   → the WebRTC data channel (fMP4 into MSE, cuts with progress)
+ * Clip export for the current car. Live video and recordings both play over
+ * WebRTC (webrtc-session.js); cuts go over the data channel for progress, and
+ * on the car's own page fall back to HTTP /api/dvr/cut when the session fails.
  * Camera modules call mediaTransport() instead of branching on the host role.
  */
 import { session } from "../store.js";
 import { appUrl } from "../base.js";
-import { playRecordingRemote, stopRemotePlayback, cutRemote } from "./webrtc-session.js";
-
-function recordingUrl(name) {
-  return appUrl("/api/dvr/recordings/" + encodeURIComponent(name) + "?inline=1");
-}
+import { cutRemote } from "./webrtc-session.js";
 
 async function responseError(res, fallback) {
   try {
@@ -41,23 +35,6 @@ async function httpCut(role, fromMs, toMs, onProgress) {
 
 const local = {
   kind: "local",
-  /** @param {HTMLVideoElement} video */
-  async playRecording(video, name) {
-    try {
-      video.srcObject = null;
-    } catch (e) {}
-    video.src = recordingUrl(name);
-    video.load();
-  },
-  /** @param {HTMLVideoElement} [video] */
-  stopPlayback(video) {
-    if (!video || !video.getAttribute("src")) return;
-    try {
-      video.pause();
-      video.removeAttribute("src");
-      video.load();
-    } catch (e) {}
-  },
   async cut(role, fromMs, toMs, onProgress) {
     try {
       return await cutRemote(role, fromMs, toMs, onProgress);
@@ -71,8 +48,6 @@ const local = {
 
 const hub = {
   kind: "hub",
-  playRecording: playRecordingRemote,
-  stopPlayback: stopRemotePlayback,
   cut: cutRemote,
 };
 

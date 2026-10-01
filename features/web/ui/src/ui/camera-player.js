@@ -1,15 +1,15 @@
 /**
  * Camera player core: one <video> per camera in a grid (tap a tile to view it
- * alone), live over WebRTC and wall-clock DVR playback over recording groups
- * (one oaa_dvr_<stamp>_<role>.mp4 per camera). The car never composites or
+ * alone), each showing that camera's WebRTC track. The car never composites or
  * stamps the video; each tile overlays its frame's capture time.
  *
- * In DVR mode one video (the focused camera, else the first visible one with a
- * file) leads the wall-clock playhead; the others follow it by nudging their
- * playback rate, or seek when they drift too far.
+ * Live and DVR use the same tracks: in DVR mode the car replays the recordings
+ * over them (`replay_*`), every camera paced by one clock, so the tiles stay in
+ * step without the browser syncing anything. The car reports where the replay
+ * is with `replay_state`; the scrubber follows via [onPlayerEvent].
  *
  * <oaa-camera-player> owns the videos and the media session for as long as it
- * is mounted; the scrubber (<oaa-camera-timeline>) follows via [onPlayerEvent].
+ * is mounted.
  */
 
 import { html, nothing } from "lit";
@@ -18,18 +18,24 @@ import { OaaElement } from "../lit/oaa-element.js";
 import { camera, dvr } from "../store.js";
 import { t } from "../i18n.js";
 import { api, errText } from "../api.js";
-import { mediaTransport } from "./media-transport.js";
 import {
-  attachLive,
+  attachCamera,
   carCameras,
   carNow,
-  detachLive,
+  detachCamera,
+  frameWallMs,
   getMediaSession,
   hangupMediaSession,
-  liveFrameWallMs,
   onLiveTracks,
+  onReplayState,
   reasonText,
-  selectLive,
+  replayPause,
+  replayResume,
+  replaySeek,
+  replaySpeed,
+  replayStart,
+  replayStop,
+  selectCameras,
   setMediaCloseHandler,
 } from "./webrtc-session.js";
 import { fmtStamp, watchFrames } from "./camera-stamp.js";
@@ -40,30 +46,35 @@ export { orderRoles };
 const FRAME_MS = 100;
 export const SPEED_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 const ROLE_LABEL = { front: "Front", right: "Right", rear: "Rear", left: "Left" };
-/** Followers within this of the leader play at the leader's rate. */
-const SYNC_TOLERANCE_S = 0.1;
-/** Followers further than this seek instead of catching up. */
-const SEEK_DRIFT_S = 1;
-const RATE_NUDGE = 0.1;
 
-/** @typedef {{ name: string, startUtcMs: number, durationMs: number, offsetMs: number }} GroupFile */
 /**
- * @type {{ group: string, startUtcMs: number, endUtcMs: number, files: Record<string, GroupFile>,
- *   leader: string, anchorMs: number, timer: ReturnType<typeof setInterval>|null }|null}
+ * Last `replay_state` while in DVR mode.
+ * @type {{ state: string, atMs: number, anchor: { rtpMs: number, wallMs: number, speed: number } | null }|null}
  */
-let playback = null;
-let playAtBusy = false;
-/** Last known playhead (wall UTC) when neither live nor a recording drives it. */
+let replay = null;
+/** A replay_start or replay_seek has no replay_state yet. */
+let replayPending = false;
+/** The car has a replay for this session (replay_start sent, no replay_stop since). */
+let replayOpen = false;
+/** replay_stop acknowledgements (state "live") still to come; they are not a request to go live. */
+let stopAcks = 0;
+/** Bumped when leaving DVR, so a replay_start still connecting gives up. */
+let replayGeneration = 0;
+/** Reload the timeline on the next replay_state (starting a replay seals the recording group). */
+let refreshTimeline = false;
+/** @type {ReturnType<typeof setInterval>|null} */
+let ticker = null;
+/** Last known playhead (wall UTC) when no replay clock drives it. */
 let timelineAtMs = 0;
 let mounted = false;
-let liveOn = false;
-/** Bumped by stopLive so a start still connecting gives up. */
-let liveGeneration = 0;
+/** Media session up and the visible cameras selected. */
+let camerasOn = false;
+/** Bumped by stopCameras so a start still connecting gives up. */
+let camerasGeneration = 0;
 
 /**
  * @typedef {{ role: string, video: HTMLVideoElement, frame: HTMLElement, stamp: HTMLElement, stopStamp: () => void,
- *   stopFit: () => void, attaching: boolean, playing: string, ready: boolean,
- *   listeners: Array<[string, EventListener]> }} Tile
+ *   stopFit: () => void, attaching: boolean }} Tile
  */
 /** @type {Map<string, Tile>} */
 const tiles = new Map();
@@ -93,10 +104,19 @@ function emit(name) {
 
 setMediaCloseHandler(function (reason) {
   if (!mounted) return;
-  liveOn = false;
+  camerasOn = false;
+  replayOpen = false;
+  stopAcks = 0;
+  stopTicker();
   tiles.forEach(function (tile) {
-    if (tile.video.srcObject) detachLive(tile.video);
+    if (tile.video.srcObject) detachCamera(tile.video);
   });
+  if (camera.mode === "dvr") {
+    replayGeneration++;
+    replay = null;
+    replayPending = false;
+    camera.$patch({ mode: "live", playingName: "", recorded: [], paused: false, loading: false });
+  }
   camera.$patch({ previewActive: false, streaming: [], previewError: reasonText(reason) });
 });
 
@@ -104,7 +124,53 @@ onLiveTracks(function (info) {
   if (!mounted) return;
   if (info.cameras.length) setRoles(info.cameras);
   camera.streaming = info.streaming;
-  syncLiveTiles();
+  syncTiles();
+});
+
+onReplayState(function (m) {
+  if (!mounted) return;
+  const state = String(m.state || "");
+  if (state === "live") {
+    if (stopAcks > 0) {
+      stopAcks--;
+      return;
+    }
+    // Nothing sealed at the requested time: the car is already live.
+    if (camera.mode === "dvr") backToLive().catch(function () {});
+    return;
+  }
+  if (camera.mode !== "dvr" || !replayOpen) return;
+  replayPending = false;
+  if (state === "error") {
+    camera.$patch({ loading: false, previewError: String(m.error || t("cameras.play.failed", "Playback failed")) });
+    return;
+  }
+  const a = m.anchor;
+  replay = {
+    state: state,
+    atMs: Number(m.atMs) || 0,
+    anchor:
+      a && !a.live ? { rtpMs: Number(a.rtpMs) || 0, wallMs: Number(a.wallMs) || 0, speed: Number(a.speed) || 1 } : null,
+  };
+  timelineAtMs = replay.atMs;
+  camera.$patch({
+    playingName: String(m.group || ""),
+    recorded: Array.isArray(m.roles) ? m.roles.map(String) : [],
+    paused: state !== "playing",
+    loading: false,
+    previewError: "",
+  });
+  if (refreshTimeline) {
+    refreshTimeline = false;
+    loadRecordings();
+  }
+  if (state === "ended" && timelineRange().isToday && timelineRange().recording) {
+    backToLive().catch(function () {});
+    return;
+  }
+  if (state === "playing") startTicker();
+  else stopTicker();
+  syncTransport();
 });
 
 export function isRecordingPlayback() {
@@ -142,15 +208,18 @@ export function timelineRange() {
   return timelineRangeForDay(selectedDayKey(), timeline());
 }
 
+/** Replay position: the car's replay clock while playing, else where it stopped. */
+function replayWallMs() {
+  if (replayPending || !replay) return timelineAtMs;
+  const a = replay.anchor;
+  if (replay.state === "playing" && a) return a.wallMs + (carNow() - a.rtpMs) * a.speed;
+  return replay.atMs;
+}
+
 export function wallPlayheadMs() {
-  if (camera.mode === "dvr" && playback) {
-    const lead = leaderWallMs();
-    return lead != null ? lead : playback.anchorMs;
-  }
+  if (camera.mode === "dvr") return replayWallMs();
   const r = timelineRange();
-  if (r.isToday && camera.mode === "live" && r.liveAt) {
-    return r.liveAt;
-  }
+  if (r.isToday && r.liveAt) return r.liveAt;
   return timelineAtMs || r.scrubMax || r.liveAt || Date.now();
 }
 
@@ -194,17 +263,12 @@ export function visibleRoles() {
   return camera.focus && roles.indexOf(camera.focus) >= 0 ? [camera.focus] : roles.slice();
 }
 
-/** Tap a tile: view that camera alone, or back to the grid. */
+/** Tap a tile: view that camera alone, or back to the grid. The car only sends what is on screen. */
 export function toggleFocus(role) {
   camera.focus = camera.focus === role ? "" : role;
-  if (camera.mode === "live") {
-    if (liveOn) {
-      selectLive(visibleRoles());
-      syncLiveTiles();
-    }
-    return;
-  }
-  if (playback) refreshDvrTiles();
+  if (!camerasOn) return;
+  selectCameras(visibleRoles());
+  syncTiles();
 }
 
 // --- timeline data ------------------------------------------------------------
@@ -238,24 +302,6 @@ export function formatSpeed(rate) {
   return String(r).replace(/\.0$/, "") + "×";
 }
 
-function setRate(video, rate) {
-  if (video.playbackRate === rate) return;
-  try {
-    video.playbackRate = rate;
-  } catch (e) {}
-}
-
-function applyPlaybackRate() {
-  if (!playback) return;
-  const lead = tiles.get(playback.leader);
-  if (lead && lead.playing) setRate(lead.video, currentSpeed());
-}
-
-function resetPlaybackSpeed() {
-  camera.rate = 1;
-  applyPlaybackRate();
-}
-
 export function nudgeSpeed(dir) {
   const cur = currentSpeed();
   let i = 0;
@@ -269,14 +315,24 @@ export function nudgeSpeed(dir) {
   }
   i = Math.max(0, Math.min(SPEED_STEPS.length - 1, i + dir));
   camera.rate = SPEED_STEPS[i];
+  if (replayOpen) replaySpeed(camera.rate);
   syncTransport();
 }
 
-/** Record the playhead, notify the scrubber and apply the playback rate. */
+/** Record the playhead and notify the scrubber. */
 export function syncTransport() {
   timelineAtMs = wallPlayheadMs();
   emit("sync");
-  applyPlaybackRate();
+}
+
+function startTicker() {
+  if (ticker == null) ticker = setInterval(syncTransport, FRAME_MS);
+}
+
+function stopTicker() {
+  if (ticker == null) return;
+  clearInterval(ticker);
+  ticker = null;
 }
 
 // --- tiles ------------------------------------------------------------------
@@ -302,9 +358,6 @@ function registerTiles(host) {
       stopStamp: function () {},
       stopFit: function () {},
       attaching: false,
-      playing: "",
-      ready: false,
-      listeners: [],
     };
     tile.stopStamp = watchFrames(video, function (metadata) {
       paintStamp(tile, metadata);
@@ -360,412 +413,141 @@ function dropAllTiles() {
   tiles.clear();
 }
 
-/** Capture time (wall UTC ms) of the frame on screen, or 0. */
-function tileWallMs(tile, metadata) {
-  const v = tile.video;
-  if (v.srcObject) {
-    const rtp = metadata && metadata.rtpTimestamp != null ? metadata.rtpTimestamp : undefined;
-    return liveFrameWallMs(tile.role, rtp);
-  }
-  if (playback && tile.playing) {
-    const f = playback.files[tile.role];
-    if (!f) return 0;
-    const sec = metadata && Number.isFinite(metadata.mediaTime) ? metadata.mediaTime : v.currentTime;
-    return f.startUtcMs + Math.max(0, Math.floor(sec * 1000));
-  }
-  return 0;
-}
-
 function paintStamp(tile, metadata) {
-  const ms = tileWallMs(tile, metadata);
+  const rtp = metadata && metadata.rtpTimestamp != null ? metadata.rtpTimestamp : undefined;
+  const ms = tile.video.srcObject ? frameWallMs(tile.role, rtp) : 0;
   const text = ms ? fmtStamp(ms) : "";
   if (tile.stamp.textContent !== text) tile.stamp.textContent = text;
 }
 
-function removeTileListeners(tile) {
-  const v = tile.video;
-  tile.listeners.forEach(function (h) {
-    v.removeEventListener(h[0], h[1]);
-  });
-  tile.listeners = [];
-}
-
-/** Stop whatever the tile shows (live track or recording). */
 function detachTile(tile) {
-  removeTileListeners(tile);
-  if (tile.playing) mediaTransport().stopPlayback(tile.video);
-  tile.playing = "";
-  tile.ready = false;
-  if (tile.video.srcObject) detachLive(tile.video);
+  if (tile.video.srcObject) detachCamera(tile.video);
   tile.stamp.textContent = "";
 }
 
-// --- recording playback -----------------------------------------------------
-
-/** Media offset (ms) of wall time `wallMs` inside `f`. */
-function offsetIn(f, wallMs) {
-  return Math.max(0, Math.min(Math.max(0, f.durationMs - 50), wallMs - f.startUtcMs));
-}
-
-function covers(f, wallMs) {
-  return wallMs >= f.startUtcMs - 250 && wallMs < f.startUtcMs + f.durationMs - 250;
-}
-
-/** Leader for `wallMs`: the focused camera, else a visible camera recorded at that time. */
-function pickLeader(wallMs) {
-  if (!playback) return "";
-  const files = playback.files;
-  const vis = visibleRoles().filter(function (r) {
-    return !!files[r];
+function eachVisibleVideo(fn) {
+  visibleRoles().forEach(function (role) {
+    const tile = tiles.get(role);
+    if (tile && tile.video.srcObject) fn(tile.video);
   });
-  if (camera.focus && vis.indexOf(camera.focus) >= 0) return camera.focus;
-  return (
-    vis.find(function (r) {
-      return covers(files[r], wallMs);
-    }) ||
-    vis[0] ||
-    ""
-  );
 }
 
-/** Wall time of the leader's current frame, or null until it is positioned. */
-function leaderWallMs() {
-  if (!playback) return null;
-  const tile = tiles.get(playback.leader);
-  const f = playback.files[playback.leader];
-  if (!tile || !f || !tile.ready || !Number.isFinite(tile.video.currentTime)) return null;
-  return f.startUtcMs + Math.max(0, Math.floor(tile.video.currentTime * 1000));
-}
-
-function attachRecording(role, offsetMs) {
-  const tile = tiles.get(role);
-  const pb = playback;
-  const f = pb && pb.files[role];
-  if (!tile || !f) return;
-  detachTile(tile);
-  const v = tile.video;
-  const startSec = Math.max(0, offsetMs / 1000);
-  tile.playing = f.name;
-  v.muted = true;
-  v.setAttribute("playsinline", "");
-  const isLeader = function () {
-    return playback === pb && pb.leader === role;
-  };
-  const onMeta = function () {
-    v.removeEventListener("loadedmetadata", onMeta);
-    try {
-      if (startSec > 0 && Number.isFinite(v.duration)) {
-        v.currentTime = Math.min(startSec, Math.max(0, v.duration - 0.05));
-      }
-    } catch (e) {}
-    tile.ready = true;
-    setRate(v, currentSpeed());
-    if (playback === pb && !camera.paused) v.play().catch(function () {});
-  };
-  const onWaiting = function () {
-    if (isLeader()) camera.loading = true;
-  };
-  const onPlaying = function () {
-    if (isLeader()) camera.loading = false;
-  };
-  tile.listeners = [
-    ["loadedmetadata", onMeta],
-    ["waiting", onWaiting],
-    ["playing", onPlaying],
-    ["canplay", onPlaying],
-  ];
-  tile.listeners.forEach(function (h) {
-    v.addEventListener(h[0], h[1]);
-  });
-  const onError = function (e) {
-    if (playback !== pb || tile.playing !== f.name) return;
-    camera.$patch({ loading: false, previewError: roleLabel(role) + ": " + errText(e) });
-  };
-  Promise.resolve(mediaTransport().playRecording(v, f.name, offsetMs, onError)).catch(onError);
-}
-
-/** After a focus change: attach newly visible cameras at the playhead, drop hidden ones. */
-function refreshDvrTiles() {
-  if (!playback) return;
-  const wall = wallPlayheadMs();
-  playback.anchorMs = wall;
+/** Attach the camera tracks to visible tiles and drop them from hidden ones. */
+function syncTiles() {
+  if (!camerasOn) return;
   const vis = visibleRoles();
   tiles.forEach(function (tile, role) {
-    if (vis.indexOf(role) < 0) detachTile(tile);
-  });
-  playback.leader = pickLeader(wall);
-  const files = playback.files;
-  vis.forEach(function (role) {
-    const tile = tiles.get(role);
-    const f = files[role];
-    if (tile && f && !tile.playing) attachRecording(role, offsetIn(f, wall));
-  });
-  if (camera.paused) {
-    tiles.forEach(function (tile) {
-      if (tile.playing) tile.video.pause();
-    });
-  }
-  syncTransport();
-}
-
-function clearTimer() {
-  if (playback && playback.timer != null) {
-    clearInterval(playback.timer);
-    playback.timer = null;
-  }
-}
-
-/** Jump to the next recording group, live edge, or pause — never snap-loop. */
-function advanceAfterSegment() {
-  if (!playback || playAtBusy) return;
-  clearTimer();
-  const segs = (timeline().segments || []).slice().sort(function (a, b) {
-    return Number(a.startUtcMs) - Number(b.startUtcMs);
-  });
-  const curStart = Number(playback.startUtcMs) || 0;
-  const next = segs.find(function (s) {
-    return Number(s.startUtcMs) > curStart + 250;
-  });
-  if (next) {
-    playAt(Number(next.startUtcMs)).catch(function () {});
-    return;
-  }
-  if (timelineRange().recording) {
-    backToLive().catch(function () {});
-    return;
-  }
-  camera.paused = true;
-  syncTransport();
-}
-
-/** Keep followers within SYNC_TOLERANCE_S of the leader's wall time. */
-function syncFollowers() {
-  if (!playback) return;
-  const pb = playback;
-  const wall = pb.anchorMs;
-  const base = currentSpeed();
-  visibleRoles().forEach(function (role) {
-    if (role === pb.leader) return;
-    const tile = tiles.get(role);
-    const f = pb.files[role];
-    if (!tile || !f || !tile.ready) return;
     const v = tile.video;
-    const target = (wall - f.startUtcMs) / 1000;
-    if (target < 0 || target * 1000 > f.durationMs) {
-      if (!v.paused) v.pause();
+    if (vis.indexOf(role) < 0) {
+      if (v.srcObject) detachTile(tile);
       return;
     }
-    if (camera.paused) return;
-    if (v.paused || v.ended) v.play().catch(function () {});
-    const drift = v.currentTime - target;
-    if (Math.abs(drift) > SEEK_DRIFT_S) {
-      if (!v.seeking) v.currentTime = target;
-      setRate(v, base);
-    } else if (Math.abs(drift) > SYNC_TOLERANCE_S) {
-      setRate(v, base * (drift > 0 ? 1 - RATE_NUDGE : 1 + RATE_NUDGE));
-    } else {
-      setRate(v, base);
-    }
-  });
-}
-
-function tickClock() {
-  if (!playback || camera.paused || playAtBusy) return;
-  const pb = playback;
-  const lead = tiles.get(pb.leader);
-  const lf = pb.files[pb.leader];
-  if (!lead || !lf || !lead.playing) {
-    // No visible camera recorded here: run the wall clock and hand over when one starts.
-    pb.anchorMs += FRAME_MS * currentSpeed();
-    if (pb.anchorMs >= pb.endUtcMs) {
-      advanceAfterSegment();
-      return;
-    }
-    const next = pickLeader(pb.anchorMs);
-    if (next && pb.files[next] && covers(pb.files[next], pb.anchorMs)) pb.leader = next;
-    syncFollowers();
-    syncTransport();
-    return;
-  }
-  if (!lead.ready) {
-    syncTransport();
-    return;
-  }
-  const v = lead.video;
-  const ended = v.ended || (lf.durationMs > 0 && v.currentTime * 1000 >= lf.durationMs - 200);
-  if (ended) {
-    // A camera that stopped early hands the lead to one still recording.
-    const at = lf.startUtcMs + lf.durationMs;
-    const other = visibleRoles().find(function (r) {
-      return r !== pb.leader && !!pb.files[r] && covers(pb.files[r], at + 300);
-    });
-    if (other) {
-      pb.anchorMs = at;
-      pb.leader = other;
-      setRate(v, currentSpeed());
-      syncTransport();
-      return;
-    }
-    advanceAfterSegment();
-    return;
-  }
-  const wall = leaderWallMs();
-  if (wall != null) pb.anchorMs = wall;
-  syncFollowers();
-  syncTransport();
-}
-
-function startClock() {
-  clearTimer();
-  if (!playback) return;
-  playback.timer = setInterval(tickClock, FRAME_MS);
-}
-
-export function stopRecordingPlayback() {
-  clearTimer();
-  tiles.forEach(function (tile) {
-    if (tile.playing) detachTile(tile);
-  });
-  playback = null;
-  if (camera.mode === "dvr") {
-    camera.$patch({ mode: "live", playingName: "", recorded: [], paused: false, loading: false, previewError: "" });
-  }
-}
-
-/**
- * Play every visible camera of a resolved recording group (`/api/dvr/play`).
- * @param {any} res
- * @param {boolean} [paused]
- */
-function playGroup(res, paused) {
-  clearTimer();
-  stopLive();
-  tiles.forEach(detachTile);
-  /** @type {Record<string, GroupFile>} */
-  const files = {};
-  const cams = (res && res.cameras) || {};
-  Object.keys(cams).forEach(function (role) {
-    const c = cams[role] || {};
-    if (!c.name) return;
-    files[role] = {
-      name: String(c.name),
-      startUtcMs: Number(c.startUtcMs) || 0,
-      durationMs: Math.max(0, Number(c.durationMs) || 0),
-      offsetMs: Math.max(0, Number(c.offsetMs) || 0),
+    if (v.srcObject || tile.attaching) return;
+    tile.attaching = true;
+    const gen = camerasGeneration;
+    const stillWanted = function () {
+      return gen === camerasGeneration && visibleRoles().indexOf(role) >= 0;
     };
+    attachCamera(role, v, stillWanted)
+      .then(
+        function (attached) {
+          if (!attached) return;
+          if (!stillWanted()) detachTile(tile);
+          else if (camera.paused && camera.mode === "live") v.pause();
+        },
+        function (e) {
+          // A camera still opening on the car retries on the next live_tracks.
+          if (gen === camerasGeneration && e && e.reason && e.reason !== "timeout") {
+            camera.previewError = errText(e);
+          }
+        },
+      )
+      .finally(function () {
+        tile.attaching = false;
+      });
   });
-  const at = Number(res.atUtcMs) || Number(res.startUtcMs) || 0;
-  if (!(camera.roles || []).length) setRoles(Object.keys(files));
-  const pb = {
-    group: String(res.group || ""),
-    startUtcMs: Number(res.startUtcMs) || at,
-    endUtcMs: Number(res.endUtcMs) || at,
-    files: files,
-    leader: "",
-    anchorMs: at,
-    timer: null,
-  };
-  playback = pb;
-  pb.leader = pickLeader(at);
+}
+
+/** Open the media session and have the car send the visible cameras. */
+async function startCameras() {
+  if (!mounted || camerasOn) return;
+  const gen = camerasGeneration;
+  try {
+    await getMediaSession();
+    if (gen !== camerasGeneration || !mounted) return;
+    setRoles(carCameras());
+    camerasOn = true;
+    if (camera.mode === "live") timelineAtMs = carNow();
+    selectCameras(visibleRoles());
+    camera.$patch({ previewActive: true, previewError: "" });
+    syncTiles();
+  } catch (e) {
+    if (gen !== camerasGeneration) return;
+    camera.$patch({ previewActive: false, previewError: errText(e) });
+  }
+}
+
+/** Stop the camera tracks; the session stays up for cuts. */
+function stopCameras() {
+  camerasGeneration++;
+  camerasOn = false;
+  tiles.forEach(detachTile);
+  selectCameras([]);
+  camera.$patch({ previewActive: false, streaming: [] });
+}
+
+/** Re-open live, e.g. after the recording storage changed. */
+export async function restartLive() {
+  if (isRecordingPlayback()) return;
+  stopCameras();
+  await startCameras();
+}
+
+// --- replay -----------------------------------------------------------------
+
+/** Ask the car to replay from `at` on the camera tracks (or seek the replay it has). */
+async function startReplay(at, paused) {
+  const gen = replayGeneration;
+  replayPending = true;
+  refreshTimeline = true;
   timelineAtMs = at;
-  camera.$patch({
-    mode: "dvr",
-    playingName: pb.group,
-    recorded: Object.keys(files),
-    paused: !!paused,
-    loading: !!pb.leader,
-    previewActive: false,
-    previewError: "",
+  camera.$patch({ mode: "dvr", paused: !!paused, loading: true, previewError: "" });
+  eachVisibleVideo(function (v) {
+    v.play().catch(function () {});
   });
-  requestAnimationFrame(function () {
-    if (playback !== pb) return;
-    visibleRoles().forEach(function (role) {
-      const f = files[role];
-      if (f) attachRecording(role, f.offsetMs);
-    });
-    if (paused) camera.loading = false;
-    else startClock();
-    syncTransport();
-  });
-}
-
-/** Seek inside the group already playing: move every loaded video instead of reloading. */
-function seekInGroup(wallMs) {
-  if (!playback) return;
-  const pb = playback;
-  pb.anchorMs = wallMs;
-  pb.leader = pickLeader(wallMs);
-  timelineAtMs = wallMs;
-  visibleRoles().forEach(function (role) {
-    const tile = tiles.get(role);
-    const f = pb.files[role];
-    if (!tile || !f) return;
-    if (!tile.playing) {
-      attachRecording(role, offsetIn(f, wallMs));
-      return;
-    }
-    if (!tile.ready) return;
-    try {
-      tile.video.currentTime = offsetIn(f, wallMs) / 1000;
-    } catch (e) {}
-    if (!camera.paused && covers(f, wallMs)) tile.video.play().catch(function () {});
-  });
-  camera.$patch({ loading: false, previewError: "" });
-  if (!camera.paused) startClock();
   syncTransport();
+  try {
+    await startCameras();
+    const sent = await replayStart(at, currentSpeed(), !!paused, function () {
+      return gen === replayGeneration;
+    });
+    if (sent) replayOpen = true;
+  } catch (e) {
+    if (gen !== replayGeneration) return;
+    replayPending = false;
+    camera.$patch({ mode: "live", paused: false, loading: false, previewError: errText(e) });
+    syncTransport();
+  }
 }
 
-/** Seek wall-clock; snaps gaps server-side. At the live edge → live. */
+/** Seek wall-clock; the car snaps gaps to the next recording. At the live edge → live. */
 export async function playAt(wallUtcMs) {
   const at = Number(wallUtcMs);
-  if (!at || playAtBusy) return;
+  if (!at) return;
   if (atLiveEdge(at)) {
     await backToLive();
     syncTransport();
     return;
   }
-  playAtBusy = true;
-  camera.$patch({ loading: true, previewError: "" });
-  try {
-    const res = await api("/api/dvr/play?atMs=" + encodeURIComponent(String(at)));
-    if (!res || res.ok === false) {
-      throw new Error((res && res.error) || "play failed");
-    }
-    if (res.live) {
-      await backToLive();
-      syncTransport();
-      return;
-    }
-    // Same group near its end → avoid reload thrash; just pause at end.
-    const resAt = Number(res.atUtcMs) || 0;
-    if (
-      playback &&
-      playback.group === res.group &&
-      Math.abs(resAt - playback.anchorMs) < 400 &&
-      resAt >= Number(res.endUtcMs) - 500
-    ) {
-      camera.$patch({ paused: true, loading: false });
-      return;
-    }
-    if (playback && playback.group === res.group && resAt > 0) {
-      seekInGroup(resAt);
-      return;
-    }
-    playGroup(res, false);
-    // Seal may have grown the timeline — refresh quietly.
-    await loadRecordings();
-  } catch (e) {
-    camera.$patch({ loading: false, previewError: errText(e) });
-  } finally {
-    playAtBusy = false;
+  if (!replayOpen) {
+    await startReplay(at, camera.mode === "dvr" && camera.paused);
+    return;
   }
-}
-
-function eachVideo(fn) {
-  visibleRoles().forEach(function (role) {
-    const tile = tiles.get(role);
-    if (tile) fn(tile);
-  });
+  replayPending = true;
+  timelineAtMs = at;
+  camera.$patch({ loading: true, previewError: "" });
+  replaySeek(at);
+  syncTransport();
 }
 
 export async function togglePlaybackPause() {
@@ -773,8 +555,8 @@ export async function togglePlaybackPause() {
   if (camera.mode === "live") {
     if (camera.paused) {
       camera.paused = false;
-      eachVideo(function (tile) {
-        if (tile.video.srcObject) tile.video.play().catch(function () {});
+      eachVisibleVideo(function (v) {
+        v.play().catch(function () {});
       });
       syncTransport();
       return;
@@ -786,129 +568,63 @@ export async function togglePlaybackPause() {
       let at = wallPlayheadMs();
       if (at >= max - tip) at = max - tip - 1;
       at = Math.max(r.start, Math.min(Math.floor(at), max));
-      await playAt(at);
-      if (isRecordingPlayback() && playback) {
-        camera.paused = true;
-        eachVideo(function (tile) {
-          tile.video.pause();
-        });
-        clearTimer();
-        syncTransport();
-        return;
-      }
+      await startReplay(at, true);
+      if (isRecordingPlayback()) return;
     }
-    eachVideo(function (tile) {
-      tile.video.pause();
+    eachVisibleVideo(function (v) {
+      v.pause();
     });
     camera.paused = true;
     syncTransport();
     return;
   }
 
-  if (!playback) return;
-  const next = !camera.paused;
-  camera.paused = next;
-  if (next) {
-    clearTimer();
-    eachVideo(function (tile) {
-      if (tile.playing) tile.video.pause();
-    });
+  if (!replayOpen) return;
+  if (camera.paused) {
+    camera.paused = false;
+    replayResume();
   } else {
-    const lead = tiles.get(playback.leader);
-    if (lead && lead.playing) {
-      if (lead.video.ended) lead.video.currentTime = 0;
-      lead.video.play().catch(function () {});
-    }
-    applyPlaybackRate();
-    startClock();
+    timelineAtMs = wallPlayheadMs();
+    if (replay) replay = { state: "paused", atMs: timelineAtMs, anchor: replay.anchor };
+    camera.paused = true;
+    stopTicker();
+    replayPause();
   }
   syncTransport();
 }
 
-export async function backToLive() {
-  stopRecordingPlayback();
-  emit("live");
-  resetPlaybackSpeed();
-  dvr.timelineDay = null;
-  timelineAtMs = Date.now();
-  camera.paused = false;
-  await startLive();
-}
-
-// --- live -------------------------------------------------------------------
-
-/** Open the media session and stream the visible cameras (no-op while playing a recording). */
-async function startLive() {
-  if (!mounted || isRecordingPlayback() || liveOn) return;
-  const gen = liveGeneration;
-  try {
-    await getMediaSession();
-    if (gen !== liveGeneration || !mounted || isRecordingPlayback()) return;
-    setRoles(carCameras());
-    liveOn = true;
-    timelineAtMs = carNow();
-    selectLive(visibleRoles());
-    camera.$patch({ previewActive: true, previewError: "" });
-    syncLiveTiles();
-  } catch (e) {
-    if (gen !== liveGeneration) return;
-    camera.$patch({ previewActive: false, previewError: errText(e) });
+function leaveReplay() {
+  replayGeneration++;
+  stopTicker();
+  if (replayOpen) {
+    replayOpen = false;
+    stopAcks++;
+    replayStop();
+  }
+  replay = null;
+  replayPending = false;
+  refreshTimeline = false;
+  if (camera.mode === "dvr") {
+    camera.$patch({ mode: "live", playingName: "", recorded: [], paused: false, loading: false, previewError: "" });
   }
 }
 
-/** Attach live tracks to visible tiles and drop them from hidden ones. */
-function syncLiveTiles() {
-  if (!liveOn || camera.mode !== "live") return;
-  const vis = visibleRoles();
-  tiles.forEach(function (tile, role) {
-    const v = tile.video;
-    if (vis.indexOf(role) < 0) {
-      if (v.srcObject) detachLive(v);
-      return;
-    }
-    if (v.srcObject || tile.attaching) return;
-    tile.attaching = true;
-    const gen = liveGeneration;
-    attachLive(role, v)
-      .then(
-        function () {
-          if (gen !== liveGeneration) detachLive(v);
-          else if (camera.paused) v.pause();
-        },
-        function (e) {
-          // A camera still opening on the car retries on the next live_tracks.
-          if (gen === liveGeneration && e && e.reason && e.reason !== "timeout") {
-            camera.previewError = errText(e);
-          }
-        },
-      )
-      .finally(function () {
-        tile.attaching = false;
-      });
+export async function backToLive() {
+  leaveReplay();
+  emit("live");
+  camera.rate = 1;
+  dvr.timelineDay = null;
+  timelineAtMs = Date.now();
+  camera.paused = false;
+  eachVisibleVideo(function (v) {
+    v.play().catch(function () {});
   });
-}
-
-/** Stop the live tracks; the session stays up for recordings and cuts. */
-function stopLive() {
-  liveGeneration++;
-  liveOn = false;
-  tiles.forEach(function (tile) {
-    if (tile.video.srcObject) detachLive(tile.video);
-  });
-  selectLive([]);
-  camera.$patch({ previewActive: false, streaming: [] });
-}
-
-/** Re-open live, e.g. after the recording storage changed. */
-export async function restartLive() {
-  if (isRecordingPlayback()) return;
-  stopLive();
-  await startLive();
+  await startCameras();
 }
 
 /**
  * Camera grid. Mounting opens the media session and streams the visible
- * cameras; unmounting closes it and stops any recording playback.
+ * cameras; unmounting closes it, which also ends any replay on the car.
  */
 class OaaCameraPlayer extends OaaElement {
   static properties = {
@@ -930,6 +646,7 @@ class OaaCameraPlayer extends OaaElement {
       mode: "live",
       playingName: "",
       paused: false,
+      rate: 1,
       loading: false,
       focus: "",
       streaming: [],
@@ -939,20 +656,22 @@ class OaaCameraPlayer extends OaaElement {
     dvr.timelineDay = null;
     mounted = true;
     loadRecordings();
-    startLive();
+    startCameras();
   }
 
   updated() {
     registerTiles(this);
-    syncLiveTiles();
+    syncTiles();
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     mounted = false;
-    stopRecordingPlayback();
-    stopLive();
+    leaveReplay();
+    stopCameras();
     dropAllTiles();
+    replayOpen = false;
+    stopAcks = 0;
     hangupMediaSession();
   }
 
@@ -960,7 +679,9 @@ class OaaCameraPlayer extends OaaElement {
     const hidden = !!focus && focus !== role;
     let status = "";
     if (mode === "dvr") {
-      if ((camera.recorded || []).indexOf(role) < 0) status = t("cameras.tile.noRecording", "No recording");
+      if (!camera.loading && (camera.recorded || []).indexOf(role) < 0) {
+        status = t("cameras.tile.noRecording", "No recording");
+      }
     } else if (camera.previewActive && (camera.streaming || []).indexOf(role) < 0) {
       status = t("cameras.tile.waiting", "Waiting for camera…");
     }
