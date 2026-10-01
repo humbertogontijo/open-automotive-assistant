@@ -33,7 +33,7 @@ info:
     only and never carries or stores media bytes. Signaling frames and
     data-channel JSON carry `v: 1`; see `WebRtcSignal`, `DataChannelHello`
     and `MediaChunk` below.
-  version: 0.1.11
+  version: 0.1.12
 servers:
   - url: http://127.0.0.1:8787
     description: HU GeckoView / localhost (role=local)
