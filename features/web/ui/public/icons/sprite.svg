@@ -10,7 +10,6 @@
   <symbol id="i-car" viewBox="0 0 24 24"><path d="M5 11l1.6-4.2A2 2 0 0 1 8.5 5.5h7a2 2 0 0 1 1.9 1.3L19 11M3.5 9.5 5 11M20.5 9.5 19 11M6 18v2M18 18v2" stroke-linejoin="round" stroke-linecap="round"/><rect x="3.5" y="11" width="17" height="7" rx="2"/><path d="M7.5 14.5h1M15.5 14.5h1" stroke-linecap="round"/></symbol>
   <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" stroke-linejoin="round" stroke-linecap="round"/></symbol>
   <symbol id="i-about" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 11v5M12 8h.01" stroke-linecap="round"/></symbol>
-  <symbol id="i-store" viewBox="0 0 24 24"><path d="M4 9h16l-1.5 11H5.5L4 9z" stroke-linejoin="round"/><path d="M8 9V7a4 4 0 0 1 8 0v2" stroke-linecap="round"/><path d="M9 13v4M15 13v4" stroke-linecap="round"/></symbol>
   <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 17v4M8 3h8l-1.5 7H18l-6 7-6-7h3.5L8 3z" stroke-linejoin="round" stroke-linecap="round"/></symbol>
   <symbol id="i-hide" viewBox="0 0 24 24"><path d="M3 3l18 18M10.5 10.7a2 2 0 0 0 2.8 2.8M9.9 5.1A9.8 9.8 0 0 1 12 5c5 0 9 4.5 10 7-.4 1-1.2 2.4-2.5 3.6M6.1 6.1C4.4 7.5 3.3 9.3 3 12c1 2.5 5 7 9 7 1.4 0 2.8-.4 4-.1" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-flip" viewBox="0 0 24 24"><path d="M7 7h10v4M17 17H7v-4" stroke-linecap="round" stroke-linejoin="round"/><path d="m14 4 3 3-3 3M10 20l-3-3 3-3" stroke-linecap="round" stroke-linejoin="round"/></symbol>

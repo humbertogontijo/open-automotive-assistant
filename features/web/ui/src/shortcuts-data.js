@@ -22,8 +22,31 @@ export function ensureApps() {
   );
 }
 
+/** @type {Promise<void> | null} */
+let servicesLoad = null;
+let servicesNode = "";
+
+/** Per-domain services for control actions; fetched once per car. */
+export function ensureServices() {
+  if (servicesNode !== session.selectedNodeId) {
+    servicesNode = session.selectedNodeId;
+    servicesLoad = null;
+    shortcuts.services = null;
+  }
+  servicesLoad ??= api("/api/services").then(
+    (res) => {
+      if (res && Array.isArray(res.domains)) shortcuts.services = res.domains;
+      else servicesLoad = null;
+    },
+    () => {
+      servicesLoad = null;
+    },
+  );
+}
+
 /** Shortcuts, routines, scenes and overlay slots. */
 export async function loadShortcuts() {
+  ensureServices();
   try {
     const res = await api("/api/shortcuts");
     shortcuts.$patch({

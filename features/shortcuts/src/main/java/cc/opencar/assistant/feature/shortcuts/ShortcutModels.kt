@@ -103,11 +103,17 @@ sealed class ShortcutCondition {
 sealed class ShortcutAction {
     abstract fun toMap(): Map<String, Any?>
 
-    data class SetControl(val entityId: String, val value: String) : ShortcutAction() {
+    /** Home Assistant–style `domain.service` on one entity (see `OaaServices`). */
+    data class CallService(
+        val service: String,
+        val entityId: String,
+        val data: Map<String, Any?> = emptyMap(),
+    ) : ShortcutAction() {
         override fun toMap() = mapOf(
-            "type" to "set_control",
+            "type" to "service",
+            "service" to service,
             "entityId" to entityId,
-            "value" to value,
+            "data" to data,
         )
     }
 
@@ -162,10 +168,10 @@ sealed class ShortcutAction {
 
         fun fromMap(m: Map<*, *>): ShortcutAction? {
             return when (m["type"] as? String) {
-                "set_control" -> {
-                    val id = m["entityId"] as? String ?: return null
-                    val value = m["value"]?.toString() ?: return null
-                    SetControl(id, value)
+                "service" -> {
+                    val service = (m["service"] as? String)?.takeIf { it.contains('.') } ?: return null
+                    val id = (m["entityId"] as? String)?.takeIf { it.isNotBlank() } ?: return null
+                    CallService(service, id, readParams(m["data"]))
                 }
                 "launch_app" -> {
                     val pkg = m["packageName"] as? String ?: return null

@@ -9,8 +9,6 @@ import cc.opencar.assistant.feature.debug.Obd2Probe
 import cc.opencar.assistant.feature.debug.ContributorDebugState
 import cc.opencar.assistant.feature.dvr.DvrController
 import cc.opencar.assistant.feature.history.EntityHistoryRecorder
-import cc.opencar.assistant.feature.install.ApkInstaller
-import cc.opencar.assistant.feature.install.AppStore
 import cc.opencar.assistant.feature.memory.SettingsMemoryController
 import cc.opencar.assistant.feature.shortcuts.ShortcutsController
 import cc.opencar.assistant.feature.web.webrtc.CarWebRtc
@@ -20,7 +18,6 @@ internal data class OaaWebDeps(
     val session: VehicleSession,
     val debug: ContributorDebugState,
     val memory: SettingsMemoryController?,
-    val installer: ApkInstaller,
     val dvr: DvrController,
     val probe: CatalogProbe,
     val obd2: Obd2Probe? = null,
@@ -41,7 +38,6 @@ internal data class OaaWebDeps(
     val hub: HubClient? = null,
     val auth: CarAuth,
 ) {
-    val store by lazy { AppStore(context, installer = installer) }
     /** Shared with the hub link so hub and local viewers count against the same cameras. */
     val webrtc by lazy { hub?.webrtc ?: CarWebRtc(dvr) }
     val entityVisibility by lazy { EntityVisibilityStore(prefs) }

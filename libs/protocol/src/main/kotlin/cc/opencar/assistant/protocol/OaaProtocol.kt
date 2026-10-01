@@ -42,6 +42,8 @@ object OaaPaths {
     const val STATUS = "/api/status"
     const val EVENTS = "/api/events"
     const val I18N = "/api/i18n"
+    /** Car: per-domain services for shortcut actions ([OaaServices.catalog]). */
+    const val SERVICES = "/api/services"
 
     const val NODES = "/api/nodes"
     const val NODES_PAIRING = "/api/nodes/pairing"
@@ -474,7 +476,7 @@ object OaaMdns {
 object OaaSpa {
     val PAGES = setOf(
         "home", "cars", "history", "controls", "drive", "energy", "lights", "adas",
-        "assistant", "display", "sound", "connect", "vehicle", "cameras", "store",
+        "assistant", "display", "sound", "connect", "vehicle", "cameras",
         "shortcuts", "plugins", "settings", "lab", "about", "login", "setup",
     )
 }

@@ -9,6 +9,7 @@ android {
 dependencies {
     api(project(":integration-api"))
     implementation(project(":oaa-support"))
+    implementation(project(":protocol"))
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.datastore.preferences)
 }

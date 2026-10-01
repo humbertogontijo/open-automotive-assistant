@@ -172,17 +172,12 @@ export const shortcuts = createSlice({
   overlay: {},
   /** @type {any[]} */
   apps: [],
+  /**
+   * `GET /api/services` domains (`[{domain, services}]`); null while loading.
+   * @type {any[] | null}
+   */
+  services: null,
   wheelKeys: ["custom", "mute", "top", "left", "right", "bottom", "vr", "menu", "confirm"],
-});
-
-export const store = createSlice({
-  /** @type {any[]} */
-  results: [],
-  /** @type {any} */
-  detail: null,
-  busy: false,
-  /** @type {string | null} */
-  message: null,
 });
 
 export const lab = createSlice({

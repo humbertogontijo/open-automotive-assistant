@@ -5,7 +5,7 @@
 | `community.pk8` | PKCS#8 private key |
 | `community.pem` | X.509 certificate |
 
-Fingerprint historically noted as `d7f1f224`. Used by `:signing` (host CLI) and packaged under `:feature-install` assets for on-device re-sign. The well-known AOSP community testkey is intentionally committed; `copyCommunityKeys` copies it into `features/install/build/generated/communityAssets` at build time, so there is no second checked-in copy.
+Fingerprint historically noted as `d7f1f224`. Used by the `:signing` host CLI. The well-known AOSP community testkey is intentionally committed.
 
 Host sign:
 

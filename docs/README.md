@@ -19,8 +19,6 @@ Start here. Prefer the how-to for your task; use architecture only for the modul
 | Automations (flows / scenes / routines) | [shortcuts.md](shortcuts.md) |
 | HTTP / WebSocket contract | [openapi/open-automotive-assistant-v1.yaml](openapi/open-automotive-assistant-v1.yaml) |
 | Threat model / install safety | [safety.md](safety.md), [disclaimer.md](disclaimer.md), [webrtc.md](webrtc.md) (media plane) |
-| In-app store extras policy | [store.md](store.md) |
-
 ## What belongs where
 
 | Doc | Owns | Does **not** own |

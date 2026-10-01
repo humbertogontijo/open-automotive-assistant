@@ -1,10 +1,10 @@
 import { t } from "../../i18n.js";
 import { OaaDraftEditor } from "./fields.js";
 import { conditionsBlock, actionsBlock } from "./rows.js";
-import { toApiShortcut } from "./model.js";
+import { blankActionForType, toApiShortcut } from "./model.js";
 
 export function blankRoutine() {
-  return { name: "", enabled: true, icon: "drive", actions: [{ type: "set_control", entityId: "", value: "" }], conditions: [] };
+  return { name: "", enabled: true, icon: "drive", actions: [blankActionForType("service")], conditions: [] };
 }
 
 /** Routine: a reusable, trigger-less action sequence with optional conditions. */
@@ -31,7 +31,7 @@ class OaaRoutineEditor extends OaaDraftEditor {
     return this.shell({
       icon: this.draft.icon || "drive",
       title: this.draft.id ? t("routines.edit", "Edit routine") : t("routines.new", "New routine"),
-      body: [conditionsBlock(this), actionsBlock(this, { type: "set_control", entityId: "", value: "" })],
+      body: [conditionsBlock(this), actionsBlock(this, blankActionForType("service"))],
     });
   }
 }

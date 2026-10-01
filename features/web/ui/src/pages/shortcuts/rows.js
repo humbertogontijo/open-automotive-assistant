@@ -5,6 +5,7 @@
 import { html, nothing } from "lit";
 import { live } from "lit/directives/live.js";
 import { repeat } from "lit/directives/repeat.js";
+import "@awesome.me/webawesome/dist/components/color-picker/color-picker.js";
 import { shortcuts } from "../../store.js";
 import { segmentToggle, choiceSelect } from "../../ui/cards/choice.js";
 import { t } from "../../i18n.js";
@@ -31,8 +32,18 @@ import {
   triggerTypeOptions,
   uiCardGroupOptions,
   wheelKeyOptions,
-  writableControlOptions,
 } from "./model.js";
+import {
+  fieldLabel,
+  fieldOptions,
+  fieldRange,
+  fieldsFor,
+  initialData,
+  serviceDef,
+  serviceEntityOptions,
+  serviceLabel,
+  servicesForEntity,
+} from "./services.js";
 
 /** @typedef {import("./fields.js").OaaDraftEditor} Editor */
 
@@ -275,6 +286,133 @@ function openLinked(ed, kind, id) {
   ed.dispatchEvent(new CustomEvent("oaa-edit", { bubbles: true, detail: { kind, id: id || null } }));
 }
 
+/** `#rrggbb` ↔ HA `rgb_color` `[r, g, b]`. */
+function hexToRgb(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || "").trim());
+  if (!m) return undefined;
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function rgbToHex(rgb) {
+  if (!Array.isArray(rgb) || rgb.length !== 3) return "";
+  return "#" + rgb.map((c) => Number(c).toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * One service field. Text and number inputs write the draft without re-rendering; the rest
+ * re-render so dependent controls follow.
+ * @param {Editor} ed @param {any} row @param {any} f @param {any} entity
+ */
+function serviceField(ed, row, f, entity) {
+  const data = row.data || (row.data = {});
+  const cur = data[f.key];
+  const label = fieldLabel(f) + (f.required ? "" : " " + t("shortcuts.optional", "(optional)"));
+  const set = (v) => {
+    if (v === undefined) delete data[f.key];
+    else data[f.key] = v;
+    ed.changed();
+  };
+  switch (f.type) {
+    case "boolean": {
+      const checked = cur != null ? !!cur : !!f.default;
+      return html`<wa-checkbox .checked=${live(checked)} @change=${(ev) => set(ev.target.checked)}>${fieldLabel(f)}</wa-checkbox>`;
+    }
+    case "select": {
+      const opts = fieldOptions(f, entity);
+      const options = f.required || !opts.length ? opts : [{ value: "", label: t("shortcuts.service.unset", "Not set") }, ...opts];
+      return html`<div class="service-field">
+        <span class="service-field-label">${label}</span>
+        ${entityValueField({
+          options,
+          current: cur != null ? cur : "",
+          onSelect: (v) => set(v === "" ? undefined : v),
+        })}
+      </div>`;
+    }
+    case "number": {
+      const r = fieldRange(f, entity);
+      const hint = r.min != null && r.max != null ? r.min + " – " + r.max : "";
+      return html`<wa-input
+        type="number"
+        label=${label}
+        hint=${hint}
+        min=${r.min != null ? r.min : nothing}
+        max=${r.max != null ? r.max : nothing}
+        step=${r.step != null ? r.step : "any"}
+        .value=${live(cur != null ? String(cur) : "")}
+        @input=${(ev) => {
+          const v = ev.target.value;
+          if (v === "" || isNaN(Number(v))) delete data[f.key];
+          else data[f.key] = Number(v);
+        }}
+      ></wa-input>`;
+    }
+    case "color":
+      return html`<div class="service-field">
+        <span class="service-field-label">${label}</span>
+        <div class="service-field-row">
+          <wa-color-picker
+            size="small"
+            format="hex"
+            without-format-toggle
+            label=${fieldLabel(f)}
+            .value=${live(rgbToHex(cur))}
+            @change=${(ev) => set(hexToRgb(ev.target.value))}
+          ></wa-color-picker>
+          ${cur != null && !f.required ? removeRowButton(() => set(undefined)) : nothing}
+        </div>
+      </div>`;
+    default:
+      return html`<wa-input
+        label=${label}
+        .value=${live(cur != null ? String(cur) : "")}
+        @input=${(ev) => {
+          data[f.key] = ev.target.value;
+        }}
+      ></wa-input>`;
+  }
+}
+
+/** Target entity, then one of its domain's services, then that service's fields. @param {Editor} ed @param {any} a @param {number} i */
+function serviceFields(ed, a, i) {
+  const row = ed.draft.actions[i];
+  const entity = entityById(a.entityId);
+  const services = servicesForEntity(entity);
+  const def = serviceDef(a.service);
+  return html`
+    ${choiceSelect({
+      options: serviceEntityOptions(a.entityId),
+      current: a.entityId || "",
+      searchable: true,
+      onSelect: (entityId) => {
+        const next = entityById(entityId);
+        const ids = next ? servicesForEntity(next).map((s) => next.domain + "." + s.service) : [];
+        const keep = ids.includes(row.service);
+        const service = keep ? row.service : ids[0] || "";
+        Object.assign(row, { entityId, service, data: keep ? row.data : initialData(serviceDef(service), next) });
+        ed.changed();
+      },
+    })}
+    ${entity
+      ? choiceSelect({
+          options: services.map((s) => {
+            const id = entity.domain + "." + s.service;
+            return { value: id, label: serviceLabel(id) };
+          }),
+          current: a.service || "",
+          onSelect: (service) => {
+            Object.assign(row, { service, data: initialData(serviceDef(service), entity) });
+            ed.changed();
+          },
+        })
+      : a.service
+      ? html`<p class="hint">${serviceLabel(a.service)}</p>`
+      : nothing}
+    ${def ? fieldsFor(def, entity).map((f) => serviceField(ed, row, f, entity)) : nothing}
+  `;
+}
+
 /** @param {Editor} ed @param {any} a @param {number} i */
 function actionFields(ed, a, i) {
   const set = (patch) => {
@@ -282,21 +420,8 @@ function actionFields(ed, a, i) {
     ed.changed();
   };
   switch (a.type) {
-    case "set_control":
-      return html`
-        ${choiceSelect({
-          options: writableControlOptions(),
-          current: a.entityId || "",
-          searchable: true,
-          onSelect: (entityId) => set({ entityId, value: pickDefaultValue(entityById(entityId), a.value) }),
-        })}
-        ${entityValueField({
-          entity: entityById(a.entityId),
-          current: a.value || "",
-          placeholder: "value",
-          onSelect: (value) => set({ value }),
-        })}
-      `;
+    case "service":
+      return serviceFields(ed, a, i);
     case "set_scene":
       return html`
         ${choiceSelect({
@@ -381,7 +506,7 @@ export function actionsBlock(ed, blank) {
       </div>`,
     )}
     ${ed.addButton(t("shortcuts.add_action", "Add action"), () => {
-      d.actions = (d.actions || []).concat([Object.assign({}, blank)]);
+      d.actions = (d.actions || []).concat([JSON.parse(JSON.stringify(blank))]);
       ed.changed();
     })}
   `;

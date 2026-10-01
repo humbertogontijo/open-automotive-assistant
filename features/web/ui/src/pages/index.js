@@ -12,7 +12,6 @@ import { pageAssistant } from "./assistant.js";
 import { pageAbout } from "./about.js";
 import "./energy.js";
 import "./sound.js";
-import "./store.js";
 import "./plugins.js";
 import "./cars.js";
 

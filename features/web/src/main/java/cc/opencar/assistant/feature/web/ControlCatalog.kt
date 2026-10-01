@@ -49,20 +49,30 @@ object ControlCatalog {
         val persist = memory?.persistSnapshot().orEmpty()
         val lockedKeys = session.catalog().filter { it.writeLocked }.mapTo(HashSet()) { it.property.key }
         return defsFor(session).mapNotNull { def ->
-            val base = when {
-                def.domain == EntityType.CAMERA -> return@mapNotNull null
-                def.domain == EntityType.CLIMATE && def.isComposite ->
-                    climateMap(session, def, store) ?: return@mapNotNull null
-                def.isComposite ->
-                    compositeMap(session, def, store, i18n) ?: return@mapNotNull null
-                def.domain == EntityType.COVER ->
-                    coverMap(session, def, store, i18n) ?: return@mapNotNull null
-                else -> {
-                    val prop = def.property() ?: return@mapNotNull null
-                    defToMap(def, session.diagnose(prop), store, i18n, session, def.bindingKey in lockedKeys)
-                }
-            }
-            enrichPersist(base, def, persist[def.id])
+            row(session, def, store, i18n, def.bindingKey in lockedKeys)?.let { enrichPersist(it, def, persist[def.id]) }
+        }
+    }
+
+    /** One vehicle entity row as [snapshot] builds it (no persist pins), or null when unknown or unbound. */
+    suspend fun entityRow(session: VehicleSession, id: String, context: Context? = null): Map<String, Any?>? {
+        val def = resolveDef(session, id) ?: return null
+        val locked = session.catalog().any { it.writeLocked && it.property.key == def.bindingKey }
+        return row(session, def, context?.let { LastKnownStore(it) }, context?.let { i18n(it, session) }, locked)
+    }
+
+    private suspend fun row(
+        session: VehicleSession,
+        def: EntityDef,
+        store: LastKnownStore?,
+        i18n: I18nBundle?,
+        writeLocked: Boolean,
+    ): Map<String, Any?>? = when {
+        def.domain == EntityType.CAMERA -> null
+        def.domain == EntityType.CLIMATE && def.isComposite -> climateMap(session, def, store)
+        def.isComposite -> compositeMap(session, def, store, i18n)
+        def.domain == EntityType.COVER -> coverMap(session, def, store, i18n)
+        else -> def.property()?.let { prop ->
+            defToMap(def, session.diagnose(prop), store, i18n, session, writeLocked)
         }
     }
 

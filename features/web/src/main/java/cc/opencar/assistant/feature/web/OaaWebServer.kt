@@ -10,7 +10,6 @@ import cc.opencar.assistant.feature.debug.ContributorDebugState
 import cc.opencar.assistant.feature.debug.LogRingBuffer
 import cc.opencar.assistant.feature.dvr.DvrController
 import cc.opencar.assistant.feature.history.EntityHistoryRecorder
-import cc.opencar.assistant.feature.install.ApkInstaller
 import cc.opencar.assistant.feature.memory.SettingsMemoryController
 import cc.opencar.assistant.feature.shortcuts.ShortcutsController
 import cc.opencar.assistant.protocol.OaaPorts
@@ -31,7 +30,6 @@ class OaaWebServer(
     private val session: VehicleSession,
     private val debug: ContributorDebugState,
     private val memory: SettingsMemoryController?,
-    private val installer: ApkInstaller,
     private val dvr: DvrController,
     private val probe: CatalogProbe,
     private val obd2: Obd2Probe? = null,
@@ -60,7 +58,6 @@ class OaaWebServer(
             session = session,
             debug = debug,
             memory = memory,
-            installer = installer,
             dvr = dvr,
             probe = probe,
             obd2 = obd2,
@@ -90,7 +87,6 @@ class OaaWebServer(
                 registerAuthRoutes(deps)
                 registerCoreRoutes(deps)
                 registerEventRoutes(deps)
-                registerStoreRoutes(deps)
                 registerDvrRoutes(deps)
                 registerWebRtcRoutes(deps)
                 registerSoundRoutes(deps)

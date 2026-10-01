@@ -24,7 +24,6 @@ const PAGES = {
   connect: { tag: "oaa-page-connect" },
   vehicle: { tag: "oaa-page-group", group: "vehicle" },
   cameras: { tag: "oaa-page-cameras", load: () => import("./cameras.js") },
-  store: { tag: "oaa-page-store" },
   shortcuts: { tag: "oaa-page-shortcuts", load: () => import("./shortcuts.js") },
   plugins: { tag: "oaa-page-plugins" },
   settings: { tag: "oaa-page-settings", load: () => import("./settings.js") },

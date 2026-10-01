@@ -240,25 +240,6 @@ wa-card.lab-logs { display: block; margin-bottom: 0.75rem; }
 wa-card.lab-logs::part(body) { display: flex; flex-direction: column; gap: 0.6rem; }
 .lab-logs-bar { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
 .lab-logs-out { max-height: 360px; overflow: auto; margin: 0; }
-.store-search { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.5rem; }
-.store-search wa-input { flex: 1; min-width: 10rem; }
-.store-hits { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 1rem; }
-.store-hit {
-  display: flex; gap: 0.9rem; align-items: center; width: 100%; padding: 0.75rem;
-  text-align: left; cursor: pointer; color: inherit; font: inherit;
-  background: var(--wa-color-surface-default); border: 1px solid var(--wa-color-surface-border); border-radius: var(--radius, 12px);
-}
-.store-hit-text { min-width: 0; flex: 1; }
-.store-hit-text .sub { margin: 0.25rem 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.store-icon { flex-shrink: 0; border-radius: 12px; object-fit: cover; background: var(--wa-color-surface-raised); }
-.store-hit .ico { flex-shrink: 0; }
-wa-card.store-detail { display: block; margin-top: 0.75rem; }
-wa-card.store-detail::part(body) { display: flex; flex-direction: column; gap: 0.85rem; align-items: stretch; }
-wa-card.store-detail > wa-button:first-child { align-self: flex-start; }
-.store-detail-head { display: flex; gap: 1rem; align-items: flex-start; flex-wrap: wrap; }
-.store-detail-text { flex: 1; min-width: 12rem; }
-.store-detail-text h2 { margin: 0 0 0.35rem; }
-.store-detail-text .mono { margin: 0 0 0.5rem; word-break: break-all; }
 
 wa-card.lab-card { display: block; margin-bottom: 0.75rem; }
 wa-card.lab-card::part(body) { display: flex; flex-direction: column; gap: 0.6rem; }

@@ -32,6 +32,7 @@ class ShortcutsController(
     triggerSources: List<ShortcutTriggerSource> = emptyList(),
     private val readEntity: (suspend (String) -> String?)? = null,
     private val readGear: (suspend () -> Int?)? = null,
+    private val readEntityRow: (suspend (String) -> Map<String, Any?>?)? = null,
     parentScope: CoroutineScope = CoroutineScope(SupervisorJob()),
 ) {
     private val ioScope = parentScope + Dispatchers.IO
@@ -71,6 +72,7 @@ class ShortcutsController(
         readWifiSsid = {
             if (::wifiMonitor.isInitialized) wifiMonitor.currentSsid() else null
         },
+        readEntityRow = readEntityRow,
     )
 
     private var entityWatcher: EntityValueWatcher? = null

@@ -32,7 +32,6 @@ export const NAV_ITEMS = [
   { page: "vehicle", icon: "sensor", label: "Meu Veículo" },
   { page: "history", icon: "history", label: "Histórico" },
   { page: "cameras", icon: "camera", label: "Câmeras", cap: ["CAMERAS_DVR"] },
-  { page: "store", icon: "store", label: "Loja" },
   { page: "shortcuts", icon: "pin", label: "Atalhos" },
   { page: "plugins", icon: "plugins", label: "Plugins" },
   { page: "settings", icon: "system", label: "Ajustes" },

@@ -1,5 +1,7 @@
 package cc.opencar.assistant.feature.web
 
+import cc.opencar.assistant.protocol.OaaPaths
+import cc.opencar.assistant.protocol.OaaServices
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.call
 import io.ktor.server.request.receive
@@ -199,6 +201,10 @@ internal fun Routing.registerShortcutRoutes(deps: OaaWebDeps) {
             else -> return@post call.respond(mapOf("ok" to false, "error" to "missing active"))
         }
         call.respond(shortcuts.setSceneActive(id, active))
+    }
+
+    get(OaaPaths.SERVICES) {
+        call.respond(mapOf("domains" to OaaServices.catalog()))
     }
 
     get("/api/apps") {

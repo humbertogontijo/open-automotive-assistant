@@ -25,7 +25,6 @@ const ICON_MAP = {
   cameras: "i-camera",
   system: "i-system",
   settings: "i-system",
-  store: "i-store",
   lab: "i-lab",
   about: "i-about",
   back: "i-back",

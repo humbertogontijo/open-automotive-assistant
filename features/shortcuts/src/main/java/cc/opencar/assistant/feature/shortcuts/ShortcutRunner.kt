@@ -3,11 +3,12 @@ package cc.opencar.assistant.feature.shortcuts
 import android.content.Context
 import android.util.Log
 import cc.opencar.assistant.api.plugin.ShortcutActionHandler
+import cc.opencar.assistant.protocol.OaaServices
 import kotlinx.coroutines.delay
 
 /**
- * Executes a flow or routine action sequence. Control writes go through [setControl];
- * scenes via [setScene]; nested routines via [runRoutine] with recursion guard.
+ * Executes a flow or routine action sequence. Service calls resolve to control writes that
+ * go through [setControl]; scenes via [setScene]; nested routines via [runRoutine] with recursion guard.
  */
 class ShortcutRunner(
     private val context: Context,
@@ -19,6 +20,8 @@ class ShortcutRunner(
     private val readEntity: (suspend (String) -> String?)? = null,
     private val readGear: (suspend () -> Int?)? = null,
     private val readWifiSsid: (() -> String?)? = null,
+    /** Entity row as `/api/entities` serves it; services that toggle or cycle read it. */
+    private val readEntityRow: (suspend (String) -> Map<String, Any?>?)? = null,
 ) {
     private val runningRoutines = ThreadLocal.withInitial { mutableSetOf<String>() }
 
@@ -78,11 +81,7 @@ class ShortcutRunner(
 
     private suspend fun runAction(action: ShortcutAction): Map<String, Any?> {
         return when (action) {
-            is ShortcutAction.SetControl -> {
-                val r = setControl(action.entityId, action.value)
-                if (r.isSuccess) mapOf("ok" to true)
-                else mapOf("ok" to false, "error" to (r.exceptionOrNull()?.message ?: "set failed"))
-            }
+            is ShortcutAction.CallService -> callService(action)
             is ShortcutAction.LaunchApp -> {
                 val ok = launcher.launch(action.packageName)
                 if (ok) mapOf("ok" to true)
@@ -119,6 +118,20 @@ class ShortcutRunner(
                 else mapOf("ok" to false, "error" to (result["error"] ?: "run_routine failed"))
             }
         }
+    }
+
+    private suspend fun callService(action: ShortcutAction.CallService): Map<String, Any?> {
+        val needsRow = OaaServices.find(action.service)?.readsEntity == true
+        val row = if (needsRow) readEntityRow?.invoke(action.entityId) else null
+        val writes = OaaServices.resolve(action.service, action.entityId, action.data, row)
+            .getOrElse { return mapOf("ok" to false, "error" to (it.message ?: "bad service call")) }
+        for (value in writes) {
+            val r = setControl(action.entityId, value)
+            if (r.isFailure) {
+                return mapOf("ok" to false, "error" to (r.exceptionOrNull()?.message ?: "set failed"), "writes" to writes)
+            }
+        }
+        return mapOf("ok" to true, "writes" to writes)
     }
 
     companion object {

@@ -201,6 +201,10 @@ class AssistantRuntime(private val app: OaaApp) {
             readGear = {
                 sess.telemetry().first().gear
             },
+            readEntityRow = { id ->
+                androidSettings?.takeIf { id in it.allIds }?.entityMaps(emptyMap())?.firstOrNull { it["id"] == id }
+                    ?: ControlCatalog.entityRow(sess, id, app)
+            },
             parentScope = scope,
         ).also { it.start() }
         // Session Boot may already have been consumed by memory — deliver explicitly.
@@ -231,7 +235,6 @@ class AssistantRuntime(private val app: OaaApp) {
             session = sess,
             debug = debug,
             memory = memory,
-            installer = installer!!,
             dvr = dvr!!,
             probe = probe!!,
             obd2 = obd2,

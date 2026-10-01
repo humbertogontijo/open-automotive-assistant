@@ -6,6 +6,7 @@ import { session, catalog, shortcuts, findControl } from "../../store.js";
 import { computed } from "../../signals.js";
 import { t, entityLabel } from "../../i18n.js";
 import { valueOptionsForControl } from "./fields.js";
+import { serviceLabel } from "./services.js";
 
 function pluginEntries() {
   return (session.status && session.status.plugins) || [];
@@ -86,6 +87,9 @@ export function normalizeTrigger(tr) {
 }
 
 export function normalizeAction(a) {
+  if (a && a.type === "service") {
+    return { type: "service", service: a.service || "", entityId: a.entityId || "", data: Object.assign({}, a.data || {}) };
+  }
   if (!a || a.type !== "plugin") return a;
   let params = Object.assign({}, a.params || {});
   if (params.data != null && typeof params.data !== "string") {
@@ -134,6 +138,7 @@ function apiParams(params, parseData) {
 export function toApiShortcut(body) {
   const actions = (body.actions || []).map(function (a) {
     a = normalizeAction(a);
+    if (a.type === "service") return Object.assign({}, a, { data: apiParams(a.data, false) });
     if (a.type !== "plugin") return a;
     return { type: "plugin", pluginId: a.pluginId, action: a.action, params: apiParams(a.params, true) };
   });
@@ -220,8 +225,10 @@ export function actionLabel(a) {
   a = normalizeAction(a);
   if (!a || !a.type) return "";
   switch (a.type) {
-    case "set_control":
-      return (a.entityId || "?") + "=" + (a.value || "");
+    case "service": {
+      const target = a.entityId ? entityLabel(findControl(a.entityId)) || a.entityId : "?";
+      return (a.service ? serviceLabel(a.service) : "?") + " · " + target;
+    }
     case "launch_app":
       return a.packageName || "?";
     case "delay_ms":
@@ -262,7 +269,7 @@ export function triggerTypeOptions() {
 
 export function actionTypeOptions() {
   const opts = [
-    { value: "set_control", label: t("shortcuts.action.set_control", "Set control") },
+    { value: "service", label: t("shortcuts.action.service", "Control action") },
     { value: "set_scene", label: t("shortcuts.action.set_scene", "Set scene") },
     { value: "run_routine", label: t("shortcuts.action.run_routine", "Run routine") },
     { value: "launch_app", label: t("shortcuts.action.launch_app", "Launch app") },
@@ -333,9 +340,10 @@ export function blankActionForType(next) {
   /** @type {Record<string, any>} */
   const blank = { type: next };
   if (next === "delay_ms") blank.ms = 500;
-  else if (next === "set_control") {
+  else if (next === "service") {
+    blank.service = "";
     blank.entityId = "";
-    blank.value = "";
+    blank.data = {};
   } else if (next === "set_scene") {
     blank.sceneId = (shortcuts.scenes[0] && shortcuts.scenes[0].id) || "";
     blank.active = true;
@@ -388,7 +396,6 @@ const readable = computed(() => {
 const writable = computed(() => catalog.controls.filter((c) => c.writable !== false));
 const toOptions = (list) => list.map((e) => ({ value: e.id, label: entityLabel(e) }));
 const readableOptions = computed(() => toOptions(readable.get()));
-const writableOptions = computed(() => toOptions(writable.get()));
 
 /** Readable entities for condition / entity_state pickers (includes sensors & trackers). */
 export function readableEntities() {
@@ -399,13 +406,9 @@ export function writableControls() {
   return writable.get();
 }
 
-/** Picker options for [readableEntities] / [writableControls], rebuilt only when the catalog or strings change. */
+/** Picker options for [readableEntities], rebuilt only when the catalog or strings change. */
 export function readableEntityOptions() {
   return readableOptions.get();
-}
-
-export function writableControlOptions() {
-  return writableOptions.get();
 }
 
 export function entityById(id) {

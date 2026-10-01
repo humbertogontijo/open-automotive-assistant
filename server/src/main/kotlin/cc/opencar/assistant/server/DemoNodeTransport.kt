@@ -2,6 +2,7 @@ package cc.opencar.assistant.server
 
 import cc.opencar.assistant.protocol.OaaPaths
 import cc.opencar.assistant.protocol.OaaRpc
+import cc.opencar.assistant.protocol.OaaServices
 import cc.opencar.assistant.protocol.OaaUiEvents
 import org.json.JSONArray
 import org.json.JSONObject
@@ -53,6 +54,7 @@ open class DemoNodeTransport(
             path == "/api/dvr/play" -> 200 to demoPlay(query).toString()
             path == "/api/dvr/preview/start" || path == "/api/dvr/preview/stop" -> 200 to """{"ok":true}"""
             path == "/api/apps" -> 200 to """{"apps":[]}"""
+            path == OaaPaths.SERVICES -> 200 to JSONObject().put("domains", JSONArray(OaaServices.catalog())).toString()
             AUTOMATION_PATH.matches(path) -> automation(method, path, body)
             path == "/api/history" -> 200 to """{"entities":["sensor.battery","select.lane_assist"]}"""
             path.startsWith("/api/history/") ->

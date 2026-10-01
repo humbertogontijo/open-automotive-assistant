@@ -63,6 +63,22 @@ oaa-scene-editor {
   align-self: flex-end;
 }
 
+.service-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.service-field-label {
+  font-size: var(--wa-form-control-label-font-size, 0.875rem);
+}
+
+.service-field-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .editor-add {
   margin-top: 0.25rem;
 }
