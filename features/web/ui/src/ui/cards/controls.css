@@ -88,24 +88,72 @@ wa-option.pin-mark { color: var(--pin); }
 .choice-search { margin: 0.25rem 0.25rem 0.35rem; }
 .choice-empty { margin: 0.4rem 0.75rem 0.55rem; }
 
-/* —— Slider row (oaa-slider) —— */
+/* —— Slider row (oaa-slider): [lead] + a thick fill bar —— */
 .slider-row {
-  position: relative;
-  display: grid; grid-template-columns: auto 1fr; gap: 0.75rem; align-items: center;
-  width: 100%; min-height: var(--ctrl-touch); padding: 0.35rem 0.85rem;
-  background: var(--wa-color-surface-raised); border: 1px solid var(--wa-color-surface-border); border-radius: var(--radius-sm);
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.75rem; align-items: center;
+  width: 100%;
 }
-.slider-row.has-lead { grid-template-columns: auto auto 1fr; }
-.slider-readout {
-  font-weight: 650; font-size: 1.15rem; min-width: 3.25rem; text-align: center;
+.slider-row.has-lead { grid-template-columns: auto minmax(0, 1fr); }
+/* The fill always covers --slider-pad (the icon slot); the value maps onto the rest of the bar. */
+.slider-bar {
+  --slider-pad: 0.9rem;
+  position: relative;
+  height: var(--ctrl-touch);
   font-variant-numeric: tabular-nums;
 }
-.slider-readout .unit { font-size: 0.85rem; font-weight: 550; color: var(--wa-color-text-quiet); margin-left: 0.1rem; }
-.slider-row wa-slider { --track-size: 0.55rem; --thumb-width: 1.55rem; --thumb-height: 1.55rem; }
+.slider-bar.has-icon { --slider-pad: var(--ctrl-touch); }
+.slider-bar.disabled { opacity: 0.5; }
+.slider-bar wa-slider {
+  --track-size: 100%;
+  --thumb-width: 0.25rem;
+  --thumb-height: 45%;
+  display: block; height: 100%;
+}
+.slider-bar wa-slider::part(slider) {
+  height: 100%; margin: 0;
+  padding-inline-start: var(--slider-pad);
+  background: var(--wa-color-surface-raised);
+  box-shadow: inset 0 0 0 1px var(--wa-color-surface-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.slider-bar wa-slider::part(track) { background: transparent; border-radius: 0; opacity: 1; }
+.slider-bar wa-slider::part(indicator) {
+  inset-inline-start: calc(-1 * var(--slider-pad));
+  border-radius: 0;
+  background: var(--wa-color-brand-fill-loud);
+}
+/* A slim handle just inside the fill edge (also carries the keyboard focus ring). */
+.slider-bar wa-slider::part(thumb) {
+  margin-inline-start: calc(var(--thumb-width) * -0.5 - 0.45rem);
+  border: 0; border-radius: 9999px;
+  background: var(--wa-color-brand-on-loud);
+  opacity: 0.85;
+}
 /* The readout shows the value; the label stays for screen readers only. */
-.slider-row wa-slider::part(label) {
+.slider-bar wa-slider::part(label) {
   position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
 }
+.slider-icon, .slider-readout {
+  position: absolute; inset-block: 0;
+  display: flex; align-items: center;
+  pointer-events: none;
+}
+.slider-icon {
+  inset-inline-start: 0; width: var(--slider-pad); justify-content: center;
+  font-size: 1.5rem; color: var(--wa-color-brand-on-loud);
+}
+.slider-readout {
+  inset-inline: 0; justify-content: flex-end; padding-inline-end: 1.2rem;
+  font-weight: 650; font-size: 1.1rem; color: var(--wa-color-text-normal);
+}
+.slider-readout .unit { font-size: 0.85rem; font-weight: 550; color: var(--wa-color-text-quiet); margin-left: 0.1rem; }
+/* Same readout in the on-fill color, clipped to the filled part so it stays legible either way. */
+.slider-readout.on-fill {
+  color: var(--wa-color-brand-on-loud);
+  clip-path: inset(0 calc((100% - var(--slider-pad)) * (1 - var(--fill))) 0 0);
+}
+.slider-readout.on-fill .unit { color: inherit; opacity: 0.8; }
 
 /* —— Toggle buttons (oaa-toggle-button: A/C, ESC, …) — "on" reads like a selected segment —— */
 .toggle-grid { display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); gap: 0.45rem; }
@@ -146,8 +194,8 @@ oaa-toggle-button:has(> .icon-only) { flex: 0 0 auto; }
 }
 .dense oaa-choice-select wa-select,
 .dense oaa-choice-select .choice-trigger { font-size: 0.95rem; --wa-form-control-padding-inline: 0.7rem; }
-.dense .slider-row { padding: 0.25rem 0.75rem; gap: 0.6rem; }
-.dense .slider-readout { font-size: 1.05rem; min-width: 2.75rem; }
+.dense .slider-row { gap: 0.6rem; }
+.dense .slider-readout { font-size: 1.05rem; }
 .dense .stepper .val { font-size: 1.35rem; }
 
 /* —— Stepper —— */

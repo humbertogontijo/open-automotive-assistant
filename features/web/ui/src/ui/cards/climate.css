@@ -13,7 +13,3 @@
   flex: 1;
   min-width: 0;
 }
-.climate-body .slider-row > wa-icon {
-  font-size: 1.5rem;
-  color: var(--wa-color-text-quiet);
-}

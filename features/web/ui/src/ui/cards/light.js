@@ -80,6 +80,7 @@ class OaaLightCard extends OaaCard {
               suffix: "%",
               label: t("attr.brightness", "Brightness"),
               disabled: locked,
+              icon: c.icon || "light",
               lead: power,
               onCommit: (v) => this.send("brightness:" + v),
             })

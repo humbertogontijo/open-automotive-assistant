@@ -70,6 +70,7 @@ class OaaMediaPlayerCard extends OaaCard {
               suffix: "/" + volMax,
               label: t("media_player.volume", "Volume"),
               disabled: locked,
+              icon: "sound",
               onCommit: (v) => this.send("volume:" + Math.round(v)),
             })
           : nothing}

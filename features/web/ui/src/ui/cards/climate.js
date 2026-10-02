@@ -1,7 +1,7 @@
 import { html, nothing } from "lit";
 import { t } from "../../i18n.js";
 import { formatDisplayNumber } from "../../units.js";
-import { icon, displayUnit, controlShell } from "./shared.js";
+import { displayUnit, controlShell } from "./shared.js";
 import { segmentToggle, choiceSelect } from "./choice.js";
 import { OaaCard } from "./card-element.js";
 import { slider } from "./slider.js";
@@ -120,7 +120,7 @@ class OaaClimateCard extends OaaCard {
               suffix: "/" + fanMax,
               label: t("control.hvac_fan", "Fan"),
               disabled: locked,
-              lead: icon("fan"),
+              icon: "fan",
               onCommit: (v) => this.send("fan_mode:" + Math.round(v)),
             })
           : nothing}

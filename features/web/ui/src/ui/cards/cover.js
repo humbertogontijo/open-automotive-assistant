@@ -51,6 +51,7 @@ class OaaCoverCard extends OaaCard {
               suffix: "%",
               label: t("attr.position", "Position"),
               disabled: locked,
+              icon: c.icon || "window",
               onCommit: (v) => this.send(String(Math.max(min, Math.min(max, Math.round(v))))),
             })
           : nothing}
